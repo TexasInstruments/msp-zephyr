@@ -1,13 +1,25 @@
+<<<<<<< HEAD
 description: TI MSPM0 SPI
 
 compatible: "ti,mspm0-spi"
 
 include: [spi-controller.yaml, pinctrl-device.yaml, base.yaml]
+=======
+# Copyright (c) 2025 Linumiz GmbH
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+   Texas Instruments MSPM0 SERIAL PERIPHERAL INTERFACE (SPI).
+
+compatible: "ti,mspm0-spi"
+include: [spi-controller.yaml, pinctrl-device.yaml]
+>>>>>>> dts: bindings: spi: Add DT bindings for TI MSPM0 SPI module
 
 properties:
   reg:
     required: true
 
+<<<<<<< HEAD
   interrupts:
     required: true
 
@@ -16,3 +28,26 @@ properties:
 
   pinctrl-names:
     required: true
+=======
+  pinctrl-0:
+    required: true
+
+  clocks:
+    required: true
+
+  interrupts:
+    required: true
+
+  ti,clk-div:
+    type: int
+    default: 1
+    enum:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+>>>>>>> dts: bindings: spi: Add DT bindings for TI MSPM0 SPI module
