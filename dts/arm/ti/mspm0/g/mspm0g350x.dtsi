@@ -28,6 +28,7 @@
 			interrupts = <25 0>;
 			status = "disabled";
 		};
+<<<<<<< HEAD
 
 		adc0: adc@40000000 {
 			compatible = "ti,mspm0-adc12";
@@ -44,5 +45,7 @@
 			status = "disabled";
 			#io-channel-cells = <1>;
 		};
+=======
+>>>>>>> 9763f977bbd (dts: add I2C nodes for MSPM0)
 	};
 };
