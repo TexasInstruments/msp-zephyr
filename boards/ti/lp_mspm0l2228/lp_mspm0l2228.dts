@@ -91,7 +91,7 @@
 };
 
 &i2c0 {
-	pinctrl-0 = <&i2c0_scl_pa01 &i2c0_sda_pa0>;
+	pinctrl-0 = <&i2c1_scl_pa1 &i2c1_sda_pa0>;
 	pinctrl-names = "default";
 	status = "okay";
 };

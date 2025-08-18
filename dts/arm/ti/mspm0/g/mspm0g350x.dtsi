@@ -7,29 +7,6 @@
 
 / {
 	soc {
-		i2c0: i2c@400f0000 {
-			compatible = "ti,mspm0-i2c";
-			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
-			clock-frequency = <I2C_BITRATE_STANDARD>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x400f0000 0x2000>;
-			interrupts = <24 0>;
-			status = "disabled";
-		};
-
-		i2c1: i2c@400f2000 {
-			compatible = "ti,mspm0-i2c";
-			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
-			clock-frequency = <I2C_BITRATE_STANDARD>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x400f2000 0x2000>;
-			interrupts = <25 0>;
-			status = "disabled";
-		};
-<<<<<<< HEAD
-
 		adc0: adc@40000000 {
 			compatible = "ti,mspm0-adc12";
 			reg = <0x40000000 0x1000>;
@@ -45,7 +22,5 @@
 			status = "disabled";
 			#io-channel-cells = <1>;
 		};
-=======
->>>>>>> 9763f977bbd (dts: add I2C nodes for MSPM0)
 	};
 };
