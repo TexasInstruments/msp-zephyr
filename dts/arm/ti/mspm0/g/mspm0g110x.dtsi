@@ -26,5 +26,13 @@
 			interrupts = <25 0>;
 			status = "disabled";
 		};
+
+		adc0: adc@40004000 {
+			compatible = "ti,mspm0-adc12";
+			reg = <0x40004000 0x2000>;
+			interrupts = <4 0>;
+			status = "disabled";
+			#io-channel-cells = <1>;
+		};
 	};
 };
