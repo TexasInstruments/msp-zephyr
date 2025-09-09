@@ -1,0 +1,9 @@
+# Copyright (C) 2024 Bang & Olufsen A/S, Denmark
+# SPDX-License-Identifier: Apache-2.0
+
+config SPI_MSPM0
+	bool "MSPM0 SPI driver"
+	default y
+	depends on DT_HAS_TI_MSPM0_SPI_ENABLED
+	help
+	  Enable driver for TI MSPM0 SPI.
