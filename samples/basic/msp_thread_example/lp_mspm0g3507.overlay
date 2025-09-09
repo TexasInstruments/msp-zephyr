@@ -1,0 +1,17 @@
+/ {
+	buttons {
+		compatible = "gpio-keys";
+		btn1: btn_1 {
+			gpios = <&gpiob 21 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			label = "User Button";
+			status = "okay";
+		};
+	};
+};
+
+&uart0 {
+	current-speed = <19200>;
+	clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+	pinctrl-0 = <&uart0_tx_pa10 &uart0_rx_pa11>;
+	status = "okay";
+};
