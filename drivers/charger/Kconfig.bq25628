@@ -1,0 +1,11 @@
+# Copyright 2025 Texas Instruments
+#
+# SPDX-License-Identifier: Apache-2.0
+
+config CHARGER_BQ25628
+	bool "BQ25628 Battery Charger"
+	default y
+	depends on DT_HAS_TI_BQ25628_ENABLED
+	select I2C
+	help
+	  Enable BQ25628 battery charger driver.
