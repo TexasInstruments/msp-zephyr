@@ -268,6 +268,7 @@ static int i2c_mspm0_receive(const struct device *dev, struct i2c_msg msg, uint1
 	/* Send a read request to Target */
 	data->msg_buf = msg.buf;
 	data->transfer_count = 0;
+	data->transfer_count = msg.len;
 	data->state = I2C_MSPM0_RX_STARTED;
 	DL_I2C_startControllerTransfer(config->base, addr, DL_I2C_CONTROLLER_DIRECTION_RX, msg.len);
 
