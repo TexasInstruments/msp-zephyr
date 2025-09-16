@@ -1,0 +1,13 @@
+# TI MSPM33C series
+
+# Copyright (c) 2025 Texas Instruments
+# SPDX-License-Identifier: Apache-2.0
+
+#flash thing to be added
+
+if SOC_SERIES_MSPM33C
+
+config NUM_IRQS
+	default 58
+
+endif # SOC_SERIES_MSPM33C
