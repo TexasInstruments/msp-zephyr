@@ -1,0 +1,10 @@
+&uart0 {
+	current-speed = <19200>;
+	clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+	pinctrl-0 = <&uart0_tx_pa10 &uart0_rx_pa11>;
+    status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
