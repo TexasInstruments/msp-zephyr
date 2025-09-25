@@ -60,7 +60,7 @@
 				resolution = <16>;
 				status = "disabled";
 			};
-		}
+		};
 
 		i2c0: i2c@400f0000 {
 			compatible = "ti,mspm0-i2c";
