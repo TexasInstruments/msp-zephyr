@@ -85,6 +85,10 @@
 #define MSP_LFCLK_ENABLED 1
 #endif
 
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(canclk), okay)
+#define MSP_CANCLK_ENABLED 1
+#endif
+
 #define DT_MCLK_CLOCKS_CTRL   DT_CLOCKS_CTLR(DT_NODELABEL(mclk))
 #define DT_LFCLK_CLOCKS_CTRL  DT_CLOCKS_CTLR(DT_NODELABEL(lfclk))
 #define DT_HSCLK_CLOCKS_CTRL  DT_CLOCKS_CTLR(DT_NODELABEL(hsclk))
@@ -103,6 +107,12 @@ struct msp_clk_cfg {
 static struct msp_clk_cfg msp_lfclk_cfg = {
 	.clk_freq = DT_PROP(DT_NODELABEL(lfclk), clock_frequency),
 };
+
+#if MSP_CANCLK_ENABLED
+static struct msp_clk_cfg msp_canclk_cfg = {
+	.clk_freq = DT_PROP(DT_NODELABEL(canclk), clock_frequency),
+};
+#endif /* MSP_CANCLK_ENABLED */
 
 static struct msp_clk_cfg msp_ulpclk_cfg = {
 	.clk_freq = DT_PROP(DT_NODELABEL(ulpclk), clock_frequency),
@@ -240,7 +250,12 @@ static int clock_msp_get_rate(const struct device *dev, clock_control_subsys_t s
 		break;
 #endif /* MSP_MFCLK_ENABLED */
 
+#if MSP_CANCLK_ENABLED
 	case MSP_CLOCK_CANCLK:
+		*rate = msp_canclk_cfg.clk_freq;
+		break;
+#endif /* MSP_CANCLK_ENABLED */
+
 	default:
 		return -ENOTSUP;
 	}
