@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Texas Instruments
+
+config PINCTRL_MSP
+	bool "TI pinctrl MSP driver"
+	default y
+	depends on DT_HAS_TI_MSP_PINCTRL_ENABLED
+	help
+	  Enable support for the PINCTRL on TI MSPM0 and MSPM33 series.

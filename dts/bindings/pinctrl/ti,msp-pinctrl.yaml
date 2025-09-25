@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-    TI MSPM0 pinctrl node.
+    TI MSP pinctrl node.
+
+    This binding is compatible with both MSPM0 and MSPM33 series microcontrollers.
 
     Device pin configuration should be placed in the child nodes of this node.
     Populate the 'pinmux' field with a pair consisting of a pin number and its
@@ -32,10 +34,10 @@ description: |
     - ti,invert: enable logical inversion of a digital input or output
     - ti,hysteresis: enable hysteresis control on open-drain pins
 
-    An example for MSPM0 family, include the chip level pinctrl
+    An example for MSP family, include the chip level pinctrl
     DTSI file in the board level DTS:
 
-      #include <dt-bindings/pinctrl/mspm0-pinctrl.h>
+      #include <dt-bindings/pinctrl/msp-pinctrl.h>
 
     We want to configure the I2C pins to open drain, with pullup enabled
     and input enabled.
@@ -54,7 +56,7 @@ description: |
 
       &pinctrl {
         i2c1_scl_pb2_pull_up: i2c1_scl_pb2_pull_up {
-          pinmux = <MSP_PINMUX(15,MSPM0_PIN_FUNCTION_4)>;
+          pinmux = <MSP_PINMUX(15,MSP_PIN_FUNCTION_4)>;
           input-enable;
           bias-pull-up;
           drive-open-drain;
@@ -66,7 +68,7 @@ description: |
 
     These are obtained from the device-specific datasheet.
 
-compatible: "ti,mspm0-pinctrl"
+compatible: "ti,msp-pinctrl"
 
 include: base.yaml
 
@@ -76,7 +78,7 @@ properties:
 
 child-binding:
   description: |
-    This binding gives a base representation of the MSPM0
+    This binding gives a base representation of the MSP
     pins configuration.
 
   include:
@@ -96,7 +98,7 @@ child-binding:
       required: true
       type: int
       description: |
-        MSPM0 pin's configuration (IO pin, IO function).
+        MSP pin's configuration (IO pin, IO function).
 
     drive-strength:
       enum:

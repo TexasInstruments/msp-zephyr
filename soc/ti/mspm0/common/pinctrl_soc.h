@@ -10,7 +10,7 @@
 
 #include <zephyr/devicetree.h>
 #include <zephyr/types.h>
-#include <zephyr/dt-bindings/pinctrl/mspm0-pinctrl.h>
+#include <zephyr/dt-bindings/pinctrl/msp-pinctrl.h>
 
 #define MSP_GPIO_RESISTOR_PULL_DOWN	(16)
 #define MSP_GPIO_RESISTOR_PULL_UP	(17)
