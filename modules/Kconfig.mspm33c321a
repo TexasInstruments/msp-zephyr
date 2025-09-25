@@ -1,2 +1,0 @@
-config HAS_MSPM33_SDK
-	bool

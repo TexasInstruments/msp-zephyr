@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include <ti/mspm33/mspm33c321a.dtsi>
-#include <ti/mspm33/mspm33c321a-pinctrl.dtsi>
+#include <ti/mspm33/c/mspm33c321a-pinctrl.dtsi>
 #include <zephyr/dt-bindings/gpio/gpio.h>
 
 / {

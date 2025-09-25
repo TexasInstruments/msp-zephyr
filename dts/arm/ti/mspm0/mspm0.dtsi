@@ -171,7 +171,7 @@
 			reg = <0x400a0000 0x4000>;
 
 			gpioa: gpio@400a0000 {
-				compatible = "ti,mspm0-gpio";
+				compatible = "ti,msp-gpio";
 				reg = <0x400a0000 0x2000>;
 				interrupts = <1 0>;
 				status = "disabled";
@@ -180,7 +180,7 @@
 			};
 
 			gpiob: gpio@400a2000 {
-				compatible = "ti,mspm0-gpio";
+				compatible = "ti,msp-gpio";
 				reg = <0x400a2000 0x2000>;
 				interrupts = <1 0>;
 				status = "disabled";

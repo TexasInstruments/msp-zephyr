@@ -1,0 +1,5 @@
+config HAS_MSPM33_SDK
+	bool
+
+config USE_MSP_DL_GPIO
+	bool
