@@ -1,0 +1,5 @@
+description: TI LP5810 LED Driver
+
+compatible: "ti,lp5810"
+
+include: i2c-device.yaml
