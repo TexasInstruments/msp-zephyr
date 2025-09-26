@@ -1,0 +1,10 @@
+# Copyright (c) 2025 Texas Instruments
+# SPDX-License-Identifier: Apache-2.0
+
+config LP5810_LP5811
+	bool "LP5810/LP5811 LED driver"
+	default y
+	depends on (DT_HAS_TI_LP5810_ENABLED || DT_HAS_TI_LP5811_ENABLED)
+	select I2C
+	help
+	  Enable LED driver for LP5810/LP5811. LP5810/LP5811 LED driver has 4 channels.
