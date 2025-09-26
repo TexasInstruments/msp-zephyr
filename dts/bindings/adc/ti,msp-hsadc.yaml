@@ -1,0 +1,83 @@
+description: TI MSP HSADC
+
+compatible: "ti,msp-hsadc"
+
+include: [adc-controller.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+    description: |
+      Register space for the ADC. Should contain two entries:
+      - First entry for configuration registers (ADC_LITE_REGS)
+      - Second entry for result registers (ADC_LITE_RESULT_REGS)
+
+  reg-names:
+    required: true
+    description: |
+      Names for the register spaces. Must include:
+      - "config" for the configuration registers
+      - "result" for the result registers
+
+  interrupts:
+    required: true
+
+  pinctrl-0:
+    required: false
+
+  pinctrl-names:
+    required: false
+
+  "#io-channel-cells":
+    const: 1
+
+  ti,clk-divider:
+    type: int
+    required: true
+    enum:
+      - 0  # ADCCLK = (internal clock) / 1.0
+      - 1  # ADCCLK = (internal clock) / 1.5
+      - 2  # ADCCLK = (internal clock) / 2.0
+      - 3  # ADCCLK = (internal clock) / 2.5
+      - 4  # ADCCLK = (internal clock) / 3.0
+      - 5  # ADCCLK = (internal clock) / 3.5
+      - 6  # ADCCLK = (internal clock) / 4.0
+      - 7  # ADCCLK = (internal clock) / 4.5
+      - 8  # ADCCLK = (internal clock) / 5.0
+      - 9  # ADCCLK = (internal clock) / 5.5
+      - 10 # ADCCLK = (internal clock) / 6.0
+      - 11 # ADCCLK = (internal clock) / 6.5
+      - 12 # ADCCLK = (internal clock) / 7.0
+      - 13 # ADCCLK = (internal clock) / 7.5
+      - 14 # ADCCLK = (internal clock) / 8.0
+      - 15 # ADCCLK = (internal clock) / 8.5
+    description: |
+      ADC clock divider:
+      Applies to the internal ADC clock.
+
+  ti,sample-window:
+    type: int
+    default: 64
+    description: Sample window in ADC clock cycles
+
+  vref-mv:
+    type: int
+    default: 3300
+    description: Voltage reference in mV
+
+  ti,vref-source:
+    type: string
+    default: "vdda"
+    enum:
+      - "vdda"     # Use VDDA as reference voltage (default)
+      - "internal-2.5v" # Use internal 2.5V reference
+      - "internal-1.4v" # Use internal 1.4V reference
+    description: |
+      Selects the voltage reference source for the ADC.
+      - vdda: Use VDDA (3.3V) as reference
+      - internal-2.5v: Use internal 2.5V reference
+      - internal-1.4v: Use internal 1.4V reference
+
+
+io-channel-cells:
+  - input

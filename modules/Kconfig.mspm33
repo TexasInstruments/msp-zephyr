@@ -6,3 +6,9 @@ config USE_MSP_DL_GPIO
 
 config USE_MSP_DL_TIMER
 	bool
+
+config USE_MSP_DL_VREF
+	bool
+
+config USE_MSP_DL_HSADC
+	bool

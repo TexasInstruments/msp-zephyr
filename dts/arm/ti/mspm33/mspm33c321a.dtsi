@@ -161,6 +161,28 @@
 			};
 		};
 
+		adc0: adc0@40000000 {
+			compatible = "ti,msp-hsadc";
+			reg = <0x40000000 0x2000>,  /* adc0 (ADC_LITE_REGS) */
+			      <0x40004000 0x2000>;  /* adc0 (ADC_LITE_RESULT_REGS) */
+			reg-names = "config", "result";
+			interrupts = <9 0>;
+			ti,clk-divider = <2>;
+			status = "disabled";
+			#io-channel-cells = <1>;
+		};
+
+		adc1: adc1@40002000 {
+			compatible = "ti,msp-hsadc";
+			reg = <0x40002000 0x2000>,  /* adc1 (ADC_LITE_REGS) */
+			      <0x40006000 0x2000>;  /* adc1 (ADC_LITE_RESULT_REGS) */
+			reg-names = "config", "result";
+			interrupts = <14 0>;
+			ti,clk-divider = <2>;
+			status = "disabled";
+			#io-channel-cells = <1>;
+		};
+
 
 		timg4_0: timg4_0@400c0000 {
 			compatible = "ti,msp-timer";
