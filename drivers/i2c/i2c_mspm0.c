@@ -697,10 +697,12 @@ static inline void i2c_mspm0_isr_controller(const struct device *dev)
 		    (data->state == I2C_MSPM0_TX_STARTED)) {
 			/* NACK interrupt if I2C Target is disconnected */
 			data->state = I2C_MSPM0_ERROR;
+			k_sem_give(data->device_sync_sem);
 		}
 		break;
 	case DL_I2C_IIDX_TIMEOUT_A:
 		data->state = I2C_MSPM0_TIMEOUT;
+		k_sem_give(data->device_sync_sem);
 		DL_I2C_disableInterrupt(config->base, TI_MSPM0_CONTROLLER_INTERRUPTS);
 		DL_I2C_clearInterruptStatus(config->base, TI_MSPM0_CONTROLLER_INTERRUPTS);
 		DL_I2C_flushControllerTXFIFO(config->base);
