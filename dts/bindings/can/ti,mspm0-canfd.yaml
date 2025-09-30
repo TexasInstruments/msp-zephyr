@@ -1,0 +1,24 @@
+# Copyright (c) 2026 Texas Instruments
+# SPDX-License-Identifier: Apache-2.0
+
+description: TI MSPM0 CANFD
+
+compatible: "ti,mspm0-canfd"
+
+include: ["bosch,m_can-base.yaml", "pinctrl-device.yaml"]
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  clocks:
+    required: true
+
+  clock-frequency:
+    required: true
+    type: int
+    description: |
+      Desired MCAN functional clock frequency (MCAN_FCLK) in Hz.
