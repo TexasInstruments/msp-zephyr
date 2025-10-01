@@ -264,13 +264,24 @@ static int i2c_mspm0_receive(const struct device *dev, struct i2c_msg msg, uint1
 {
 	const struct i2c_mspm0_config *config = dev->config;
 	struct i2c_mspm0_data *data = dev->data;
+	DL_I2C_CONTROLLER_STOP stop;
 
 	/* Send a read request to Target */
 	data->msg_buf = msg.buf;
 	data->transfer_count = 0;
 	data->transfer_len = msg.len;
 	data->state = I2C_MSPM0_RX_STARTED;
-	DL_I2C_startControllerTransfer(config->base, addr, DL_I2C_CONTROLLER_DIRECTION_RX, msg.len);
+
+	if(msg.flags & I2C_MSG_STOP) {
+		stop = DL_I2C_CONTROLLER_STOP_ENABLE;
+	}
+	else {
+		stop = DL_I2C_CONTROLLER_STOP_DISABLE;
+	}
+
+	DL_I2C_startControllerTransferAdvanced(config->base, addr, DL_I2C_CONTROLLER_DIRECTION_RX,
+				data->transfer_len, DL_I2C_CONTROLLER_START_ENABLE, stop,
+				DL_I2C_CONTROLLER_ACK_DISABLE);
 
 	/* Wait for the read to complete */
 	k_sem_take(data->device_sync_sem, K_FOREVER);
@@ -292,11 +303,13 @@ static int i2c_mspm0_transmit(const struct device *dev, struct i2c_msg msg, uint
 {
 	const struct i2c_mspm0_config *config = dev->config;
 	struct i2c_mspm0_data *data = dev->data;
+	DL_I2C_CONTROLLER_STOP stop;
 
 	data->msg_buf = msg.buf;
 	data->transfer_count = 0;
 	data->transfer_len = msg.len;
 	data->state = I2C_MSPM0_IDLE;
+
 	/* Flush anything that is left in the stale FIFO */
 	DL_I2C_flushControllerTXFIFO(config->base);
 
@@ -313,9 +326,17 @@ static int i2c_mspm0_transmit(const struct device *dev, struct i2c_msg msg, uint
 		DL_I2C_disableInterrupt(config->base, DL_I2C_INTERRUPT_CONTROLLER_TXFIFO_TRIGGER);
 	}
 
+	if(msg.flags & I2C_MSG_STOP) {
+		stop = DL_I2C_CONTROLLER_STOP_ENABLE;
+	}
+	else {
+		stop = DL_I2C_CONTROLLER_STOP_DISABLE;
+	}
+
 	data->state = I2C_MSPM0_TX_STARTED;
-	DL_I2C_startControllerTransfer(config->base, addr, DL_I2C_CONTROLLER_DIRECTION_TX,
-				       data->transfer_len);
+	DL_I2C_startControllerTransferAdvanced(config->base, addr, DL_I2C_CONTROLLER_DIRECTION_TX,
+				data->transfer_len, DL_I2C_CONTROLLER_START_ENABLE, stop,
+				DL_I2C_CONTROLLER_ACK_ENABLE);
 
 	/* Wait for the transmit to complete */
 	k_sem_take(data->device_sync_sem, K_FOREVER);
