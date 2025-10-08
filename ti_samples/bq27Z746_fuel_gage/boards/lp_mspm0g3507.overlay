@@ -1,0 +1,26 @@
+&i2c1_scl_pb2 {
+	input-enable;
+};
+
+&i2c1_sda_pb3 {
+	input-enable;
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_scl_pb2 &i2c1_sda_pb3>;
+	pinctrl-names = "default";
+	merge-buf-size = <64>;
+	status = "okay";
+
+	bq27z746: bq27z746@55 {
+		compatible = "ti,bq27z746";
+		reg = <0x55>;
+	};
+};
+
+&uart0 {
+	current-speed = <115200>;
+	clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+	pinctrl-0 = <&uart0_tx_pa10 &uart0_rx_pa11>;
+    status = "okay";
+};
