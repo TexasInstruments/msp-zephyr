@@ -24,7 +24,7 @@ LOG_MODULE_REGISTER(i2c_mspm0, CONFIG_I2C_LOG_LEVEL);
 
 #define TI_MSPM0_CONTROLLER_INTERRUPTS                                                             \
 	(DL_I2C_INTERRUPT_CONTROLLER_ARBITRATION_LOST | DL_I2C_INTERRUPT_CONTROLLER_NACK |         \
-	 DL_I2C_INTERRUPT_CONTROLLER_RXFIFO_TRIGGER | DL_I2C_INTERRUPT_CONTROLLER_RX_DONE |        \
+	 DL_I2C_INTERRUPT_CONTROLLER_RXFIFO_TRIGGER | DL_I2C_INTERRUPT_CONTROLLER_STOP |        \
 	 DL_I2C_INTERRUPT_CONTROLLER_TX_DONE | DL_I2C_INTERRUPT_TIMEOUT_A)
 
 #define TI_MSPM0_TARGET_INTERRUPTS                                                                 \
@@ -679,9 +679,11 @@ static inline void i2c_mspm0_isr_controller(const struct device *dev)
 	struct i2c_mspm0_data *data = dev->data;
 
 	switch (DL_I2C_getPendingInterrupt(config->base)) {
-	case DL_I2C_IIDX_CONTROLLER_RX_DONE:
-		data->state = I2C_MSPM0_RX_COMPLETE;
-		k_sem_give(data->device_sync_sem);
+	case DL_I2C_IIDX_CONTROLLER_STOP:
+		if(data->state == I2C_MSPM0_RX_INPROGRESS) {
+			data->state = I2C_MSPM0_RX_COMPLETE;
+			k_sem_give(data->device_sync_sem);
+		}
 		break;
 	case DL_I2C_IIDX_CONTROLLER_TX_DONE:
 		DL_I2C_disableInterrupt(config->base, DL_I2C_INTERRUPT_CONTROLLER_TXFIFO_TRIGGER);
@@ -689,11 +691,8 @@ static inline void i2c_mspm0_isr_controller(const struct device *dev)
 		k_sem_give(data->device_sync_sem);
 		break;
 	case DL_I2C_IIDX_CONTROLLER_RXFIFO_TRIGGER:
-		if (data->state != I2C_MSPM0_RX_COMPLETE) {
-			/* Fix for RX_DONE happening before the last RXFIFO_TRIGGER */
-			data->state = I2C_MSPM0_RX_INPROGRESS;
-		}
 		/* Receive all bytes from target */
+		data->state = I2C_MSPM0_RX_INPROGRESS;
 		while (DL_I2C_isControllerRXFIFOEmpty(config->base) != true) {
 			if (data->transfer_count < data->transfer_len) {
 				data->msg_buf[data->transfer_count++] =
