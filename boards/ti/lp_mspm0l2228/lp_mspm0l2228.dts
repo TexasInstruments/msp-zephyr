@@ -9,7 +9,7 @@
 
 #include <ti/mspm0/l/mspm0l2228.dtsi>
 #include <ti/mspm0/l/mspm0l222x-pinctrl.dtsi>
-#include <zephyr/dt-bindings/clock/mspm0_clock.h>
+#include <zephyr/dt-bindings/clock/msp_clock.h>
 #include <zephyr/dt-bindings/gpio/gpio.h>
 
 / {

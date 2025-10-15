@@ -6,7 +6,7 @@
  */
 
 #include <arm/armv6-m.dtsi>
-#include <zephyr/dt-bindings/clock/mspm0_clock.h>
+#include <zephyr/dt-bindings/clock/msp_clock.h>
 #include <freq.h>
 
 / {
@@ -77,46 +77,46 @@
 	};
 
 	ckm: clock-module {
-		compatible = "ti,mspm0-clk";
+		compatible = "ti,msp-clk";
 		#clock-cells = <1>;
 	};
 
 	clocks: clocks {
 		hfclk: hfclk {
 			#clock-cells = <1>;
-			compatible = "ti,mspm0-clk";
+			compatible = "ti,msp-clk";
 			status = "disabled";
 		};
 
 		lfclk: lfclk {
 			#clock-cells = <1>;
-			compatible = "ti,mspm0-clk";
+			compatible = "ti,msp-clk";
 			clock-frequency = <32768>;
 			clocks = <&lfosc>;
 		};
 
 		hsclk: hsclk {
 			#clock-cells = <1>;
-			compatible = "ti,mspm0-clk";
+			compatible = "ti,msp-clk";
 			clocks = <&sysosc>;
 		};
 
 		ulpclk: ulpclk {
 			#clock-cells = <1>;
-			compatible = "ti,mspm0-clk";
+			compatible = "ti,msp-clk";
 			clock-frequency = <DT_FREQ_M(32)>;
 		};
 
 		mclk: mclk {
 			#clock-cells = <1>;
-			compatible = "ti,mspm0-clk";
+			compatible = "ti,msp-clk";
 			clock-frequency = <DT_FREQ_M(32)>;
 			clocks = <&sysosc>;
 		};
 
 		mfpclk: mfpclk {
 			#clock-cells = <1>;
-			compatible = "ti,mspm0-clk";
+			compatible = "ti,msp-clk";
 			clock-frequency = <DT_FREQ_M(4)>;
 			clocks = <&sysosc>;
 			status = "disabled";
@@ -126,27 +126,27 @@
 	oscillators: oscillators {
 		hfxt: hfxt {
 			#clock-cells = <0>;
-			compatible = "ti,mspm0-osc";
+			compatible = "ti,msp-osc";
 			clock-frequency = <DT_FREQ_M(32)>;
 			status = "disabled";
 		};
 
 		lfxt: lfxt {
 			#clock-cells = <0>;
-			compatible = "ti,mspm0-osc";
+			compatible = "ti,msp-osc";
 			clock-frequency = <DT_FREQ_M(32)>;
 			status = "disabled";
 		};
 
 		lfosc: lfosc {
 			#clock-cells = <0>;
-			compatible = "ti,mspm0-osc";
+			compatible = "ti,msp-osc";
 			clock-frequency = <32768>;
 		};
 
 		sysosc: sysosc {
 			#clock-cells = <0>;
-			compatible = "ti,mspm0-osc";
+			compatible = "ti,msp-osc";
 			clock-frequency = <DT_FREQ_M(32)>;
 		};
 	};
@@ -208,7 +208,7 @@
 			reg = <0x40108000 0x2000>;
 			interrupts = <15 0>;
 			current-speed = <115200>;
-			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clocks = <&ckm MSP_CLOCK_ULPCLK>;
 			clk-div = <1>;
 			status = "disabled";
 		};

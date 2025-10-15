@@ -10,7 +10,7 @@
 / {
 	clocks: clocks {
 		pll: pll {
-			compatible = "ti,mspm0-pll";
+			compatible = "ti,msp-pll";
 			clocks = <&sysosc>;
 			p-div = <2>;
 			q-div = <5>;
@@ -22,7 +22,7 @@
 
 		syspll2x: syspll2x {
 			#clock-cells = <1>;
-			compatible = "ti,mspm0-clk";
+			compatible = "ti,msp-clk";
 			status = "disabled";
 		};
 	};
@@ -31,7 +31,7 @@
 		timg0: timg0@40084000 {
 			compatible = "ti,mspm0-timer";
 			reg = <0x40084000 0x2000>;
-			clocks = <&ckm MSPM0_CLOCK_LFCLK>;
+			clocks = <&ckm MSP_CLOCK_LFCLK>;
 			interrupts = <16 0>;
 			ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
@@ -48,7 +48,7 @@
 			compatible = "ti,mspm0-timer";
 			reg = <0x40868000 0x2000>;
 			interrupts = <17 0>;
-			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clocks = <&ckm MSP_CLOCK_ULPCLK>;
 			ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
 			status = "disabled";
@@ -64,7 +64,7 @@
 			compatible = "ti,mspm0-timer";
 			reg = <0x4086a000 0x2000>;
 			interrupts = <20 0>;
-			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clocks = <&ckm MSP_CLOCK_ULPCLK>;
 			ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
 			status = "disabled";
@@ -80,7 +80,7 @@
 			compatible = "ti,mspm0-timer";
 			reg = <0x40870000 0x2000>;
 			interrupts = <21 0>;
-			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clocks = <&ckm MSP_CLOCK_ULPCLK>;
 			ti,clk-prescaler = <0>; /* None */
 			ti,clk-div = <1>;
 			status = "disabled";
@@ -95,7 +95,7 @@
 		tima0: tima0@40860000 {
 			compatible = "ti,mspm0-timer";
 			reg = <0x40860000 0x2000>;
-			clocks = <&ckm MSPM0_CLOCK_MCLK>;
+			clocks = <&ckm MSP_CLOCK_MCLK>;
 			interrupts = <18 0>;
 			ti,clk-prescaler = <0>;
 			ti,clk-div = <1>;
@@ -111,7 +111,7 @@
 		tima1: tima1@40862000 {
 			compatible = "ti,mspm0-timer";
 			reg = <0x40862000 0x2000>;
-			clocks = <&ckm MSPM0_CLOCK_MCLK>;
+			clocks = <&ckm MSP_CLOCK_MCLK>;
 			interrupts = <19 0>;
 			ti,clk-prescaler = <0>;
 			ti,clk-div = <1>;
@@ -129,7 +129,7 @@
 			reg = <0x40100000 0x2000>;
 			interrupts = <13 0>;
 			current-speed = <115200>;
-			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clocks = <&ckm MSP_CLOCK_ULPCLK>;
 			clk-div = <1>;
 			status = "disabled";
 		};
@@ -139,7 +139,7 @@
 			reg = <0x40102000 0x2000>;
 			interrupts = <14 0>;
 			current-speed = <115200>;
-			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clocks = <&ckm MSP_CLOCK_ULPCLK>;
 			clk-div = <1>;
 			status = "disabled";
 		};
@@ -149,7 +149,7 @@
 			reg = <0x40500000 0x2000>;
 			interrupts = <3 0>;
 			current-speed = <115200>;
-			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clocks = <&ckm MSP_CLOCK_ULPCLK>;
 			clk-div = <1>;
 			status = "disabled";
 		};

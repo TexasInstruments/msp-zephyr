@@ -7,9 +7,10 @@
 #include <arm/armv8-m.dtsi>
 #include <mem.h>
 #include <freq.h>
+#include <zephyr/dt-bindings/clock/msp_clock.h>
 
 /{
-  	cpus {
+	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -22,8 +23,99 @@
 		};
 	};
 
+	ckm: clock-module {
+		compatible = "ti,msp-clk";
+		#clock-cells = <1>;
+	};
 
-  	soc {
+	clocks: clocks {
+		hfclk: hfclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			status = "disabled";
+		};
+
+		lfclk: lfclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			clock-frequency = <32768>;
+			clocks = <&lfosc>;
+		};
+
+		hsclk: hsclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			status = "disabled";
+		};
+
+		ulpclk: ulpclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			clock-frequency = <DT_FREQ_M(32)>;
+		};
+
+		mclk: mclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			clock-frequency = <DT_FREQ_M(32)>;
+			clocks = <&sysosc>;
+		};
+
+		mfclk: mfclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			clock-frequency = <DT_FREQ_M(4)>;
+			status = "disabled";
+		};
+
+		pll: pll {
+			compatible = "ti,msp-pll";
+			clocks = <&sysosc>;
+			p-div = <1>;
+			q-div = <10>;
+			clk1-div = <1>;
+			clk0-div = <1>;
+			clk2x-div = <1>;
+			#clock-cells = <0>;
+			status = "disabled";
+		};
+
+		syspll0: syspll0 {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			status = "disabled";
+		};
+	};
+
+	oscillators: oscillators {
+		hfxt: hfxt {
+			#clock-cells = <0>;
+			compatible = "ti,msp-osc";
+			clock-frequency = <DT_FREQ_M(40)>;
+			status = "disabled";
+		};
+
+		lfxt: lfxt {
+			#clock-cells = <0>;
+			compatible = "ti,msp-osc";
+			clock-frequency = <32768>;
+			status = "disabled";
+		};
+
+		lfosc: lfosc {
+			#clock-cells = <0>;
+			compatible = "ti,msp-osc";
+			clock-frequency = <32768>;
+		};
+
+		sysosc: sysosc {
+			#clock-cells = <0>;
+			compatible = "ti,msp-osc";
+			clock-frequency = <DT_FREQ_M(32)>;
+		};
+	};
+
+	soc {
 
 		sram0: memory@30000000 {
 			compatible = "mmio-sram";
@@ -68,8 +160,7 @@
 				#gpio-cells = <2>;
 			};
 		};
-
-  };
+	};
 };
 
 &nvic {

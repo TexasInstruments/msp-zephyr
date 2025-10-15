@@ -2,9 +2,9 @@
 # Copyright (c) 2025 Linumiz
 # SPDX-License-Identifier: Apache-2.0
 
-description: TI MSPM0 oscillator
+description: TI MSP oscillator
 
-compatible: "ti,mspm0-osc"
+compatible: "ti,msp-osc"
 
 include: [fixed-clock.yaml, base.yaml]
 
@@ -21,3 +21,14 @@ properties:
     type: boolean
     description: |
       Specifies if capacitance is less than 3pF to reduce power consumption.
+
+  ti,drive-strength:
+    type: int
+    description: |
+      Drive strength setting for the oscillator. Valid range [0 ... 3].
+      Higher value means higher drive strength.
+
+  ti,monitor-enable:
+    type: int
+    description: |
+      Enable clock monitoring circuit to detect clock failures.

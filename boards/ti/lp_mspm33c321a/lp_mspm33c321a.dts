@@ -8,6 +8,7 @@
 
 #include <ti/mspm33/mspm33c321a.dtsi>
 #include <ti/mspm33/c/mspm33c321a-pinctrl.dtsi>
+#include <zephyr/dt-bindings/clock/msp_clock.h>
 #include <zephyr/dt-bindings/gpio/gpio.h>
 
 / {
@@ -48,6 +49,59 @@
 &cpu0 {
 	clock-frequency = <DT_FREQ_M(160)>;
 };
+
+
+&ulpclk {
+	status = "okay";
+	clock-frequency = <DT_FREQ_M(40)>;
+};
+
+&mclk {
+	status = "okay";
+	clock-frequency = <DT_FREQ_M(160)>;
+	clocks = <&hsclk 0>;
+};
+
+&hsclk {
+	status = "okay";
+	clocks = <&syspll0 0>;
+};
+
+&syspll0 {
+	status = "okay";
+};
+
+&pll {
+	status = "okay";
+};
+
+&hfclk {
+	status = "disabled";
+};
+
+&mfclk {
+	status = "disabled";
+};
+
+&lfclk {
+	status = "okay";
+	clocks = <&lfosc 0>;
+};
+
+&hfxt {
+	status = "disabled";
+	clock-frequency = <DT_FREQ_M(40)>;  /* 40MHz crystal */
+	ti,xtal-startup-delay-us = <512>;
+	ti,monitor-enable = <1>;       /* Enable clock monitoring */
+};
+
+&lfxt {
+	status = "disabled";
+	ti,low-cap;                    /* Enable low capacitance mode */
+	ti,drive-strength = <3>;       /* Use higher drive strength */
+	ti,monitor-enable = <1>;       /* Enable clock monitoring */
+};
+
 
 &pinctrl {
 	status = "okay";

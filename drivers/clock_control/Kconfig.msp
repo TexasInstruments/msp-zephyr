@@ -1,0 +1,10 @@
+# Copyright (c) 2025 Texas Instruments
+# SPDX-License-Identifier: Apache-2.0
+
+config CLOCK_CONTROL_MSP
+	bool "MSP Clock Control"
+	default y
+	depends on SOC_FAMILY_TI_MSPM0 || SOC_FAMILY_TI_MSPM33
+	help
+	  Enable driver for MSP Clock Control.
+	  This driver supports both MSPM0 and MSPM33 series.
