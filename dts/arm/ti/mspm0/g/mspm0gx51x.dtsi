@@ -3,6 +3,8 @@
 #include <ti/mspm0/g/mspm0g.dtsi>
 #include <zephyr/dt-bindings/i2c/i2c.h>
 
+/delete-node/ &uart2;
+
 / {
 	soc {
 		gpioc: gpio@400a4000 {
@@ -60,6 +62,46 @@
 				resolution = <16>;
 				status = "disabled";
 			};
+		};
+
+		uart4: uart@40502000 {
+			compatible = "ti,mspm0-uart";
+			reg = <0x40502000 0x2000>;
+			interrupts = <14 0>;
+			current-speed = <115200>;
+			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clk-div = <1>;
+			status = "disabled";
+		};
+
+		uart5: uart@40504000 {
+			compatible = "ti,mspm0-uart";
+			reg = <0x40504000 0x2000>;
+			interrupts = <23 0>;
+			current-speed = <115200>;
+			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clk-div = <1>;
+			status = "disabled";
+		};
+
+		uart6: uart@40506000 {
+			compatible = "ti,mspm0-uart";
+			reg = <0x40506000 0x2000>;
+			interrupts = <29 0>;
+			current-speed = <115200>;
+			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clk-div = <1>;
+			status = "disabled";
+		};
+
+		uart7: uart@4010a000 {
+			compatible = "ti,mspm0-uart";
+			reg = <0x4010a000 0x2000>;
+			interrupts = <27 0>;
+			current-speed = <115200>;
+			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clk-div = <1>;
+			status = "disabled";
 		};
 
 		i2c0: i2c@400f0000 {
