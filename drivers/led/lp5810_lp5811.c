@@ -236,10 +236,39 @@ int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint8_t boo
 int lp5810_lp5811_enable_leds(const struct device *dev, uint8_t leds)
 {
 	int ret;
+	uint8_t enables;
 
-	ret = lp5810_lp5811_i2c_write(dev, LP5810_LP5811_LED_EN_REG, leds);
+	ret = lp5810_lp5811_i2c_read(dev, LP5810_LP5811_LED_EN_REG, &enables);
+	if(ret < 0) {
+		LOG_ERR("Reading current enabled LEDs failed");
+		return ret;
+	}
+
+	enables |= leds;
+	ret = lp5810_lp5811_i2c_write(dev, LP5810_LP5811_LED_EN_REG, enables);
 	if(ret < 0) {
 		LOG_ERR("Enabling LEDs failed");
+		return ret;
+	}
+
+	return 0;
+}
+
+int lp5810_lp5811_disable_leds(const struct device *dev, uint8_t leds)
+{
+	int ret;
+	uint8_t enables;
+
+	ret = lp5810_lp5811_i2c_read(dev, LP5810_LP5811_LED_EN_REG, &enables);
+	if(ret < 0) {
+		LOG_ERR("Reading current enabled LEDs failed");
+		return ret;
+	}
+
+	enables &= ~leds;
+	ret = lp5810_lp5811_i2c_write(dev, LP5810_LP5811_LED_EN_REG, enables);
+	if(ret < 0) {
+		LOG_ERR("Disabling LEDs failed");
 		return ret;
 	}
 
@@ -838,6 +867,61 @@ int lp5810_lp5811_get_aep_status(const struct device *dev, struct aep_status *ae
 	return 0;
 }
 
+static int lp5810_lp5811_led_on(const struct device *dev, uint32_t led)
+{
+	int ret;
+
+	ret = lp5810_lp5811_enable_leds(dev, led);
+	if (ret < 0) {
+		return ret;
+	}
+
+	ret = lp5810_lp5811_set_analog_dimming(dev, led, 0x80);
+	if (ret < 0) {
+		return ret;
+	}
+	
+	ret = lp5810_lp5811_set_pwm_dimming(dev, led, 0x80);
+	return ret;
+}
+
+static int lp5810_lp5811_led_off(const struct device *dev, uint32_t led)
+{
+	int ret;
+
+	ret = lp5810_lp5811_disable_leds(dev, led);
+	if (ret < 0) {
+		return ret;
+	}
+
+	ret = lp5810_lp5811_set_analog_dimming(dev, led, 0x00);
+	if (ret < 0) {
+		return ret;
+	}
+
+	ret = lp5810_lp5811_set_pwm_dimming(dev, led, 0x00);
+	return ret;
+}
+
+static int lp5810_lp5811_set_brightness(const struct device *dev, uint32_t led, uint8_t value)
+{
+	int ret;
+	uint8_t reg_value;
+
+	ret = lp5810_lp5811_enable_leds(dev, led);
+	if (ret < 0) {
+		return ret;
+	}
+
+	reg_value = (uint8_t)((uint16_t)value * 255 / 100);
+	ret = lp5810_lp5811_set_analog_dimming(dev, led, reg_value);
+	if (ret < 0) {
+		return ret;
+	}
+
+	ret = lp5810_lp5811_set_pwm_dimming(dev, led, reg_value);
+	return ret;
+}
 
 static int lp5810_lp5811_init(const struct device *dev)
 {
@@ -865,6 +949,9 @@ static int lp5810_lp5811_init(const struct device *dev)
 }
 
 static DEVICE_API(led, lp5810_lp5811_led_api) = {
+	.on = lp5810_lp5811_led_on,
+	.off = lp5810_lp5811_led_off,
+	.set_brightness = lp5810_lp5811_set_brightness,
 };
 
 #define LP5810_LP5811_DEFINE(n, id)                                              	       \

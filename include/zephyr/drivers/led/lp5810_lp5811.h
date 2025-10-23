@@ -565,6 +565,14 @@ int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint8_t boo
 int lp5810_lp5811_enable_leds(const struct device *dev, uint8_t leds);
 
 /**
+ * @brief Disable LEDs on LP5810_LP5811
+ *
+ * @param dev LED device structure
+ * @return 0 on success, or negative error code
+ */
+int lp5810_lp5811_disable_leds(const struct device *dev, uint8_t leds);
+
+/**
  * @brief Set PWM frequency to 24KHz
  *
  * Configure the PWM frequency to 24KHz for LED brightness control
