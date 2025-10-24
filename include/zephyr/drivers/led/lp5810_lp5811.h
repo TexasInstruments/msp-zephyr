@@ -64,10 +64,10 @@
 
 /* LED Enable Registers */
 #define LP5810_LP5811_LED_EN_REG 0x20
-#define LP5810_LP5811_LED0_EN BIT(0)
-#define LP5810_LP5811_LED1_EN BIT(1)
-#define LP5810_LP5811_LED2_EN BIT(2)
-#define LP5810_LP5811_LED3_EN BIT(3)
+#define LP5810_LP5811_LED0 0
+#define LP5810_LP5811_LED1 1
+#define LP5810_LP5811_LED2 2
+#define LP5810_LP5811_LED3 3
 
 /* Fault Clear Register */
 #define LP5810_LP5811_FAULT_CLEAR_REG 0x22
@@ -557,20 +557,22 @@ int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint8_t boo
 #endif //BOOST_EN
 
 /**
- * @brief Enable LEDs on LP5810_LP5811
+ * @brief Enable a LED on LP5810_LP5811
  *
  * @param dev LED device structure
+ * @param led LED number (0-3) to enable
  * @return 0 on success, or negative error code
  */
-int lp5810_lp5811_enable_leds(const struct device *dev, uint8_t leds);
+int lp5810_lp5811_enable_led(const struct device *dev, uint8_t led);
 
 /**
- * @brief Disable LEDs on LP5810_LP5811
+ * @brief Disable a LED on LP5810_LP5811
  *
  * @param dev LED device structure
+ * @param led LED number (0-3) to disable
  * @return 0 on success, or negative error code
  */
-int lp5810_lp5811_disable_leds(const struct device *dev, uint8_t leds);
+int lp5810_lp5811_disable_led(const struct device *dev, uint8_t led);
 
 /**
  * @brief Set PWM frequency to 24KHz
