@@ -233,7 +233,7 @@ int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint8_t boo
 }
 #endif
 
-int lp5810_lp5811_enable_leds(const struct device *dev, uint8_t leds)
+int lp5810_lp5811_enable_led(const struct device *dev, uint8_t led)
 {
 	int ret;
 	uint8_t enables;
@@ -244,17 +244,17 @@ int lp5810_lp5811_enable_leds(const struct device *dev, uint8_t leds)
 		return ret;
 	}
 
-	enables |= leds;
+	enables |= (1 << led);
 	ret = lp5810_lp5811_i2c_write(dev, LP5810_LP5811_LED_EN_REG, enables);
 	if(ret < 0) {
-		LOG_ERR("Enabling LEDs failed");
+		LOG_ERR("Enabling LED failed");
 		return ret;
 	}
 
 	return 0;
 }
 
-int lp5810_lp5811_disable_leds(const struct device *dev, uint8_t leds)
+int lp5810_lp5811_disable_led(const struct device *dev, uint8_t led)
 {
 	int ret;
 	uint8_t enables;
@@ -265,10 +265,10 @@ int lp5810_lp5811_disable_leds(const struct device *dev, uint8_t leds)
 		return ret;
 	}
 
-	enables &= ~leds;
+	enables &= ~(1 << led);
 	ret = lp5810_lp5811_i2c_write(dev, LP5810_LP5811_LED_EN_REG, enables);
 	if(ret < 0) {
-		LOG_ERR("Disabling LEDs failed");
+		LOG_ERR("Disabling LED failed");
 		return ret;
 	}
 
@@ -871,7 +871,7 @@ static int lp5810_lp5811_led_on(const struct device *dev, uint32_t led)
 {
 	int ret;
 
-	ret = lp5810_lp5811_enable_leds(dev, led);
+	ret = lp5810_lp5811_enable_led(dev, led);
 	if (ret < 0) {
 		return ret;
 	}
@@ -889,7 +889,7 @@ static int lp5810_lp5811_led_off(const struct device *dev, uint32_t led)
 {
 	int ret;
 
-	ret = lp5810_lp5811_disable_leds(dev, led);
+	ret = lp5810_lp5811_disable_led(dev, led);
 	if (ret < 0) {
 		return ret;
 	}
@@ -908,7 +908,7 @@ static int lp5810_lp5811_set_brightness(const struct device *dev, uint32_t led, 
 	int ret;
 	uint8_t reg_value;
 
-	ret = lp5810_lp5811_enable_leds(dev, led);
+	ret = lp5810_lp5811_enable_led(dev, led);
 	if (ret < 0) {
 		return ret;
 	}
