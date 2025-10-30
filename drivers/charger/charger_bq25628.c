@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/charger.h>
+#include <zephyr/drivers/charger/charger_bq25628.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/sys/byteorder.h>
 
@@ -49,6 +50,7 @@ LOG_MODULE_REGISTER(ti_bq25628, CONFIG_CHARGER_LOG_LEVEL);
 #define BQ25628_REG_CC0              0x16
 #define BQ25628_REG_CC0_INHIBIT      0x01
 #define BQ25628_REG_CC0_INHIBIT_MASK BIT(5)
+#define BQ25628_REG_CC0_WDT_CONFIG_MASK GENMASK(1, 0)
 
 /* Charger Status 1 */
 #define BQ25628_REG_CS1                              0x1E
@@ -134,7 +136,7 @@ static inline int BQ25628_read16(const struct device *dev, uint8_t reg, uint16_t
 		return ret;
 	}
 
-	*value = sys_get_be16(i2c_data);
+	*value = sys_get_le16(i2c_data);
 
 	return 0;
 }
@@ -166,12 +168,12 @@ static int BQ25628_set_constant_charge_current(const struct device *dev, uint32_
 	}
 	current_ua = CLAMP(current_ua, BQ25628_REG_CC_CHARGE_CURRENT_MIN_UA,
 			   BQ25628_REG_CC_CHARGE_CURRENT_MAX_UA);
-	uint32_t v;
+	uint32_t c;
 
-	v = current_ua / BQ25628_REG_CC_CHARGE_CURRENT_STEP_UA;
-	v = FIELD_PREP(BQ25628_REG_CC_CHARGE_CURRENT_MASK, v);
+	c = current_ua / BQ25628_REG_CC_CHARGE_CURRENT_STEP_UA;
+	c = FIELD_PREP(BQ25628_REG_CC_CHARGE_CURRENT_MASK, c);
 
-	return BQ25628_write16(dev, BQ25628_REG_CC_LOW, v);
+	return BQ25628_write16(dev, BQ25628_REG_CC_LOW, c);
 }
 
 static int BQ25628_set_constant_charge_voltage(const struct device *dev, uint32_t voltage_uv)
@@ -227,17 +229,17 @@ static int BQ25628_set_vindpm(const struct device *dev, uint32_t voltage_uv)
 
 static int BQ25628_get_constant_charge_current(const struct device *dev, uint32_t *current_ua)
 {
-	uint16_t v;
+	uint16_t c;
 	int ret;
 
-	ret = BQ25628_read16(dev, BQ25628_REG_CC_LOW, &v);
+	ret = BQ25628_read16(dev, BQ25628_REG_CC_LOW, &c);
 	if (ret < 0) {
 		return ret;
 	}
 
-	v = FIELD_GET(BQ25628_REG_CC_CHARGE_CURRENT_MASK, v);
+	c = FIELD_GET(BQ25628_REG_CC_CHARGE_CURRENT_MASK, c);
 
-	*current_ua = v * BQ25628_REG_CC_CHARGE_CURRENT_STEP_UA;
+	*current_ua = c * BQ25628_REG_CC_CHARGE_CURRENT_STEP_UA;
 
 	return 0;
 }
@@ -357,6 +359,42 @@ static int BQ25628_charger_get_charge_type(const struct device *dev,
 	return 0;
 }
 
+static int BQ25628_get_watchdog_timer_config(const struct device *dev,
+							charger_custom_value_uint_t *watchdog_timer_config)
+{
+	uint8_t wdt_config;
+	int ret;
+
+	ret = BQ25628_read8(dev, BQ25628_REG_CC0, &wdt_config);
+	if(ret < 0) {
+		return ret;
+	}
+
+	*watchdog_timer_config = FIELD_GET(BQ25628_REG_CC0_WDT_CONFIG_MASK, wdt_config);
+
+	return 0;
+}
+
+static int BQ25628_set_watchdog_timer_config(const struct device *dev,
+							charger_custom_value_uint_t watchdog_timer_config)
+{
+	uint8_t cc0_reg;
+	int ret;
+
+	ret = BQ25628_read8(dev, BQ25628_REG_CC0, &cc0_reg);
+	if(ret < 0) {
+		return ret;
+	}
+
+	cc0_reg |= 	watchdog_timer_config;
+	ret = BQ25628_write8(dev, BQ25628_REG_CC0, cc0_reg);
+	if(ret < 0) {
+		return ret;
+	}
+
+	return 0;
+}
+
 static int BQ25628_get_prop(const struct device *dev, charger_prop_t prop,
 			    union charger_propval *value)
 {
@@ -375,6 +413,8 @@ static int BQ25628_get_prop(const struct device *dev, charger_prop_t prop,
 		return BQ25628_get_iindpm(dev, &value->input_current_regulation_current_ua);
 	case CHARGER_PROP_INPUT_REGULATION_VOLTAGE_UV:
 		return BQ25628_get_vindpm(dev, &value->input_voltage_regulation_voltage_uv);
+	case CHARGER_PROP_WATCHDOG_TIMER:
+		return BQ25628_get_watchdog_timer_config(dev, &value->custom_uint);
 	default:
 		return -ENOTSUP;
 	}
@@ -392,6 +432,8 @@ static int BQ25628_set_prop(const struct device *dev, charger_prop_t prop,
 		return BQ25628_set_iindpm(dev, value->input_current_regulation_current_ua);
 	case CHARGER_PROP_INPUT_REGULATION_VOLTAGE_UV:
 		return BQ25628_set_vindpm(dev, value->input_voltage_regulation_voltage_uv);
+	case CHARGER_PROP_WATCHDOG_TIMER:
+		return BQ25628_set_watchdog_timer_config(dev, value->custom_uint);
 	default:
 		return -ENOTSUP;
 	}
@@ -437,7 +479,7 @@ static int BQ25628_init(const struct device *dev)
 		return ret;
 	}
 
-	switch (value) {
+	switch (value & GENMASK(5,3)) {
 	case BQ25628_REG_ID_PN_25628:
 		break;
 	default:
