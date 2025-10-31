@@ -7,7 +7,10 @@
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/pinctrl.h>
+#include <zephyr/logging/log.h>
 #include <ti/driverlib/dl_gpio.h>
+
+LOG_MODULE_REGISTER(pinctrl_msp, CONFIG_PINCTRL_LOG_LEVEL);
 
 /* Common driver for MSP family microcontrollers */
 #define DT_DRV_COMPAT ti_msp_pinctrl
