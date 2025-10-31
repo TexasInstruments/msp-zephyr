@@ -6,6 +6,6 @@ config PWM_MSPM0
 	default y
 	depends on DT_HAS_TI_MSPM0_TIMER_PWM_ENABLED
 	select PINCTRL
-	select USE_MSPM0_DL_TIMER
+	select USE_MSP_DL_TIMER
 	help
 	  Enable TI MSPM0 MCU family PWM driver.

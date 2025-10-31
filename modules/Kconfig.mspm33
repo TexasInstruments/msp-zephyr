@@ -3,3 +3,6 @@ config HAS_MSPM33_SDK
 
 config USE_MSP_DL_GPIO
 	bool
+
+config USE_MSP_DL_TIMER
+	bool

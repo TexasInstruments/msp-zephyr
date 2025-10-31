@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT ti_mspm0_timer_counter
+#define DT_DRV_COMPAT ti_msp_timer_counter
 
 #include <zephyr/drivers/counter.h>
 #include <zephyr/drivers/clock_control.h>
@@ -17,16 +17,25 @@
 #include <ti/driverlib/dl_timerg.h>
 #include <ti/driverlib/dl_timer.h>
 
-LOG_MODULE_REGISTER(mspm0_counter, CONFIG_COUNTER_LOG_LEVEL);
+/**
+ * @brief Platform detection macros
+ */
+#if defined(CONFIG_SOC_SERIES_MSPM0G) || defined(CONFIG_SOC_SERIES_MSPM0L)
+#define MSP_M0 1
+#elif defined(CONFIG_SOC_SERIES_MSPM33C)
+#define MSP_M33 1
+#endif
 
-struct counter_mspm0_data {
+LOG_MODULE_REGISTER(msp_counter, CONFIG_COUNTER_LOG_LEVEL);
+
+struct counter_msp_data {
 	void *user_data_top;
 	void *user_data;
 	counter_top_callback_t top_cb;
 	counter_alarm_callback_t alarm_cb;
 };
 
-struct counter_mspm0_config {
+struct counter_msp_config {
 	struct counter_config_info counter_info;
 	GPTIMER_Regs *base;
 	const struct device *clock_dev;
@@ -35,37 +44,37 @@ struct counter_mspm0_config {
 	void (*irq_config_func)(void);
 };
 
-static int counter_mspm0_start(const struct device *dev)
+static int counter_msp_start(const struct device *dev)
 {
-	const struct counter_mspm0_config *config = dev->config;
+	const struct counter_msp_config *config = dev->config;
 
 	DL_Timer_startCounter(config->base);
 
 	return 0;
 }
 
-static int counter_mspm0_stop(const struct device *dev)
+static int counter_msp_stop(const struct device *dev)
 {
-	const struct counter_mspm0_config *config = dev->config;
+	const struct counter_msp_config *config = dev->config;
 
 	DL_Timer_stopCounter(config->base);
 
 	return 0;
 }
 
-static int counter_mspm0_get_value(const struct device *dev, uint32_t *ticks)
+static int counter_msp_get_value(const struct device *dev, uint32_t *ticks)
 {
-	const struct counter_mspm0_config *config = dev->config;
+	const struct counter_msp_config *config = dev->config;
 
 	*ticks = DL_Timer_getTimerCount(config->base);
 
 	return 0;
 }
 
-static int counter_mspm0_set_top_value(const struct device *dev, const struct counter_top_cfg *cfg)
+static int counter_msp_set_top_value(const struct device *dev, const struct counter_top_cfg *cfg)
 {
-	const struct counter_mspm0_config *config = dev->config;
-	struct counter_mspm0_data *data = dev->data;
+	const struct counter_msp_config *config = dev->config;
+	struct counter_msp_data *data = dev->data;
 
 	if (cfg->ticks > config->counter_info.max_top_value) {
 		return -ENOTSUP;
@@ -95,19 +104,19 @@ static int counter_mspm0_set_top_value(const struct device *dev, const struct co
 	return 0;
 }
 
-static uint32_t counter_mspm0_get_top_value(const struct device *dev)
+static uint32_t counter_msp_get_top_value(const struct device *dev)
 {
-	const struct counter_mspm0_config *config = dev->config;
+	const struct counter_msp_config *config = dev->config;
 
 	return DL_Timer_getLoadValue(config->base);
 }
 
-static int counter_mspm0_set_alarm(const struct device *dev, uint8_t chan_id,
-				   const struct counter_alarm_cfg *alarm_cfg)
+static int counter_msp_set_alarm(const struct device *dev, uint8_t chan_id,
+				 const struct counter_alarm_cfg *alarm_cfg)
 {
-	const struct counter_mspm0_config *config = dev->config;
-	struct counter_mspm0_data *data = dev->data;
-	uint32_t top = counter_mspm0_get_top_value(dev);
+	const struct counter_msp_config *config = dev->config;
+	struct counter_msp_data *data = dev->data;
+	uint32_t top = counter_msp_get_top_value(dev);
 	uint32_t ticks = alarm_cfg->ticks;
 
 	ARG_UNUSED(chan_id);
@@ -138,10 +147,10 @@ static int counter_mspm0_set_alarm(const struct device *dev, uint8_t chan_id,
 	return 0;
 }
 
-static int counter_mspm0_cancel_alarm(const struct device *dev, uint8_t chan_id)
+static int counter_msp_cancel_alarm(const struct device *dev, uint8_t chan_id)
 {
-	const struct counter_mspm0_config *config = dev->config;
-	struct counter_mspm0_data *data = dev->data;
+	const struct counter_msp_config *config = dev->config;
+	struct counter_msp_data *data = dev->data;
 
 	ARG_UNUSED(chan_id);
 
@@ -151,20 +160,20 @@ static int counter_mspm0_cancel_alarm(const struct device *dev, uint8_t chan_id)
 	return 0;
 }
 
-static uint32_t counter_mspm0_get_pending_int(const struct device *dev)
+static uint32_t counter_msp_get_pending_int(const struct device *dev)
 {
-	const struct counter_mspm0_config *config = dev->config;
+	const struct counter_msp_config *config = dev->config;
 	uint32_t status;
 
 	status = DL_Timer_getRawInterruptStatus(
 		config->base, (DL_TIMER_INTERRUPT_LOAD_EVENT | DL_TIMER_INTERRUPT_CC0_UP_EVENT));
 
-	return !!status;
+	return status;
 }
 
-static uint32_t counter_mspm0_get_freq(const struct device *dev)
+static uint32_t counter_msp_get_freq(const struct device *dev)
 {
-	const struct counter_mspm0_config *config = dev->config;
+	const struct counter_msp_config *config = dev->config;
 	DL_Timer_ClockConfig clkcfg;
 	uint32_t clock_rate;
 	int ret;
@@ -182,9 +191,9 @@ static uint32_t counter_mspm0_get_freq(const struct device *dev)
 	return clock_rate;
 }
 
-static int counter_mspm0_init(const struct device *dev)
+static int counter_msp_init(const struct device *dev)
 {
-	const struct counter_mspm0_config *config = dev->config;
+	const struct counter_msp_config *config = dev->config;
 	DL_Timer_TimerConfig tim_config = {
 		.period = config->counter_info.max_top_value,
 		.timerMode = DL_TIMER_TIMER_MODE_PERIODIC_UP,
@@ -201,7 +210,12 @@ static int counter_mspm0_init(const struct device *dev)
 		DL_Timer_enablePower(config->base);
 	}
 
+#if defined(MSP_M0)
 	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
+#elif defined(MSP_M33)
+	delay_cycles(CONFIG_MSPM33_PERIPH_STARTUP_DELAY);
+#endif
+
 	DL_Timer_setClockConfig(config->base, (DL_Timer_ClockConfig *)&config->clk_config);
 	DL_Timer_initTimerMode(config->base, &tim_config);
 	DL_Timer_setCounterRepeatMode(config->base, DL_TIMER_REPEAT_MODE_ENABLED);
@@ -211,23 +225,23 @@ static int counter_mspm0_init(const struct device *dev)
 	return 0;
 }
 
-static DEVICE_API(counter, mspm0_counter_api) = {
-	.start = counter_mspm0_start,
-	.stop = counter_mspm0_stop,
-	.get_value = counter_mspm0_get_value,
-	.set_top_value = counter_mspm0_set_top_value,
-	.get_pending_int = counter_mspm0_get_pending_int,
-	.get_top_value = counter_mspm0_get_top_value,
-	.get_freq = counter_mspm0_get_freq,
-	.cancel_alarm = counter_mspm0_cancel_alarm,
-	.set_alarm = counter_mspm0_set_alarm,
+static DEVICE_API(counter, msp_counter_api) = {
+	.start = counter_msp_start,
+	.stop = counter_msp_stop,
+	.get_value = counter_msp_get_value,
+	.set_top_value = counter_msp_set_top_value,
+	.get_pending_int = counter_msp_get_pending_int,
+	.get_top_value = counter_msp_get_top_value,
+	.get_freq = counter_msp_get_freq,
+	.cancel_alarm = counter_msp_cancel_alarm,
+	.set_alarm = counter_msp_set_alarm,
 };
 
-static void counter_mspm0_isr(void *arg)
+static void counter_msp_isr(void *arg)
 {
 	const struct device *dev = (const struct device *)arg;
-	struct counter_mspm0_data *data = dev->data;
-	const struct counter_mspm0_config *config = dev->config;
+	struct counter_msp_data *data = dev->data;
+	const struct counter_msp_config *config = dev->config;
 	uint32_t status;
 
 	status = DL_Timer_getPendingInterrupt(config->base);
@@ -235,7 +249,7 @@ static void counter_mspm0_isr(void *arg)
 		uint32_t now;
 		counter_alarm_callback_t alarm_cb = data->alarm_cb;
 
-		counter_mspm0_get_value(dev, &now);
+		counter_msp_get_value(dev, &now);
 		data->alarm_cb = NULL;
 		alarm_cb(dev, 0, now, data->user_data);
 	} else if ((status == DL_TIMER_IIDX_LOAD) && data->top_cb) {
@@ -243,34 +257,34 @@ static void counter_mspm0_isr(void *arg)
 	}
 }
 
-#define MSPM0_COUNTER_IRQ_REGISTER(n)                                                              \
-	static void mspm0_##n##_irq_register(void)                                                 \
+#define MSP_COUNTER_IRQ_REGISTER(n)                                                                \
+	static void msp_##n##_irq_register(void)                                                   \
 	{                                                                                          \
 		IRQ_CONNECT(DT_IRQN(DT_INST_PARENT(n)), DT_IRQ(DT_INST_PARENT(n), priority),       \
-			    counter_mspm0_isr, DEVICE_DT_INST_GET(n), 0);                          \
+			    counter_msp_isr, DEVICE_DT_INST_GET(n), 0);                            \
 		irq_enable(DT_IRQN(DT_INST_PARENT(n)));                                            \
 	}
 
-#define MSPM0_CLK_DIV(div) DT_CAT(DL_TIMER_CLOCK_DIVIDE_, div)
+#define MSP_CLK_DIV(div) DT_CAT(DL_TIMER_CLOCK_DIVIDE_, div)
 
-#define COUNTER_DEVICE_INIT_MSPM0(n)                                                               \
-	static struct counter_mspm0_data counter_mspm0_data_##n;                                   \
-	MSPM0_COUNTER_IRQ_REGISTER(n)                                                              \
+#define COUNTER_DEVICE_INIT_MSP(n)                                                                 \
+	static struct counter_msp_data counter_msp_data_##n;                                       \
+	MSP_COUNTER_IRQ_REGISTER(n)                                                                \
                                                                                                    \
-	static const struct counter_mspm0_config counter_mspm0_config_##n = {                      \
+	static const struct counter_msp_config counter_msp_config_##n = {                          \
 		.base = (GPTIMER_Regs *)DT_REG_ADDR(DT_INST_PARENT(n)),                            \
 		.clock_dev = DEVICE_DT_GET(DT_CLOCKS_CTLR_BY_IDX(DT_INST_PARENT(n), 0)),           \
 		.clock_subsys =                                                                    \
 			{                                                                          \
 				.clk = DT_CLOCKS_CELL_BY_IDX(DT_INST_PARENT(n), 0, clk),           \
 			},                                                                         \
-		.irq_config_func = (mspm0_##n##_irq_register),                                     \
+		.irq_config_func = (msp_##n##_irq_register),                                       \
 		.clk_config =                                                                      \
 			{                                                                          \
 				.clockSel = MSP_CLOCK_PERIPH_REG_MASK(                             \
 					DT_CLOCKS_CELL_BY_IDX(DT_INST_PARENT(n), 0, clk)),         \
 				.divideRatio =                                                     \
-					MSPM0_CLK_DIV(DT_PROP(DT_INST_PARENT(n), ti_clk_div)),     \
+					MSP_CLK_DIV(DT_PROP(DT_INST_PARENT(n), ti_clk_div)),       \
 				.prescale = DT_PROP(DT_INST_PARENT(n), ti_clk_prescaler),          \
 			},                                                                         \
 		.counter_info = {.max_top_value = (DT_INST_PROP(n, resolution) == 32)              \
@@ -280,8 +294,8 @@ static void counter_mspm0_isr(void *arg)
 				 .channels = 1},                                                   \
 	};                                                                                         \
                                                                                                    \
-	DEVICE_DT_INST_DEFINE(n, counter_mspm0_init, NULL, &counter_mspm0_data_##n,                \
-			      &counter_mspm0_config_##n, POST_KERNEL,                              \
-			      CONFIG_COUNTER_INIT_PRIORITY, &mspm0_counter_api);
+	DEVICE_DT_INST_DEFINE(n, counter_msp_init, NULL, &counter_msp_data_##n,                    \
+			      &counter_msp_config_##n, POST_KERNEL, CONFIG_COUNTER_INIT_PRIORITY,  \
+			      &msp_counter_api);
 
-DT_INST_FOREACH_STATUS_OKAY(COUNTER_DEVICE_INIT_MSPM0)
+DT_INST_FOREACH_STATUS_OKAY(COUNTER_DEVICE_INIT_MSP)

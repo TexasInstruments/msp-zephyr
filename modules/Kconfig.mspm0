@@ -12,7 +12,7 @@ config USE_MSP_DL_GPIO
 config USE_MSPM0_DL_UART
 	bool
 
-config USE_MSPM0_DL_TIMER
+config USE_MSP_DL_TIMER
 	bool
 
 config USE_MSPM0_DL_I2C
