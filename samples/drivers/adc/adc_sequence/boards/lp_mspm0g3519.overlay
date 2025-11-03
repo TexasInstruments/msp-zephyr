@@ -1,0 +1,49 @@
+/*
+ * Copyright (c) 2025 Texas Instruments
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/dt-bindings/adc/adc.h>
+
+/ {
+	aliases {
+		adc0 = &adc0;
+	};
+};
+
+&adc0 {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	ti,clk-source = "MSP_ADC_CLOCK_ULPCLK";
+	ti,clk-range = "MSP_ADC_CLOCK_RANGE_32TO40";
+	ti,clk-divider = <1>;
+	max_result = <12>;
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <2500>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+	};
+
+	channel@1 {
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <2500>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+	};
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&analog_pa27 &analog_pa26>;
+
+	vref = <&vref0>;
+};
+
+&vref0 {
+	status = "okay";	
+};
