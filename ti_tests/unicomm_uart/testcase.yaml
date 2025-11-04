@@ -1,0 +1,3 @@
+tests:
+  unicomm.uart:
+    platform_allow: lp_mspm0g5187
