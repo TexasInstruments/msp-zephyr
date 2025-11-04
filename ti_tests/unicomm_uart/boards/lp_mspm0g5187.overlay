@@ -1,0 +1,6 @@
+&unicomm1_uart {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uc1_tx_pa16 &uc1_rx_pa15>;
+	pinctrl-names = "default";
+};
