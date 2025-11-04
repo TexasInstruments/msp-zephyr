@@ -266,9 +266,8 @@ manifest:
       path: modules/hal/telink
       groups:
         - hal
-    - name: msp-hal_ti
-      remote: downstream
-      revision: stable
+    - name: hal_ti
+      revision: pull/74/head
       path: modules/hal/ti
       groups:
         - hal
