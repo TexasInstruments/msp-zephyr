@@ -17,10 +17,18 @@
 #include <zephyr/irq.h>
 
 /* Driverlib includes */
+#ifdef CONFIG_HAS_MSP_UNICOMM
+#include <ti/driverlib/dl_unicommuart.h>
+#else
 #include <ti/driverlib/dl_uart_main.h>
+#endif
 
 struct uart_mspm0_config {
+#ifdef CONFIG_HAS_MSP_UNICOMM
+	UNICOMM_Inst_Regs *regs;
+#else
 	UART_Regs *regs;
+#endif
 	uint32_t current_speed;
 	const struct mspm0_sys_clock *clock_subsys;
 	const struct pinctrl_dev_config *pinctrl;
@@ -291,11 +299,11 @@ static DEVICE_API(uart, uart_mspm0_driver_api) = {
 };
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-#define MSP_UART_IRQ_DEFINE(inst)                                                               \
-	static void uart_mspm0_##inst##_irq_register(const struct device *dev)                  \
-	{                                                                                       \
+#define MSP_UART_IRQ_DEFINE(inst)														\
+	static void uart_mspm0_##inst##_irq_register(const struct device *dev)				\
+{                                                                                       \
 		IRQ_CONNECT(DT_INST_IRQN(inst), DT_INST_IRQ(inst, priority), uart_mspm0_isr,    \
-			    DEVICE_DT_INST_GET(inst), 0);                                       \
+			    DEVICE_DT_INST_GET(inst), 0);                                       	\
 		irq_enable(DT_INST_IRQN(inst));                                                 \
 	}
 #else
@@ -304,42 +312,51 @@ static DEVICE_API(uart, uart_mspm0_driver_api) = {
 
 #define MSPM0_MAIN_CLK_DIV(n)  CONCAT(DL_UART_MAIN_CLOCK_DIVIDE_RATIO_, DT_INST_PROP(n, clk_div))
 
-#define MSPM0_UART_INIT_FN(index)								\
-												\
-	PINCTRL_DT_INST_DEFINE(index);								\
-												\
-	static const struct mspm0_sys_clock mspm0_uart_sys_clock##index =			\
-		MSPM0_CLOCK_SUBSYS_FN(index);							\
-												\
-	MSP_UART_IRQ_DEFINE(index);								\
-												\
-	static const struct uart_mspm0_config uart_mspm0_cfg_##index = {			\
-		.regs = (UART_Regs *)DT_INST_REG_ADDR(index),					\
-		.current_speed = DT_INST_PROP(index, current_speed),				\
-		.pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),				\
-		.clock_subsys = &mspm0_uart_sys_clock##index,					\
-		IF_ENABLED(CONFIG_UART_INTERRUPT_DRIVEN,					\
-			   (.irq_config_func = uart_mspm0_##index##_irq_register,))		\
-		};										\
-												\
-	static struct uart_mspm0_data uart_mspm0_data_##index = {				\
-		.uart_clockconfig = {								\
+#define MSPM0_UART_INIT_FN(index)													\
+																					\
+	PINCTRL_DT_INST_DEFINE(index);													\
+																					\
+	static const struct mspm0_sys_clock mspm0_uart_sys_clock##index =				\
+		MSPM0_CLOCK_SUBSYS_FN(index);												\
+																					\
+	MSP_UART_IRQ_DEFINE(index);														\
+																					\
+	IF_ENABLED(CONFIG_HAS_MSP_UNICOMM, 												\
+	(static UNICOMM_Inst_Regs uart_mspm0_uc_regs_##index = {						\
+		.inst =  (UNICOMM_Regs *)DT_INST_REG_ADDR(index), 							\
+		.uart = (UNICOMMUART_Regs *)UC_UART_BASE(DT_INST_REG_ADDR(index)),			\
+		.fixedMode = DT_CHILD_NUM(DT_PARENT(DT_DRV_INST(index))) == 1,				\
+	};) 																			\
+	)																				\
+																					\
+	static const struct uart_mspm0_config uart_mspm0_cfg_##index = {				\
+		.regs = COND_CODE_1(CONFIG_HAS_MSP_UNICOMM, 								\
+			(&uart_mspm0_uc_regs_##index), ((UART_Regs *)DT_INST_REG_ADDR(index))),	\
+		.current_speed = DT_INST_PROP(index, current_speed),						\
+		.pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),							\
+		.clock_subsys = &mspm0_uart_sys_clock##index,								\
+		IF_ENABLED(CONFIG_UART_INTERRUPT_DRIVEN,									\
+			   (.irq_config_func = uart_mspm0_##index##_irq_register,))				\
+		};																			\
+																					\
+	static struct uart_mspm0_data uart_mspm0_data_##index = {						\
+		.uart_clockconfig = {														\
 			.clockSel = MSPM0_CLOCK_PERIPH_REG_MASK(DT_INST_CLOCKS_CELL(index, clk)), \
-			.divideRatio = MSPM0_MAIN_CLK_DIV(index),				\
-		 },										\
-		.uart_config = {.mode = DL_UART_MAIN_MODE_NORMAL,				\
-				.direction = DL_UART_MAIN_DIRECTION_TX_RX,			\
-				.flowControl = (DT_INST_PROP(index, hw_flow_control)		\
-						? DL_UART_MAIN_FLOW_CONTROL_RTS_CTS		\
-						: DL_UART_MAIN_FLOW_CONTROL_NONE),		\
-				.parity = DL_UART_MAIN_PARITY_NONE,				\
-				.wordLength = DL_UART_MAIN_WORD_LENGTH_8_BITS,			\
-				.stopBits = DL_UART_MAIN_STOP_BITS_ONE,				\
-				},								\
-		};										\
-												\
-	DEVICE_DT_INST_DEFINE(index, &uart_mspm0_init, NULL, &uart_mspm0_data_##index,		\
-			      &uart_mspm0_cfg_##index, PRE_KERNEL_1,				\
+			.divideRatio = MSPM0_MAIN_CLK_DIV(index),								\
+		 },																			\
+		.uart_config = {.mode = DL_UART_MAIN_MODE_NORMAL,							\
+				.direction = DL_UART_MAIN_DIRECTION_TX_RX,							\
+				.flowControl = (DT_INST_PROP(index, hw_flow_control)				\
+						? DL_UART_MAIN_FLOW_CONTROL_RTS_CTS							\
+						: DL_UART_MAIN_FLOW_CONTROL_NONE),							\
+				.parity = DL_UART_MAIN_PARITY_NONE,									\
+				.wordLength = DL_UART_MAIN_WORD_LENGTH_8_BITS,						\
+				.stopBits = DL_UART_MAIN_STOP_BITS_ONE,								\
+				},																	\
+		};																			\
+																					\
+	DEVICE_DT_INST_DEFINE(index, &uart_mspm0_init, NULL, &uart_mspm0_data_##index,	\
+			      &uart_mspm0_cfg_##index, PRE_KERNEL_1,							\
 			      CONFIG_SERIAL_INIT_PRIORITY, &uart_mspm0_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(MSPM0_UART_INIT_FN)
