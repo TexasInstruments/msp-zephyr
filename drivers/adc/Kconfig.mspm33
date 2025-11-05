@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Texas Instruments
+
+config ADC_MSP_HSADC
+	bool "TI ADC MSPM33 driver"
+	default y
+	depends on DT_HAS_TI_MSP_HSADC_ENABLED
+	select USE_MSP_DL_HSADC
+	select USE_MSP_DL_VREF
+	help
+	  Enable support for HSADC on the TI MSPM33 series.

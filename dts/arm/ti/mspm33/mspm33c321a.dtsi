@@ -1,0 +1,344 @@
+/*
+ * Copyright (c) 2025 Texas Instruments
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <arm/armv8-m.dtsi>
+#include <mem.h>
+#include <freq.h>
+#include <zephyr/dt-bindings/clock/msp_clock.h>
+
+/{
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-m33";
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+	};
+
+	ckm: clock-module {
+		compatible = "ti,msp-clk";
+		#clock-cells = <1>;
+	};
+
+	clocks: clocks {
+		hfclk: hfclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			status = "disabled";
+		};
+
+		lfclk: lfclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			clock-frequency = <32768>;
+			clocks = <&lfosc>;
+		};
+
+		hsclk: hsclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			status = "disabled";
+		};
+
+		ulpclk: ulpclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			clock-frequency = <DT_FREQ_M(32)>;
+		};
+
+		mclk: mclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			clock-frequency = <DT_FREQ_M(32)>;
+			clocks = <&sysosc>;
+		};
+
+		mfclk: mfclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			clock-frequency = <DT_FREQ_M(4)>;
+			status = "disabled";
+		};
+
+		pll: pll {
+			compatible = "ti,msp-pll";
+			clocks = <&sysosc>;
+			p-div = <1>;
+			q-div = <10>;
+			clk1-div = <1>;
+			clk0-div = <1>;
+			clk2x-div = <1>;
+			#clock-cells = <0>;
+			status = "disabled";
+		};
+
+		syspll0: syspll0 {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			status = "disabled";
+		};
+	};
+
+	oscillators: oscillators {
+		hfxt: hfxt {
+			#clock-cells = <0>;
+			compatible = "ti,msp-osc";
+			clock-frequency = <DT_FREQ_M(40)>;
+			status = "disabled";
+		};
+
+		lfxt: lfxt {
+			#clock-cells = <0>;
+			compatible = "ti,msp-osc";
+			clock-frequency = <32768>;
+			status = "disabled";
+		};
+
+		lfosc: lfosc {
+			#clock-cells = <0>;
+			compatible = "ti,msp-osc";
+			clock-frequency = <32768>;
+		};
+
+		sysosc: sysosc {
+			#clock-cells = <0>;
+			compatible = "ti,msp-osc";
+			clock-frequency = <DT_FREQ_M(32)>;
+		};
+	};
+
+	soc {
+
+		sram0: memory@30000000 {
+			compatible = "mmio-sram";
+			reg = <0x30000000 DT_SIZE_K(256)>;
+		};
+
+		flash0: serial-flash@10000000 {
+			compatible = "serial-flash";
+			reg = <0x10000000 DT_SIZE_M(1)>;
+		};
+
+		pinctrl: pin-controller@400f0000 {
+			compatible = "ti,msp-pinctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x400f0000 0x4000>;
+
+			gpioa: gpio@400f0000 {
+				compatible = "ti,msp-gpio";
+				reg = <0x400f0000 0x2000>;
+				interrupts = <6 0>;
+				status = "disabled";
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpiob: gpio@400f2000 {
+				compatible = "ti,msp-gpio";
+				reg = <0x400f2000 0x2000>;
+				interrupts = <7 0>;
+				status = "disabled";
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpioc: gpio@400f4000 {
+				compatible = "ti,msp-gpio";
+				reg = <0x400f4000 0x2000>;
+				interrupts = <8 0>;
+				status = "disabled";
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+		};
+
+		adc0: adc0@40000000 {
+			compatible = "ti,msp-hsadc";
+			reg = <0x40000000 0x2000>,  /* adc0 (ADC_LITE_REGS) */
+			      <0x40004000 0x2000>;  /* adc0 (ADC_LITE_RESULT_REGS) */
+			reg-names = "config", "result";
+			interrupts = <9 0>;
+			ti,clk-divider = <2>;
+			status = "disabled";
+			#io-channel-cells = <1>;
+		};
+
+		adc1: adc1@40002000 {
+			compatible = "ti,msp-hsadc";
+			reg = <0x40002000 0x2000>,  /* adc1 (ADC_LITE_REGS) */
+			      <0x40006000 0x2000>;  /* adc1 (ADC_LITE_RESULT_REGS) */
+			reg-names = "config", "result";
+			interrupts = <14 0>;
+			ti,clk-divider = <2>;
+			status = "disabled";
+			#io-channel-cells = <1>;
+		};
+
+
+		timg4_0: timg4_0@400c0000 {
+			compatible = "ti,msp-timer";
+			reg = <0x400c0000 0x2000>;
+			clocks = <&ckm MSP_CLOCK_LFCLK>;
+			interrupts = <21 0>;
+			ti,clk-prescaler = <255>;
+			ti,clk-div = <1>;
+			status = "disabled";
+
+
+			counterg4_0: counterg4_0 {
+				compatible = "ti,msp-timer-counter";
+				resolution = <16>;
+				status = "disabled";
+			};
+		};
+
+		timg4_1: timg4_1@400c2000 {
+			compatible = "ti,msp-timer";
+			reg = <0x400c2000 0x2000>;
+			clocks = <&ckm MSP_CLOCK_LFCLK>;
+			interrupts = <22 0>;
+			ti,clk-prescaler = <255>;
+			ti,clk-div = <1>;
+			status = "disabled";
+
+
+			counterg4_1: counterg4_1 {
+				compatible = "ti,msp-timer-counter";
+				resolution = <16>;
+				status = "disabled";
+			};
+		};
+
+		timg4_2: timg4_2@40180000 {
+			compatible = "ti,msp-timer";
+			reg = <0x40180000 0x2000>;
+			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			interrupts = <35 0>;
+			ti,clk-prescaler = <255>;
+			ti,clk-div = <1>;
+			status = "disabled";
+
+
+			counterg4_2: counterg4_2 {
+				compatible = "ti,msp-timer-counter";
+				resolution = <16>;
+				status = "disabled";
+			};
+		};
+
+		timg4_3: timg4_3@40182000 {
+			compatible = "ti,msp-timer";
+			reg = <0x40182000 0x2000>;
+			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			interrupts = <36 0>;
+			ti,clk-prescaler = <255>;
+			ti,clk-div = <1>;
+			status = "disabled";
+
+
+			counterg4_3: counterg4_3 {
+				compatible = "ti,msp-timer-counter";
+				resolution = <16>;
+				status = "disabled";
+			};
+		};
+
+		timg8_0: timg8_0@40184000 {
+			compatible = "ti,msp-timer";
+			reg = <0x40184000 0x2000>;
+			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			interrupts = <23 0>;
+			ti,clk-prescaler = <255>;
+			ti,clk-div = <1>;
+			status = "disabled";
+
+
+			counterg8_0: counterg8_0 {
+				compatible = "ti,msp-timer-counter";
+				resolution = <16>;
+				status = "disabled";
+			};
+		};
+
+		timg8_1: timg8_1@40186000 {
+			compatible = "ti,msp-timer";
+			reg = <0x40186000 0x2000>;
+			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			interrupts = <37 0>;
+			ti,clk-prescaler = <255>;
+			ti,clk-div = <1>;
+			status = "disabled";
+
+
+			counterg8_1: counterg8_1 {
+				compatible = "ti,msp-timer-counter";
+				resolution = <16>;
+				status = "disabled";
+			};
+		};
+
+		timg12_0: timg12_0@40188000 {
+			compatible = "ti,msp-timer";
+			reg = <0x40188000 0x2000>;
+			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			interrupts = <24 0>;
+			// ti,clk-prescaler = <255>;
+			ti,clk-div = <1>;
+			status = "disabled";
+
+
+			counterg12_0: counterg12_0 {
+				compatible = "ti,msp-timer-counter";
+				resolution = <32>;
+				status = "disabled";
+			};
+		};
+
+		tima0_0: tima0_0@40010000 {
+			compatible = "ti,msp-timer";
+			reg = <0x40010000 0x2000>;
+			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			interrupts = <20 0>;
+			ti,clk-prescaler = <255>;
+			ti,clk-div = <1>;
+			status = "disabled";
+
+
+			countera0_0: countera0_0 {
+				compatible = "ti,msp-timer-counter";
+				resolution = <16>;
+				status = "disabled";
+			};
+		};
+
+		tima0_1: tima0_1@40012000 {
+			compatible = "ti,msp-timer";
+			reg = <0x40012000 0x2000>;
+			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			interrupts = <34 0>;
+			ti,clk-prescaler = <255>;
+			ti,clk-div = <1>;
+			status = "disabled";
+
+
+			countera0_1: countera0_1 {
+				compatible = "ti,msp-timer-counter";
+				resolution = <16>;
+				status = "disabled";
+			};
+		};
+	};
+};
+
+&nvic {
+	arm,num-irq-priority-bits = <2>;
+};

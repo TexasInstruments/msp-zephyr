@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
+
+# Use SRAM as ROMABLE_REGION in Linker Script
+CONFIG_XIP=n
