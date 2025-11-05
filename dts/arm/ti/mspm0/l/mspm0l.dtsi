@@ -9,7 +9,7 @@
 
 &pinctrl {
 	gpioc: gpio@400a4000 {
-		compatible = "ti,mspm0-gpio";
+		compatible = "ti,msp-gpio";
 		reg = <0x400a4000 0x2000>;
 		interrupts = <1 0>;
 		status = "disabled";

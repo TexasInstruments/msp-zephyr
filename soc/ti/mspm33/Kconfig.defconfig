@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Texas Instruments
+
+if SOC_FAMILY_TI_MSPM33
+
+rsource "*/Kconfig.defconfig"
+
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+	default 160000000
+
+endif # SOC_FAMILY_TI_MSPM33

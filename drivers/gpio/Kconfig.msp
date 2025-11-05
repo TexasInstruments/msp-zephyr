@@ -1,0 +1,12 @@
+# TI MSP GPIO configuration options
+
+# Copyright (c) 2025 Texas Instruments
+# SPDX-License-Identifier: Apache-2.0
+
+config GPIO_MSP
+	bool "TI MSP GPIO driver"
+	default y
+	depends on DT_HAS_TI_MSP_GPIO_ENABLED
+	select USE_MSP_DL_GPIO
+	help
+	  Enable the TI MSP GPIO driver for MSPM0 and MSPM33 series.

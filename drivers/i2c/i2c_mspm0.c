@@ -12,7 +12,7 @@
 #include <zephyr/dt-bindings/i2c/i2c.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/clock_control/mspm0_clock_control.h>
+#include <zephyr/drivers/clock_control/msp_clock_control.h>
 #include <soc.h>
 
 #include <zephyr/logging/log.h>
@@ -54,7 +54,7 @@ struct i2c_mspm0_config {
 	uint32_t merge_buf_size;
 	uint8_t *merge_buf;
 	DL_I2C_ClockConfig gI2CClockConfig;
-	const struct mspm0_sys_clock *clock_subsys;
+	const struct msp_sys_clock *clock_subsys;
 	const struct pinctrl_dev_config *pinctrl;
 	void (*irq_config_func)(const struct device *dev);
 };
@@ -87,7 +87,7 @@ static int i2c_mspm0_configure_timeout(const struct device *dev, uint32_t period
 	uint16_t counter_value;
 	int ret;
 
-	ret = clock_control_get_rate(clk_dev, (struct mspm0_sys_clock *)config->clock_subsys,
+	ret = clock_control_get_rate(clk_dev, (clock_control_subsys_t)config->clock_subsys,
 				     &clock_rate);
 	if (ret < 0) {
 		return ret;
@@ -779,13 +779,12 @@ static DEVICE_API(i2c, i2c_mspm0_driver_api) = {
                                                                                                    \
 	PINCTRL_DT_INST_DEFINE(index);                                                             \
                                                                                                    \
-	static const struct mspm0_sys_clock mspm0_i2c_clockSys##index =                            \
-		MSPM0_CLOCK_SUBSYS_FN(index);                                                      \
+	static const struct msp_sys_clock mspm0_i2c_clockSys##index = MSP_CLOCK_SUBSYS_FN(index);  \
                                                                                                    \
 	I2C_MSPM0_CONFIG_IRQ_FUNC_DECLARE(index);                                                  \
                                                                                                    \
 	IF_ENABLED(USES_MERGE_BUF(index),                                                          \
-		(static uint8_t mspm0_i2c_##index_msg_buf[MERGE_BUF_SIZE(index)];));       \
+		(static uint8_t mspm0_i2c_##index_msg_buf[MERGE_BUF_SIZE(index)];));                                       \
 	static const struct i2c_mspm0_config i2c_mspm0_cfg_##index = {                             \
 		.base = (I2C_Regs *)DT_INST_REG_ADDR(index),                                       \
 		.clock_subsys = &mspm0_i2c_clockSys##index,                                        \
@@ -796,7 +795,7 @@ static DEVICE_API(i2c, i2c_mspm0_driver_api) = {
 						   PINCTRL_DT_INST_DEV_CONFIG_GET(index),          \
 					  .irq_config_func = i2c_mspm0_irq_config_func_##index,    \
 					  .gI2CClockConfig = {                                     \
-						  .clockSel = MSPM0_CLOCK_PERIPH_REG_MASK(         \
+						  .clockSel = MSP_CLOCK_PERIPH_REG_MASK(           \
 							  DT_INST_CLOCKS_CELL(index, clk)),        \
 						  .divideRatio = DL_I2C_CLOCK_DIVIDE_1,            \
 					  }};                                                      \

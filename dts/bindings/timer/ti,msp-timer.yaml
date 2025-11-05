@@ -1,9 +1,9 @@
 # Copyright 2025 Linumiz GmbH
 # SPDX-License-Identifier: Apache-2.0
 
-description: TI MSPM0 Timer
+description: TI MSP Timer
 
-compatible: "ti,mspm0-timer"
+compatible: "ti,msp-timer"
 
 include: base.yaml
 

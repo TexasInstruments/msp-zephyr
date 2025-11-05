@@ -1,0 +1,16 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	aliases {
+		counter = &counterg4_0;
+	};
+};
+
+&timg4_0 {
+	status = "okay";
+	counterg4_0: counterg4_0 {
+		status = "okay";
+	};
+};

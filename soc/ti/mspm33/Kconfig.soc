@@ -1,0 +1,12 @@
+# Texas Instruments MSPM33 Family
+
+# Copyright (c) 2025 Texas Instruments
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_FAMILY_TI_MSPM33
+	bool
+
+config SOC_FAMILY
+	default "ti_mspm33" if SOC_FAMILY_TI_MSPM33
+
+rsource "*/Kconfig.soc"

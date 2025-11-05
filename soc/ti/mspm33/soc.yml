@@ -1,0 +1,6 @@
+family:
+- name: ti_mspm33
+  series:
+  - name: mspm33c
+    socs:
+    - name: mspm33c321a
