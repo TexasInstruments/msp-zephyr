@@ -14,10 +14,6 @@
 			reg = <0x20000000 DT_SIZE_K(4)>;
 		};
 
-		flash0: serial-flash@0 {
-			reg = <0x0 DT_SIZE_K(32)>;
-		};
-
 		i2c0: i2c@400f0000 {
 			compatible = "ti,mspm0-i2c";
 			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
@@ -40,4 +36,8 @@
 			status = "disabled";
 		};
 	};
+};
+
+&flash0 {
+	reg = <0x0 DT_SIZE_K(32)>;
 };
