@@ -5,7 +5,7 @@
 config UART_MSP
 	bool "MSP UART driver"
 	default y
-	depends on DT_HAS_TI_MSPM0_UART_ENABLED
+	depends on DT_HAS_TI_MSP_UART_ENABLED
 	select SERIAL_HAS_DRIVER
 	select SERIAL_SUPPORT_INTERRUPT
 	select USE_MSP_DL_UNICOMM_UART if (HAS_MSP_UNICOMM)
