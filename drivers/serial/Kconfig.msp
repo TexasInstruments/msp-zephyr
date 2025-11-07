@@ -8,7 +8,8 @@ config UART_MSP
 	depends on DT_HAS_TI_MSP_UART_ENABLED
 	select SERIAL_HAS_DRIVER
 	select SERIAL_SUPPORT_INTERRUPT
-	select USE_MSP_DL_UART
+	select USE_MSP_DL_UNICOMM_UART if (HAS_MSP_UNICOMM)
+	select USE_MSP_DL_UART if !(HAS_MSP_UNICOMM)
 	select PINCTRL
 	help
 	  This option enables the TI MSP family UART driver.
