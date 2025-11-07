@@ -17,10 +17,18 @@
 #include <zephyr/irq.h>
 
 /* Driverlib includes */
+#ifdef CONFIG_HAS_MSP_UNICOMM
+#include <ti/driverlib/dl_unicommuart.h>
+#else
 #include <ti/driverlib/dl_uart_main.h>
+#endif
 
 struct uart_msp_config {
+#ifdef CONFIG_HAS_MSP_UNICOMM
+	UNICOMM_Inst_Regs *regs;
+#else
 	UART_Regs *regs;
+#endif
 	uint32_t current_speed;
 	const struct msp_sys_clock *clock_subsys;
 	const struct pinctrl_dev_config *pinctrl;
@@ -55,7 +63,11 @@ static int uart_msp_init(const struct device *dev)
 	/* Reset power */
 	DL_UART_Main_reset(config->regs);
 	DL_UART_Main_enablePower(config->regs);
+#if defined(CONFIG_SOC_FAMILY_MSPM0)
 	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
+#elif defined(CONFIG_SOC_FAMILY_MSPM33)
+	delay_cycles(CONFIG_MSPM33_PERIPH_STARTUP_DELAY);
+#endif
 
 	/* Init UART pins */
 	ret = pinctrl_apply_state(config->pinctrl, PINCTRL_STATE_DEFAULT);
@@ -214,7 +226,7 @@ static int uart_msp_irq_update(const struct device *dev)
 }
 
 static void uart_msp_irq_callback_set(const struct device *dev, uart_irq_callback_user_data_t cb,
-					void *cb_data)
+				      void *cb_data)
 {
 	struct uart_msp_data *const dev_data = dev->data;
 
@@ -223,7 +235,7 @@ static void uart_msp_irq_callback_set(const struct device *dev, uart_irq_callbac
 	dev_data->cb_data = cb_data;
 }
 
-#define UART_MSP_ERROR_INTERRUPTS                                                                \
+#define UART_MSP_ERROR_INTERRUPTS                                                                  \
 	(DL_UART_MAIN_INTERRUPT_BREAK_ERROR | DL_UART_MAIN_INTERRUPT_FRAMING_ERROR)
 
 static void uart_msp_irq_error_enable(const struct device *dev)
@@ -284,9 +296,9 @@ static DEVICE_API(uart, uart_msp_driver_api) = {
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 #define MSP_UART_IRQ_DEFINE(inst)                                                                  \
-	static void uart_msp_##inst##_irq_register(const struct device *dev)                     \
+	static void uart_msp_##inst##_irq_register(const struct device *dev)                       \
 	{                                                                                          \
-		IRQ_CONNECT(DT_INST_IRQN(inst), DT_INST_IRQ(inst, priority), uart_msp_isr,       \
+		IRQ_CONNECT(DT_INST_IRQN(inst), DT_INST_IRQ(inst, priority), uart_msp_isr,         \
 			    DEVICE_DT_INST_GET(inst), 0);                                          \
 		irq_enable(DT_INST_IRQN(inst));                                                    \
 	}
@@ -296,29 +308,37 @@ static DEVICE_API(uart, uart_msp_driver_api) = {
 
 #define MSP_MAIN_CLK_DIV(n) CONCAT(DL_UART_MAIN_CLOCK_DIVIDE_RATIO_, DT_INST_PROP(n, clk_div))
 
-#define MSP_UART_INIT_FN(index)                                                                  \
+#define MSP_UART_INIT_FN(index)                                                                    \
                                                                                                    \
 	PINCTRL_DT_INST_DEFINE(index);                                                             \
                                                                                                    \
-	static const struct msp_sys_clock msp_uart_sys_clock##index =                            \
-		MSP_CLOCK_SUBSYS_FN(index);                                                        \
+	static const struct msp_sys_clock msp_uart_sys_clock##index = MSP_CLOCK_SUBSYS_FN(index);  \
                                                                                                    \
 	MSP_UART_IRQ_DEFINE(index);                                                                \
                                                                                                    \
-	static const struct uart_msp_config uart_msp_cfg_##index = {                           \
-		.regs = (UART_Regs *)DT_INST_REG_ADDR(index),                                      \
-		.current_speed = DT_INST_PROP(index, current_speed),                               \
-		.pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                                  \
-		.clock_subsys = &msp_uart_sys_clock##index,                                      \
-		IF_ENABLED(CONFIG_UART_INTERRUPT_DRIVEN,					\
-			   (.irq_config_func = uart_msp_##index##_irq_register,)) };               \
+	IF_ENABLED(CONFIG_HAS_MSP_UNICOMM, 							   \
+	(static UNICOMM_Inst_Regs uart_msp_uc_regs_##index = {				   \
+		.inst =  (UNICOMM_Regs *)DT_INST_REG_ADDR(index), 				   \
+		.uart = (UNICOMMUART_Regs *)UC_UART_BASE(DT_INST_REG_ADDR(index)),		   \
+		.fixedMode = false,								   \
+	};) 											   \
+	)                                             \
                                                                                                    \
-	static struct uart_msp_data uart_msp_data_##index = {                                  \
+	static const struct uart_msp_config uart_msp_cfg_##index = {                               \
+		.regs = COND_CODE_1(CONFIG_HAS_MSP_UNICOMM, 					   \
+			(&uart_msp_uc_regs_##index), ((UART_Regs *)DT_INST_REG_ADDR(index))),      \
+			 .current_speed = DT_INST_PROP(index, current_speed),                      \
+			 .pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                         \
+			 .clock_subsys = &msp_uart_sys_clock##index,                               \
+			 IF_ENABLED(CONFIG_UART_INTERRUPT_DRIVEN,			   	   \
+			   (.irq_config_func = uart_msp_##index##_irq_register,)) };        \
+                                                                                                   \
+	static struct uart_msp_data uart_msp_data_##index = {                                      \
 		.uart_clockconfig =                                                                \
 			{                                                                          \
 				.clockSel = MSP_CLOCK_PERIPH_REG_MASK(                             \
 					DT_INST_CLOCKS_CELL(index, clk)),                          \
-				.divideRatio = MSP_MAIN_CLK_DIV(index),                          \
+				.divideRatio = MSP_MAIN_CLK_DIV(index),                            \
 			},                                                                         \
 		.uart_config =                                                                     \
 			{                                                                          \
@@ -333,8 +353,8 @@ static DEVICE_API(uart, uart_msp_driver_api) = {
 			},                                                                         \
 	};                                                                                         \
                                                                                                    \
-	DEVICE_DT_INST_DEFINE(index, &uart_msp_init, NULL, &uart_msp_data_##index,             \
-			      &uart_msp_cfg_##index, PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,  \
+	DEVICE_DT_INST_DEFINE(index, &uart_msp_init, NULL, &uart_msp_data_##index,                 \
+			      &uart_msp_cfg_##index, PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,    \
 			      &uart_msp_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(MSP_UART_INIT_FN)
