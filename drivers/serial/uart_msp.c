@@ -19,7 +19,7 @@
 /* Driverlib includes */
 #include <ti/driverlib/dl_uart_main.h>
 
-struct uart_mspm0_config {
+struct uart_msp_config {
 	UART_Regs *regs;
 	uint32_t current_speed;
 	const struct msp_sys_clock *clock_subsys;
@@ -29,7 +29,7 @@ struct uart_mspm0_config {
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 };
 
-struct uart_mspm0_data {
+struct uart_msp_data {
 	/* UART clock structure */
 	DL_UART_Main_ClockConfig uart_clockconfig;
 	/* UART config structure */
@@ -44,10 +44,10 @@ struct uart_mspm0_data {
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 };
 
-static int uart_mspm0_init(const struct device *dev)
+static int uart_msp_init(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
-	struct uart_mspm0_data *data = dev->data;
+	const struct uart_msp_config *config = dev->config;
+	struct uart_msp_data *data = dev->data;
 	const struct device *clk_dev = DEVICE_DT_GET(DT_NODELABEL(ckm));
 	uint32_t clock_rate;
 	int ret;
@@ -89,9 +89,9 @@ static int uart_mspm0_init(const struct device *dev)
 	return 0;
 }
 
-static int uart_mspm0_poll_in(const struct device *dev, unsigned char *c)
+static int uart_msp_poll_in(const struct device *dev, unsigned char *c)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
 	if (DL_UART_Main_receiveDataCheck(config->regs, c) == false) {
 		return -1;
@@ -100,17 +100,17 @@ static int uart_mspm0_poll_in(const struct device *dev, unsigned char *c)
 	return 0;
 }
 
-static void uart_mspm0_poll_out(const struct device *dev, unsigned char c)
+static void uart_msp_poll_out(const struct device *dev, unsigned char c)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
 	DL_UART_Main_transmitDataBlocking(config->regs, c);
 }
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static int uart_mspm0_err_check(const struct device *dev)
+static int uart_msp_err_check(const struct device *dev)
 {
-	struct uart_mspm0_data *data = dev->data;
+	struct uart_msp_data *data = dev->data;
 
 	switch (data->pending_interrupt) {
 	case DL_UART_MAIN_IIDX_BREAK_ERROR:
@@ -122,41 +122,41 @@ static int uart_mspm0_err_check(const struct device *dev)
 	}
 }
 
-#define UART_MSPM0_TX_INTERRUPTS (DL_UART_MAIN_INTERRUPT_TX | DL_UART_MAIN_INTERRUPT_EOT_DONE)
-#define UART_MSPM0_RX_INTERRUPTS (DL_UART_MAIN_INTERRUPT_RX)
+#define UART_MSP_TX_INTERRUPTS (DL_UART_MAIN_INTERRUPT_TX | DL_UART_MAIN_INTERRUPT_EOT_DONE)
+#define UART_MSP_RX_INTERRUPTS (DL_UART_MAIN_INTERRUPT_RX)
 
-static int uart_mspm0_fifo_fill(const struct device *dev, const uint8_t *tx_data, int size)
+static int uart_msp_fifo_fill(const struct device *dev, const uint8_t *tx_data, int size)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
 	return (int)DL_UART_Main_fillTXFIFO(config->regs, (uint8_t *)tx_data, size);
 }
 
-static int uart_mspm0_fifo_read(const struct device *dev, uint8_t *rx_data, const int size)
+static int uart_msp_fifo_read(const struct device *dev, uint8_t *rx_data, const int size)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
 	return (int)DL_UART_Main_drainRXFIFO(config->regs, rx_data, size);
 }
 
-static void uart_mspm0_irq_tx_enable(const struct device *dev)
+static void uart_msp_irq_tx_enable(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
-	DL_UART_Main_enableInterrupt(config->regs, UART_MSPM0_TX_INTERRUPTS);
+	DL_UART_Main_enableInterrupt(config->regs, UART_MSP_TX_INTERRUPTS);
 }
 
-static void uart_mspm0_irq_tx_disable(const struct device *dev)
+static void uart_msp_irq_tx_disable(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
-	DL_UART_Main_disableInterrupt(config->regs, UART_MSPM0_TX_INTERRUPTS);
+	DL_UART_Main_disableInterrupt(config->regs, UART_MSP_TX_INTERRUPTS);
 }
 
-static int uart_mspm0_irq_tx_ready(const struct device *dev)
+static int uart_msp_irq_tx_ready(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
-	struct uart_mspm0_data *data = dev->data;
+	const struct uart_msp_config *config = dev->config;
+	struct uart_msp_data *data = dev->data;
 
 	return (data->pending_interrupt & (DL_UART_MAIN_IIDX_TX | DL_UART_MAIN_IIDX_EOT_DONE)) &&
 			       !DL_UART_Main_isTXFIFOFull(config->regs)
@@ -164,31 +164,31 @@ static int uart_mspm0_irq_tx_ready(const struct device *dev)
 		       : 0;
 }
 
-static void uart_mspm0_irq_rx_enable(const struct device *dev)
+static void uart_msp_irq_rx_enable(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
-	DL_UART_Main_enableInterrupt(config->regs, UART_MSPM0_RX_INTERRUPTS);
+	DL_UART_Main_enableInterrupt(config->regs, UART_MSP_RX_INTERRUPTS);
 }
 
-static void uart_mspm0_irq_rx_disable(const struct device *dev)
+static void uart_msp_irq_rx_disable(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
-	DL_UART_Main_disableInterrupt(config->regs, UART_MSPM0_RX_INTERRUPTS);
+	DL_UART_Main_disableInterrupt(config->regs, UART_MSP_RX_INTERRUPTS);
 }
 
-static int uart_mspm0_irq_tx_complete(const struct device *dev)
+static int uart_msp_irq_tx_complete(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
 	return (DL_UART_Main_isTXFIFOEmpty(config->regs)) ? 1 : 0;
 }
 
-static int uart_mspm0_irq_rx_ready(const struct device *dev)
+static int uart_msp_irq_rx_ready(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
-	struct uart_mspm0_data *data = dev->data;
+	const struct uart_msp_config *config = dev->config;
+	struct uart_msp_data *data = dev->data;
 
 	return (data->pending_interrupt & DL_UART_MAIN_IIDX_RX) &&
 			       !DL_UART_Main_isRXFIFOEmpty(config->regs)
@@ -196,54 +196,54 @@ static int uart_mspm0_irq_rx_ready(const struct device *dev)
 		       : 0;
 }
 
-static int uart_mspm0_irq_is_pending(const struct device *dev)
+static int uart_msp_irq_is_pending(const struct device *dev)
 {
-	struct uart_mspm0_data *data = dev->data;
+	struct uart_msp_data *data = dev->data;
 
 	return data->pending_interrupt != DL_UART_MAIN_IIDX_NO_INTERRUPT;
 }
 
-static int uart_mspm0_irq_update(const struct device *dev)
+static int uart_msp_irq_update(const struct device *dev)
 {
-	struct uart_mspm0_data *data = dev->data;
-	const struct uart_mspm0_config *config = dev->config;
+	struct uart_msp_data *data = dev->data;
+	const struct uart_msp_config *config = dev->config;
 
 	data->pending_interrupt = DL_UART_Main_getPendingInterrupt(config->regs);
 
 	return 1;
 }
 
-static void uart_mspm0_irq_callback_set(const struct device *dev, uart_irq_callback_user_data_t cb,
+static void uart_msp_irq_callback_set(const struct device *dev, uart_irq_callback_user_data_t cb,
 					void *cb_data)
 {
-	struct uart_mspm0_data *const dev_data = dev->data;
+	struct uart_msp_data *const dev_data = dev->data;
 
 	/* Set callback function and data */
 	dev_data->cb = cb;
 	dev_data->cb_data = cb_data;
 }
 
-#define UART_MSPM0_ERROR_INTERRUPTS                                                                \
+#define UART_MSP_ERROR_INTERRUPTS                                                                \
 	(DL_UART_MAIN_INTERRUPT_BREAK_ERROR | DL_UART_MAIN_INTERRUPT_FRAMING_ERROR)
 
-static void uart_mspm0_irq_error_enable(const struct device *dev)
+static void uart_msp_irq_error_enable(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
-	DL_UART_Main_enableInterrupt(config->regs, UART_MSPM0_ERROR_INTERRUPTS);
+	DL_UART_Main_enableInterrupt(config->regs, UART_MSP_ERROR_INTERRUPTS);
 }
 
-static void uart_mspm0_irq_error_disable(const struct device *dev)
+static void uart_msp_irq_error_disable(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
+	const struct uart_msp_config *config = dev->config;
 
-	DL_UART_Main_disableInterrupt(config->regs, UART_MSPM0_ERROR_INTERRUPTS);
+	DL_UART_Main_disableInterrupt(config->regs, UART_MSP_ERROR_INTERRUPTS);
 }
 
-static void uart_mspm0_isr(const struct device *dev)
+static void uart_msp_isr(const struct device *dev)
 {
-	const struct uart_mspm0_config *config = dev->config;
-	struct uart_mspm0_data *const dev_data = dev->data;
+	const struct uart_msp_config *config = dev->config;
+	struct uart_msp_data *const dev_data = dev->data;
 	uint32_t int_status;
 
 	/* Perform callback if defined */
@@ -253,40 +253,40 @@ static void uart_mspm0_isr(const struct device *dev)
 
 	/* Unilaterally clearing the interrupt status */
 	int_status = DL_UART_Main_getEnabledInterruptStatus(
-		config->regs, UART_MSPM0_TX_INTERRUPTS | UART_MSPM0_RX_INTERRUPTS);
+		config->regs, UART_MSP_TX_INTERRUPTS | UART_MSP_RX_INTERRUPTS);
 	DL_UART_Main_clearInterruptStatus(config->regs, int_status);
 
 	dev_data->pending_interrupt = DL_UART_MAIN_IIDX_NO_INTERRUPT;
 }
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
-static DEVICE_API(uart, uart_mspm0_driver_api) = {
-	.poll_in = uart_mspm0_poll_in,
-	.poll_out = uart_mspm0_poll_out,
+static DEVICE_API(uart, uart_msp_driver_api) = {
+	.poll_in = uart_msp_poll_in,
+	.poll_out = uart_msp_poll_out,
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	.err_check = uart_mspm0_err_check,
-	.fifo_fill = uart_mspm0_fifo_fill,
-	.fifo_read = uart_mspm0_fifo_read,
-	.irq_tx_enable = uart_mspm0_irq_tx_enable,
-	.irq_tx_disable = uart_mspm0_irq_tx_disable,
-	.irq_tx_ready = uart_mspm0_irq_tx_ready,
-	.irq_rx_enable = uart_mspm0_irq_rx_enable,
-	.irq_rx_disable = uart_mspm0_irq_rx_disable,
-	.irq_tx_complete = uart_mspm0_irq_tx_complete,
-	.irq_rx_ready = uart_mspm0_irq_rx_ready,
-	.irq_is_pending = uart_mspm0_irq_is_pending,
-	.irq_update = uart_mspm0_irq_update,
-	.irq_callback_set = uart_mspm0_irq_callback_set,
-	.irq_err_enable = uart_mspm0_irq_error_enable,
-	.irq_err_disable = uart_mspm0_irq_error_disable,
+	.err_check = uart_msp_err_check,
+	.fifo_fill = uart_msp_fifo_fill,
+	.fifo_read = uart_msp_fifo_read,
+	.irq_tx_enable = uart_msp_irq_tx_enable,
+	.irq_tx_disable = uart_msp_irq_tx_disable,
+	.irq_tx_ready = uart_msp_irq_tx_ready,
+	.irq_rx_enable = uart_msp_irq_rx_enable,
+	.irq_rx_disable = uart_msp_irq_rx_disable,
+	.irq_tx_complete = uart_msp_irq_tx_complete,
+	.irq_rx_ready = uart_msp_irq_rx_ready,
+	.irq_is_pending = uart_msp_irq_is_pending,
+	.irq_update = uart_msp_irq_update,
+	.irq_callback_set = uart_msp_irq_callback_set,
+	.irq_err_enable = uart_msp_irq_error_enable,
+	.irq_err_disable = uart_msp_irq_error_disable,
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 };
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 #define MSP_UART_IRQ_DEFINE(inst)                                                                  \
-	static void uart_mspm0_##inst##_irq_register(const struct device *dev)                     \
+	static void uart_msp_##inst##_irq_register(const struct device *dev)                     \
 	{                                                                                          \
-		IRQ_CONNECT(DT_INST_IRQN(inst), DT_INST_IRQ(inst, priority), uart_mspm0_isr,       \
+		IRQ_CONNECT(DT_INST_IRQN(inst), DT_INST_IRQ(inst, priority), uart_msp_isr,       \
 			    DEVICE_DT_INST_GET(inst), 0);                                          \
 		irq_enable(DT_INST_IRQN(inst));                                                    \
 	}
@@ -294,31 +294,31 @@ static DEVICE_API(uart, uart_mspm0_driver_api) = {
 #define MSP_UART_IRQ_DEFINE(inst)
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
-#define MSPM0_MAIN_CLK_DIV(n) CONCAT(DL_UART_MAIN_CLOCK_DIVIDE_RATIO_, DT_INST_PROP(n, clk_div))
+#define MSP_MAIN_CLK_DIV(n) CONCAT(DL_UART_MAIN_CLOCK_DIVIDE_RATIO_, DT_INST_PROP(n, clk_div))
 
-#define MSPM0_UART_INIT_FN(index)                                                                  \
+#define MSP_UART_INIT_FN(index)                                                                  \
                                                                                                    \
 	PINCTRL_DT_INST_DEFINE(index);                                                             \
                                                                                                    \
-	static const struct msp_sys_clock mspm0_uart_sys_clock##index =                            \
+	static const struct msp_sys_clock msp_uart_sys_clock##index =                            \
 		MSP_CLOCK_SUBSYS_FN(index);                                                        \
                                                                                                    \
 	MSP_UART_IRQ_DEFINE(index);                                                                \
                                                                                                    \
-	static const struct uart_mspm0_config uart_mspm0_cfg_##index = {                           \
+	static const struct uart_msp_config uart_msp_cfg_##index = {                           \
 		.regs = (UART_Regs *)DT_INST_REG_ADDR(index),                                      \
 		.current_speed = DT_INST_PROP(index, current_speed),                               \
 		.pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                                  \
-		.clock_subsys = &mspm0_uart_sys_clock##index,                                      \
+		.clock_subsys = &msp_uart_sys_clock##index,                                      \
 		IF_ENABLED(CONFIG_UART_INTERRUPT_DRIVEN,					\
-			   (.irq_config_func = uart_mspm0_##index##_irq_register,)) };               \
+			   (.irq_config_func = uart_msp_##index##_irq_register,)) };               \
                                                                                                    \
-	static struct uart_mspm0_data uart_mspm0_data_##index = {                                  \
+	static struct uart_msp_data uart_msp_data_##index = {                                  \
 		.uart_clockconfig =                                                                \
 			{                                                                          \
 				.clockSel = MSP_CLOCK_PERIPH_REG_MASK(                             \
 					DT_INST_CLOCKS_CELL(index, clk)),                          \
-				.divideRatio = MSPM0_MAIN_CLK_DIV(index),                          \
+				.divideRatio = MSP_MAIN_CLK_DIV(index),                          \
 			},                                                                         \
 		.uart_config =                                                                     \
 			{                                                                          \
@@ -333,8 +333,8 @@ static DEVICE_API(uart, uart_mspm0_driver_api) = {
 			},                                                                         \
 	};                                                                                         \
                                                                                                    \
-	DEVICE_DT_INST_DEFINE(index, &uart_mspm0_init, NULL, &uart_mspm0_data_##index,             \
-			      &uart_mspm0_cfg_##index, PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,  \
-			      &uart_mspm0_driver_api);
+	DEVICE_DT_INST_DEFINE(index, &uart_msp_init, NULL, &uart_msp_data_##index,             \
+			      &uart_msp_cfg_##index, PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,  \
+			      &uart_msp_driver_api);
 
-DT_INST_FOREACH_STATUS_OKAY(MSPM0_UART_INIT_FN)
+DT_INST_FOREACH_STATUS_OKAY(MSP_UART_INIT_FN)
