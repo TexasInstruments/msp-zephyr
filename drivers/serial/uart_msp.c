@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT ti_mspm0_uart
+#define DT_DRV_COMPAT ti_msp_uart
 
 /* Zephyr includes */
 #include <zephyr/kernel.h>

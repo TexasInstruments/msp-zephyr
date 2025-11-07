@@ -204,7 +204,7 @@
 		};
 
 		uart0: uart@40108000 {
-			compatible = "ti,mspm0-uart";
+			compatible = "ti,msp-uart";
 			reg = <0x40108000 0x2000>;
 			interrupts = <15 0>;
 			current-speed = <115200>;
