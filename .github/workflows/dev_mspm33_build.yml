@@ -1,0 +1,96 @@
+name: MSPM33 Zephyr Build Automation Workflow
+
+on:
+  push:
+    branches:
+      - dev_mspm33
+  pull_request:
+    branches:
+      - dev_mspm33
+
+jobs:
+  mspm33_build_all:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Set up environment
+        run: |
+          sudo apt install --no-install-recommends git cmake ninja-build gperf \
+          ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk \
+          xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1
+
+      - name: Check versions
+        run: |
+          cmake --version
+          python3 --version
+          dtc --version
+
+      - name: Create virtual environment
+        run: |
+          python3 -m venv ~/zephyrproject/.venv
+
+      - name: Activate virtual environment and install west
+        run: | 
+          source ~/zephyrproject/.venv/bin/activate
+          pip install --upgrade pip
+          pip install west
+
+      - name: Get the Zephyr source code
+        run: | 
+          source ~/zephyrproject/.venv/bin/activate
+          west init -m https://github.com/TexasInstruments/msp-zephyr --mr dev_mspm33 ~/zephyrproject
+          cd ~/zephyrproject
+          west update
+
+      - name: Export a Zephyr CMake package
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject
+          west zephyr-export
+      
+      - name: Install Zephyr dependencies
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject
+          ~/zephyrproject/.venv/bin/python -m pip install -r ~/zephyrproject/zephyr/scripts/requirements.txt
+          west packages pip --install
+      
+      - name: Install Zephyr SDK
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          west sdk install --toolchain=arm-zephyr-eabi
+      
+      - name: Build Blinky example
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a samples/basic/blinky
+          mkdir -p ~/artifacts/blinky
+          cp build/zephyr/zephyr.elf ~/artifacts/blinky/
+          cp build/zephyr/zephyr.bin ~/artifacts/blinky/ || true
+          cp build/zephyr/zephyr.hex ~/artifacts/blinky/ || true
+      
+      - name: Build ADC Sequence example
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a samples/drivers/adc/adc_sequence
+          mkdir -p ~/artifacts/adc_sequence
+          cp build/zephyr/zephyr.elf ~/artifacts/adc_sequence/
+          cp build/zephyr/zephyr.bin ~/artifacts/adc_sequence/ || true
+          cp build/zephyr/zephyr.hex ~/artifacts/adc_sequence/ || true
+      
+      - name: Build Counter Alarm example
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a samples/drivers/counter/alarm
+          mkdir -p ~/artifacts/counter_alarm
+          cp build/zephyr/zephyr.elf ~/artifacts/counter_alarm/
+          cp build/zephyr/zephyr.bin ~/artifacts/counter_alarm/ || true
+          cp build/zephyr/zephyr.hex ~/artifacts/counter_alarm/ || true
+
