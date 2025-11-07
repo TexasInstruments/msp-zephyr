@@ -65,7 +65,7 @@
 		};
 
 		uart4: uart@40502000 {
-			compatible = "ti,mspm0-uart";
+			compatible = "ti,msp-uart";
 			reg = <0x40502000 0x2000>;
 			interrupts = <14 0>;
 			current-speed = <115200>;
@@ -75,7 +75,7 @@
 		};
 
 		uart5: uart@40504000 {
-			compatible = "ti,mspm0-uart";
+			compatible = "ti,msp-uart";
 			reg = <0x40504000 0x2000>;
 			interrupts = <23 0>;
 			current-speed = <115200>;
@@ -85,7 +85,7 @@
 		};
 
 		uart6: uart@40506000 {
-			compatible = "ti,mspm0-uart";
+			compatible = "ti,msp-uart";
 			reg = <0x40506000 0x2000>;
 			interrupts = <29 0>;
 			current-speed = <115200>;
@@ -95,7 +95,7 @@
 		};
 
 		uart7: uart@4010a000 {
-			compatible = "ti,mspm0-uart";
+			compatible = "ti,msp-uart";
 			reg = <0x4010a000 0x2000>;
 			interrupts = <27 0>;
 			current-speed = <115200>;
