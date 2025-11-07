@@ -63,8 +63,12 @@ static int uart_msp_init(const struct device *dev)
 	/* Reset power */
 	DL_UART_Main_reset(config->regs);
 	DL_UART_Main_enablePower(config->regs);
-	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
 
+#if defined(CONFIG_SOC_FAMILY_MSPM0)
+	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
+#elif defined(CONFIG_SOC_FAMILY_MSPM33)
+	delay_cycles(CONFIG_MSPM33_PERIPH_STARTUP_DELAY);
+#endif
 	/* Init UART pins */
 	ret = pinctrl_apply_state(config->pinctrl, PINCTRL_STATE_DEFAULT);
 	if (ret < 0) {
