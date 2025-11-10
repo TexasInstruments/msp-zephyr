@@ -336,6 +336,126 @@
 				status = "disabled";
 			};
 		};
+
+		unicomm0: unicomm0@40582000 {
+			reg = <0x40582000 0x00002000>;
+			interrupts = <25 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			unicomm0_uart: unicomm0_uart@40582000 {
+				compatible = "ti,msp-uart";
+				interrupts = <25 0>;
+				reg = <0x40582000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_BUSCLK>;
+				status = "disabled";
+			};
+		};
+
+		unicomm1: unicomm1@40584000 {
+			reg = <0x40584000 0x00002000>;
+			interrupts = <26 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			unicomm1_uart: unicomm1_uart@40584000 {
+				compatible = "ti,msp-uart";
+				interrupts = <26 0>;
+				reg = <0x40584000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_BUSCLK>;
+				status = "disabled";
+			};
+		};
+
+		unicomm5: unicomm5@40688000 {
+			reg = <0x40688000 0x00002000>;
+			interrupts = <30 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			unicomm5_uart: unicomm5_uart@40688000 {
+				compatible = "ti,msp-uart";
+				interrupts = <30 0>;
+				reg = <0x40688000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_BUSCLK>;
+				status = "disabled";
+			};
+		};
+
+		unicomm6: unicomm6@4068a000 {
+			reg = <0x4068a000 0x00002000>;
+			interrupts = <31 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			unicomm6_uart: unicomm6_uart@4068a000 {
+				compatible = "ti,msp-uart";
+				interrupts = <31 0>;
+				reg = <0x4068a000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_BUSCLK>;
+				status = "disabled";
+			};
+		};
+
+		unicomm7: unicomm7@40780000 {
+			reg = <0x40780000 0x00002000>;
+			interrupts = <50 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			unicomm7_uart: unicomm7_uart@40780000 {
+				compatible = "ti,msp-uart";
+				interrupts = <50 0>;
+				reg = <0x40780000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_BUSCLK>;
+				status = "disabled";
+			};
+		};
+
+		unicomm8: unicomm8@40782000 {
+			reg = <0x40782000 0x00002000>;
+			interrupts = <51 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			unicomm8_uart: unicomm8_uart@40782000 {
+				compatible = "ti,msp-uart";
+				interrupts = <51 0>;
+				reg = <0x40782000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_BUSCLK>;
+				status = "disabled";
+			};
+		};
+
+		unicomm9: unicomm9@40784000 {
+			reg = <0x40784000 0x00002000>;
+			interrupts = <52 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			unicomm9_uart: unicomm9_uart@40784000 {
+				compatible = "ti,msp-uart";
+				interrupts = <52 0>;
+				reg = <0x40784000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_BUSCLK>;
+				status = "disabled";
+			};
+		};
+
+		unicomm10: unicomm10@40786000 {
+			reg = <0x40786000 0x00002000>;
+			interrupts = <32 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			unicomm10_uart: unicomm10_uart@40786000 {
+				compatible = "ti,msp-uart";
+				interrupts = <32 0>;
+				reg = <0x40786000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_BUSCLK>;
+				status = "disabled";
+			};
+		};
 	};
 };
 
