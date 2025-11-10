@@ -10,6 +10,7 @@ config SOC_SERIES_MSPM33C
 config SOC_MSPM33C321A
 	bool
 	select SOC_SERIES_MSPM33C
+	select HAS_MSP_UNICOMM
 
 config SOC_SERIES
 	default "mspm33c" if SOC_SERIES_MSPM33C
