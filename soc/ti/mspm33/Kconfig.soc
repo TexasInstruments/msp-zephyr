@@ -9,4 +9,7 @@ config SOC_FAMILY_TI_MSPM33
 config SOC_FAMILY
 	default "ti_mspm33" if SOC_FAMILY_TI_MSPM33
 
+config HAS_MSP_UNICOMM
+	bool
+
 rsource "*/Kconfig.soc"
