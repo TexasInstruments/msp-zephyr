@@ -31,3 +31,14 @@ properties:
       - 8
     description: |
       Clock divider selection value.
+
+  oversampling-rate:
+    type: int
+    default: 16
+    enum:
+      - 16
+      - 8
+      - 3
+    description: |
+      UART oversampling rate. Valid values are 16 (16x), 8 (8x), or 3 (3x).
+      Default is 16 (16x oversampling).
