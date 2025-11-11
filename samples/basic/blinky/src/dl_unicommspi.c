@@ -30,8 +30,9 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dl_unicommspi.h"
+#include <ti/driverlib/dl_unicommspi.h>
 
+#ifdef __MCU_HAS_UNICOMMSPI__
 
 void DL_SPI_init(UNICOMM_Inst_Regs *unicomm, DL_SPI_Config *config)
 {
@@ -93,6 +94,8 @@ void DL_SPI_transmitDataBlocking8(UNICOMM_Inst_Regs *unicomm, uint8_t data)
     while (DL_SPI_isTXFIFOFull(unicomm)) {
     };
     DL_SPI_transmitData8(unicomm, data);
+    while (DL_SPI_isBusy(unicomm)) {
+    };
 }
 
 void DL_SPI_transmitDataBlocking16(UNICOMM_Inst_Regs *unicomm, uint16_t data)
@@ -100,6 +103,8 @@ void DL_SPI_transmitDataBlocking16(UNICOMM_Inst_Regs *unicomm, uint16_t data)
     while (DL_SPI_isTXFIFOFull(unicomm)) {
     };
     DL_SPI_transmitData16(unicomm, data);
+    while (DL_SPI_isBusy(unicomm)) {
+    };
 }
 
 void DL_SPI_transmitDataBlocking32(UNICOMM_Inst_Regs *unicomm, uint32_t data)
@@ -107,6 +112,8 @@ void DL_SPI_transmitDataBlocking32(UNICOMM_Inst_Regs *unicomm, uint32_t data)
     while (DL_SPI_isTXFIFOFull(unicomm)) {
     };
     DL_SPI_transmitData32(unicomm, data);
+    while (DL_SPI_isBusy(unicomm)) {
+    };
 }
 
 bool DL_SPI_receiveDataCheck8(UNICOMM_Inst_Regs *unicomm, uint8_t *buffer)
@@ -323,3 +330,4 @@ uint32_t DL_SPI_fillTXFIFO32(
     return i;
 }
 
+#endif /* __MCU_HAS_UNICOMMSPI__ */

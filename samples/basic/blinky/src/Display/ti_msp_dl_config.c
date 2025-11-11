@@ -90,7 +90,10 @@ SYSCONFIG_WEAK void SYSCFG_DL_initPower(void)
     DL_GPIO_enablePower(GPIOA);
     DL_GPIO_enablePower(GPIOB);
     DL_GPIO_enablePower(GPIOC);
-    DL_SPI_enablePower(SPI_0_INST);
+//     DL_SPI_enablePower(SPI_0_INST);
+    DL_UNICOMM_enablePower(SPI_0_INST);
+    delay_cycles(POWER_STARTUP_DELAY);
+    DL_UNICOMM_setIPMode(SPI_0_INST, DL_UNICOMM_SPI);
     delay_cycles(POWER_STARTUP_DELAY);
 }
 
@@ -142,7 +145,7 @@ SYSCONFIG_WEAK void SYSCFG_DL_SYSCTL_init(void)
 	//Low Power Mode is configured to be SLEEP0
     DL_SYSCTL_setBORThreshold(DL_SYSCTL_BOR_THRESHOLD_LEVEL_0);
 
-    
+
 	DL_SYSCTL_setSYSOSCFreq(DL_SYSCTL_SYSOSC_FREQ_BASE);
 	/* Set default configuration */
 	DL_SYSCTL_disableHFXT();
@@ -175,7 +178,7 @@ SYSCONFIG_WEAK void SYSCFG_DL_SPI_0_init(void) {
      *     outputBitRate = (spiInputClock) / ((1 + SCR) * 2)
      *     16000000 = (32000000)/((1 + 0) * 2)
      */
-    DL_SPI_setBitRateSerialClockDivider(SPI_0_INST, 0);
+    DL_SPI_setBitRateSerialClockDivider(SPI_0_INST, 3);
     /* Set RX and TX FIFO threshold levels */
     DL_SPI_setFIFOThreshold(SPI_0_INST, DL_SPI_RX_FIFO_LEVEL_1_2_FULL, DL_SPI_TX_FIFO_LEVEL_1_2_EMPTY);
 

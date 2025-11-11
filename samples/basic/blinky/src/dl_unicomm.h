@@ -31,13 +31,16 @@
  */
 /*!****************************************************************************
  *  @file       dl_unicomm.h
- *  @brief      Universal Serial Communication (UNICOMM) Driver Library
- *  @defgroup   UNICOMM Universal Serial Communication (UNICOMM)
+ *  @brief      Unified Communication Module (UNICOMM) Driver Library
+ *  @defgroup   UNICOMM Unified Communication Module (UNICOMM)
  *
  *  @anchor ti_dl_dl_m0p_unicomm_Overview
  *  # Overview
  *
- *  TODO
+ *  The Unified Communication Module (UNICOMM) Driver Library allows full
+ *  configuration of the UNICOMM module.
+ *  UNICOMM is a highly flexible peripheral which can be configured as a UART,
+ *  SPI, I2C Controller, or I2C Target function.
  *
  *  <hr>
  ******************************************************************************
@@ -54,6 +57,7 @@
 #include <ti/devices/msp/msp.h>
 #include <ti/driverlib/dl_common.h>
 
+#ifdef __MCU_HAS_UNICOMM__
 
 #ifdef __cplusplus
 extern "C" {
@@ -164,6 +168,7 @@ __STATIC_INLINE DL_UNICOMM_IP_MODE_SEL DL_UNICOMM_getIPMode(UNICOMM_Inst_Regs *u
 }
 #endif
 
+#endif /* __MCU_HAS_UNICOMM__ */
 
 #endif /* ti_dl_dl_unicomm__include */
 /** @}*/

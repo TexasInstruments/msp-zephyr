@@ -59,6 +59,13 @@ extern "C" {
  * Interrupt Definitions                                                       *
  ******************************************************************************/
 typedef enum IRQn {
+    // defined by me for temporary use
+    MemoryManagement_IRQn     = -12,    /*!< -12 Memory Management, MPU mismatch, including Access Violation
+                                               and No Match                                                  */
+    BusFault_IRQn             = -11,    /*!< -11 Bus Fault, Pre-Fetch-, Memory Access Fault, other address/memory
+                                                related Fault                                                 */
+    UsageFault_IRQn           = -10,    /*!< -10 Usage Fault, i.e. Undef Instruction, Illegal State Transition */
+
     NonMaskableInt_IRQn        = -14, /* 2  Non Maskable Interrupt */
     HardFault_IRQn             = -13, /* 3  Hard Fault Interrupt */
     SVCall_IRQn                = -5,  /* 11 SV Call Interrupt */
@@ -359,6 +366,10 @@ typedef enum IRQn {
 #define FRI_BASE                       (0x40028000U) /*!< Base address of module FRI */
 #define SHAW_BASE                      (0x401B4000U) /*!< Base address of module SHAW */
 #define DFTSS_BASE                     (0x40034000U) /*!< Base address of module DFTSS */
+
+#define UC_UART_OFFSET                 (0x00080000U)    /*!< UART address offset relative to UCx base address */
+
+#define UC_UART_BASE(UC_BASE)         (UC_BASE - UC_UART_OFFSET) /*!< Macro to calculate base address of UNICOMMUART Regs */
 
 typedef struct {
     UNICOMM_Regs         * const inst;
@@ -661,53 +672,53 @@ static const UNICOMM_Inst_Regs UC10_Inst_S = {
   @{
 */
 
-static TRNG_Regs                                      *const TRNG                                        = ((TRNG_Regs *)TRNG_BASE); 
-static WWDT_Regs                                      *const WWDT0                                       = ((WWDT_Regs *)WWDT0_BASE); 
-static CRCP_Regs                                      *const CRCP0                                       = ((CRCP_Regs *)CRCP0_BASE); 
-static LFSS_Regs                                      *const LFSS                                        = ((LFSS_Regs *)LFSS_BASE); 
-static GPIO_Regs                                      *const GPIOA                                       = ((GPIO_Regs *)GPIOA_BASE); 
-static GPIO_Regs                                      *const GPIOB                                       = ((GPIO_Regs *)GPIOB_BASE); 
-static GPIO_Regs                                      *const GPIOC                                       = ((GPIO_Regs *)GPIOC_BASE); 
-static DEBUGSS_Regs                                   *const DEBUGSS                                     = ((DEBUGSS_Regs *)DEBUGSS_BASE); 
-static AESADVHP_Regs                                  *const AESADV                                      = ((AESADVHP_Regs *)AESADV_BASE); 
-static WUC_Regs                                       *const WUC                                         = ((WUC_Regs *)WUC_BASE); 
-static KEYSTORECTL_Regs                               *const KEYSTORECTL                                 = ((KEYSTORECTL_Regs *)KEYSTORECTL_BASE); 
-static I2S_Regs                                       *const I2S0                                        = ((I2S_Regs *)I2S0_BASE); 
-static I2S_Regs                                       *const I2S1                                        = ((I2S_Regs *)I2S1_BASE); 
-static GPTIMER_Regs                                   *const TIMA0_1                                     = ((GPTIMER_Regs *)TIMA0_1_BASE); 
-static GPTIMER_Regs                                   *const TIMA0_0                                     = ((GPTIMER_Regs *)TIMA0_0_BASE); 
-static GPTIMER_Regs                                   *const TIMG4_0                                     = ((GPTIMER_Regs *)TIMG4_0_BASE); 
-static GPTIMER_Regs                                   *const TIMG4_1                                     = ((GPTIMER_Regs *)TIMG4_1_BASE); 
-static GPTIMER_Regs                                   *const TIMG4_2                                     = ((GPTIMER_Regs *)TIMG4_2_BASE); 
-static GPTIMER_Regs                                   *const TIMG4_3                                     = ((GPTIMER_Regs *)TIMG4_3_BASE); 
-static GPTIMER_Regs                                   *const TIMG8_0                                     = ((GPTIMER_Regs *)TIMG8_0_BASE); 
-static GPTIMER_Regs                                   *const TIMG8_1                                     = ((GPTIMER_Regs *)TIMG8_1_BASE); 
-static GPTIMER_Regs                                   *const TIMG12_0                                    = ((GPTIMER_Regs *)TIMG12_0_BASE); 
-static FLASHCTL_Regs                                  *const FLASHCTL                                    = ((FLASHCTL_Regs *)FLASHCTL_BASE); 
-static IOMUX_Regs                                     *const IOMUX                                       = ((IOMUX_Regs *)IOMUX_BASE); 
-static SHAW_Regs                                      *const SHAW                                        = ((SHAW_Regs *)SHAW_BASE); 
-static QSPI_Regs                                      *const QSPI                                        = ((QSPI_Regs *)QSPI_BASE); 
-static SYSCTL_Regs                                    *const SYSCTL                                      = ((SYSCTL_Regs *)SYSCTL_BASE); 
+static TRNG_Regs                                      *const TRNG                                        = ((TRNG_Regs *)TRNG_BASE);
+static WWDT_Regs                                      *const WWDT0                                       = ((WWDT_Regs *)WWDT0_BASE);
+static CRCP_Regs                                      *const CRCP0                                       = ((CRCP_Regs *)CRCP0_BASE);
+static LFSS_Regs                                      *const LFSS                                        = ((LFSS_Regs *)LFSS_BASE);
+static GPIO_Regs                                      *const GPIOA                                       = ((GPIO_Regs *)GPIOA_BASE);
+static GPIO_Regs                                      *const GPIOB                                       = ((GPIO_Regs *)GPIOB_BASE);
+static GPIO_Regs                                      *const GPIOC                                       = ((GPIO_Regs *)GPIOC_BASE);
+static DEBUGSS_Regs                                   *const DEBUGSS                                     = ((DEBUGSS_Regs *)DEBUGSS_BASE);
+static AESADVHP_Regs                                  *const AESADV                                      = ((AESADVHP_Regs *)AESADV_BASE);
+static WUC_Regs                                       *const WUC                                         = ((WUC_Regs *)WUC_BASE);
+static KEYSTORECTL_Regs                               *const KEYSTORECTL                                 = ((KEYSTORECTL_Regs *)KEYSTORECTL_BASE);
+static I2S_Regs                                       *const I2S0                                        = ((I2S_Regs *)I2S0_BASE);
+static I2S_Regs                                       *const I2S1                                        = ((I2S_Regs *)I2S1_BASE);
+static GPTIMER_Regs                                   *const TIMA0_1                                     = ((GPTIMER_Regs *)TIMA0_1_BASE);
+static GPTIMER_Regs                                   *const TIMA0_0                                     = ((GPTIMER_Regs *)TIMA0_0_BASE);
+static GPTIMER_Regs                                   *const TIMG4_0                                     = ((GPTIMER_Regs *)TIMG4_0_BASE);
+static GPTIMER_Regs                                   *const TIMG4_1                                     = ((GPTIMER_Regs *)TIMG4_1_BASE);
+static GPTIMER_Regs                                   *const TIMG4_2                                     = ((GPTIMER_Regs *)TIMG4_2_BASE);
+static GPTIMER_Regs                                   *const TIMG4_3                                     = ((GPTIMER_Regs *)TIMG4_3_BASE);
+static GPTIMER_Regs                                   *const TIMG8_0                                     = ((GPTIMER_Regs *)TIMG8_0_BASE);
+static GPTIMER_Regs                                   *const TIMG8_1                                     = ((GPTIMER_Regs *)TIMG8_1_BASE);
+static GPTIMER_Regs                                   *const TIMG12_0                                    = ((GPTIMER_Regs *)TIMG12_0_BASE);
+static FLASHCTL_Regs                                  *const FLASHCTL                                    = ((FLASHCTL_Regs *)FLASHCTL_BASE);
+static IOMUX_Regs                                     *const IOMUX                                       = ((IOMUX_Regs *)IOMUX_BASE);
+static SHAW_Regs                                      *const SHAW                                        = ((SHAW_Regs *)SHAW_BASE);
+static QSPI_Regs                                      *const QSPI                                        = ((QSPI_Regs *)QSPI_BASE);
+static SYSCTL_Regs                                    *const SYSCTL                                      = ((SYSCTL_Regs *)SYSCTL_BASE);
 static COMP_Regs                                      *const COMP0                                       = ((COMP_Regs *) COMP0_BASE);
-static GSC_Regs                                       *const GSC                                         = ((GSC_Regs *)GSC_BASE); 
-static FACTORYREGION_OPEN_Regs                        *const FACTORYREGION                               = ((FACTORYREGION_OPEN_Regs *)FACTORYREGION_BASE); 
-static FRI_Regs                                       *const FRI                                         = ((FRI_Regs *)FRI_BASE); 
+static GSC_Regs                                       *const GSC                                         = ((GSC_Regs *)GSC_BASE);
+static FACTORYREGION_OPEN_Regs                        *const FACTORYREGION                               = ((FACTORYREGION_OPEN_Regs *)FACTORYREGION_BASE);
+static FRI_Regs                                       *const FRI                                         = ((FRI_Regs *)FRI_BASE);
 static EAM_Regs                                       *const EAM                                         = ((EAM_Regs *) EAM_BASE);
-static MCAN_Regs                                      *const CANFD0                                      = ((MCAN_Regs *)CANFD0_BASE); 
-static MCAN_Regs                                      *const CANFD1                                      = ((MCAN_Regs *)CANFD1_BASE); 
-static MEMCFG_Regs                                    *const MEMCFG                                      = ((MEMCFG_Regs *)MEMCFG_BASE); 
-static DMA_Regs                                       *const DMA0                                        = ((DMA_Regs *)DMA0_BASE); 
-static DMA_Regs                                       *const DMA1                                        = ((DMA_Regs *)DMA1_BASE); 
-static PKA_Regs                                       *const PKA                                         = ((PKA_Regs *)PKA_BASE); 
-static VREF_Regs                                      *const VREF                                        = ((VREF_Regs *)VREF_BASE); 
-static hsadc_ADC_LITE_REGS_Regs                       *const ADC0_ADC_LITE_REGS                          = ((hsadc_ADC_LITE_REGS_Regs *)ADC0_ADC_LITE_REGS_BASE); 
-static hsadc_ADC_LITE_RESULT_REGS_Regs                *const ADC0_ADC_LITE_RESULT_REGS                   = ((hsadc_ADC_LITE_RESULT_REGS_Regs *)ADC0_ADC_LITE_RESULT_REGS_BASE); 
-static hsadc_ADC_LITE_REGS_Regs                       *const ADC1_ADC_LITE_REGS                          = ((hsadc_ADC_LITE_REGS_Regs *)ADC1_ADC_LITE_REGS_BASE); 
-static hsadc_ADC_LITE_RESULT_REGS_Regs                *const ADC1_ADC_LITE_RESULT_REGS                   = ((hsadc_ADC_LITE_RESULT_REGS_Regs *)ADC1_ADC_LITE_RESULT_REGS_BASE); 
-static COMP_Regs                                      *const COMP1                                       = ((COMP_Regs *)COMP1_BASE); 
-static RTC_Regs                                       *const RTC                                         = ((RTC_Regs *)RTC_BASE); 
-static RTC_Regs                                       *const RTC_A                                       = ((RTC_Regs *)RTC_A_BASE); 
-static RTC_Regs                                       *const RTC_B                                       = ((RTC_Regs *)RTC_B_BASE); 
+static MCAN_Regs                                      *const CANFD0                                      = ((MCAN_Regs *)CANFD0_BASE);
+static MCAN_Regs                                      *const CANFD1                                      = ((MCAN_Regs *)CANFD1_BASE);
+static MEMCFG_Regs                                    *const MEMCFG                                      = ((MEMCFG_Regs *)MEMCFG_BASE);
+static DMA_Regs                                       *const DMA0                                        = ((DMA_Regs *)DMA0_BASE);
+static DMA_Regs                                       *const DMA1                                        = ((DMA_Regs *)DMA1_BASE);
+static PKA_Regs                                       *const PKA                                         = ((PKA_Regs *)PKA_BASE);
+static VREF_Regs                                      *const VREF                                        = ((VREF_Regs *)VREF_BASE);
+static hsadc_ADC_LITE_REGS_Regs                       *const ADC0_ADC_LITE_REGS                          = ((hsadc_ADC_LITE_REGS_Regs *)ADC0_ADC_LITE_REGS_BASE);
+static hsadc_ADC_LITE_RESULT_REGS_Regs                *const ADC0_ADC_LITE_RESULT_REGS                   = ((hsadc_ADC_LITE_RESULT_REGS_Regs *)ADC0_ADC_LITE_RESULT_REGS_BASE);
+static hsadc_ADC_LITE_REGS_Regs                       *const ADC1_ADC_LITE_REGS                          = ((hsadc_ADC_LITE_REGS_Regs *)ADC1_ADC_LITE_REGS_BASE);
+static hsadc_ADC_LITE_RESULT_REGS_Regs                *const ADC1_ADC_LITE_RESULT_REGS                   = ((hsadc_ADC_LITE_RESULT_REGS_Regs *)ADC1_ADC_LITE_RESULT_REGS_BASE);
+static COMP_Regs                                      *const COMP1                                       = ((COMP_Regs *)COMP1_BASE);
+static RTC_Regs                                       *const RTC                                         = ((RTC_Regs *)RTC_BASE);
+static RTC_Regs                                       *const RTC_A                                       = ((RTC_Regs *)RTC_A_BASE);
+static RTC_Regs                                       *const RTC_B                                       = ((RTC_Regs *)RTC_B_BASE);
 static UNICOMMUART_Regs                               * const UC0_UART                                   = ((UNICOMMUART_Regs *) UC0_UART_BASE);
 static UNICOMMUART_Regs                               * const UC1_UART                                   = ((UNICOMMUART_Regs *) UC1_UART_BASE);
 static UNICOMMI2CC_Regs                               * const UC0_I2CC                                   = ((UNICOMMI2CC_Regs *) UC0_I2CC_BASE);
@@ -753,53 +764,53 @@ static UNICOMM_Inst_Regs                              * const UC8               
 static UNICOMM_Inst_Regs                              * const UC9                                        = ((UNICOMM_Inst_Regs *) &UC9_Inst);
 static UNICOMM_Inst_Regs                              * const UC10                                       = ((UNICOMM_Inst_Regs *) &UC10_Inst);
 static SPGSS_Regs                                     * const SPG2                                       = ((SPGSS_Regs *) SPG2_BASE);
-static TRNG_Regs                                      *const TRNG_S                                      = ((TRNG_Regs *)TRNG_BASE_S); 
-static WWDT_Regs                                      *const WWDT0_S                                     = ((WWDT_Regs *)WWDT0_BASE_S); 
-static CRCP_Regs                                      *const CRCP0_S                                     = ((CRCP_Regs *)CRCP0_BASE_S); 
-static LFSS_Regs                                      *const LFSS_S                                      = ((LFSS_Regs *)LFSS_BASE_S); 
-static GPIO_Regs                                      *const GPIOA_S                                     = ((GPIO_Regs *)GPIOA_BASE_S); 
-static GPIO_Regs                                      *const GPIOB_S                                     = ((GPIO_Regs *)GPIOB_BASE_S); 
-static GPIO_Regs                                      *const GPIOC_S                                     = ((GPIO_Regs *)GPIOC_BASE_S); 
-static DEBUGSS_Regs                                   *const DEBUGSS_S                                   = ((DEBUGSS_Regs *)DEBUGSS_BASE_S); 
-static AESADVHP_Regs                                  *const AESADV_S                                    = ((AESADVHP_Regs *)AESADV_BASE_S); 
-static WUC_Regs                                       *const WUC_S                                       = ((WUC_Regs *)WUC_BASE_S); 
-static KEYSTORECTL_Regs                               *const KEYSTORECTL_S                               = ((KEYSTORECTL_Regs *)KEYSTORECTL_BASE_S); 
+static TRNG_Regs                                      *const TRNG_S                                      = ((TRNG_Regs *)TRNG_BASE_S);
+static WWDT_Regs                                      *const WWDT0_S                                     = ((WWDT_Regs *)WWDT0_BASE_S);
+static CRCP_Regs                                      *const CRCP0_S                                     = ((CRCP_Regs *)CRCP0_BASE_S);
+static LFSS_Regs                                      *const LFSS_S                                      = ((LFSS_Regs *)LFSS_BASE_S);
+static GPIO_Regs                                      *const GPIOA_S                                     = ((GPIO_Regs *)GPIOA_BASE_S);
+static GPIO_Regs                                      *const GPIOB_S                                     = ((GPIO_Regs *)GPIOB_BASE_S);
+static GPIO_Regs                                      *const GPIOC_S                                     = ((GPIO_Regs *)GPIOC_BASE_S);
+static DEBUGSS_Regs                                   *const DEBUGSS_S                                   = ((DEBUGSS_Regs *)DEBUGSS_BASE_S);
+static AESADVHP_Regs                                  *const AESADV_S                                    = ((AESADVHP_Regs *)AESADV_BASE_S);
+static WUC_Regs                                       *const WUC_S                                       = ((WUC_Regs *)WUC_BASE_S);
+static KEYSTORECTL_Regs                               *const KEYSTORECTL_S                               = ((KEYSTORECTL_Regs *)KEYSTORECTL_BASE_S);
 //static I2S_Regs                                     *const I2S0_S                                      = ((I2S_Regs *) I2S0_BASE_S);
 //static I2S_Regs                                     *const I2S1_S                                      = ((I2S_Regs *) I2S1_BASE_S);
-static GPTIMER_Regs                                   *const TIMA0_1_S                                   = ((GPTIMER_Regs *)TIMA0_1_BASE_S); 
-static GPTIMER_Regs                                   *const TIMA0_0_S                                   = ((GPTIMER_Regs *)TIMA0_0_BASE_S); 
-static GPTIMER_Regs                                   *const TIMG4_0_S                                   = ((GPTIMER_Regs *)TIMG4_0_BASE_S); 
-static GPTIMER_Regs                                   *const TIMG4_1_S                                   = ((GPTIMER_Regs *)TIMG4_1_BASE_S); 
-static GPTIMER_Regs                                   *const TIMG4_2_S                                   = ((GPTIMER_Regs *)TIMG4_2_BASE_S); 
-static GPTIMER_Regs                                   *const TIMG4_3_S                                   = ((GPTIMER_Regs *)TIMG4_3_BASE_S); 
-static GPTIMER_Regs                                   *const TIMG8_0_S                                   = ((GPTIMER_Regs *)TIMG8_0_BASE_S); 
-static GPTIMER_Regs                                   *const TIMG8_1_S                                   = ((GPTIMER_Regs *)TIMG8_1_BASE_S); 
-static GPTIMER_Regs                                   *const TIMG12_0_S                                  = ((GPTIMER_Regs *)TIMG12_0_BASE_S); 
-static FLASHCTL_Regs                                  *const FLASHCTL_S                                  = ((FLASHCTL_Regs *)FLASHCTL_BASE_S); 
-static IOMUX_Regs                                     *const IOMUX_S                                     = ((IOMUX_Regs *)IOMUX_BASE_S); 
-static SHAW_Regs                                      *const SHAW_S                                      = ((SHAW_Regs *)SHAW_BASE_S); 
-static QSPI_Regs                                      *const QSPI_S                                      = ((QSPI_Regs *)QSPI_BASE_S); 
-static SYSCTL_Regs                                    *const SYSCTL_S                                    = ((SYSCTL_Regs *)SYSCTL_BASE_S); 
+static GPTIMER_Regs                                   *const TIMA0_1_S                                   = ((GPTIMER_Regs *)TIMA0_1_BASE_S);
+static GPTIMER_Regs                                   *const TIMA0_0_S                                   = ((GPTIMER_Regs *)TIMA0_0_BASE_S);
+static GPTIMER_Regs                                   *const TIMG4_0_S                                   = ((GPTIMER_Regs *)TIMG4_0_BASE_S);
+static GPTIMER_Regs                                   *const TIMG4_1_S                                   = ((GPTIMER_Regs *)TIMG4_1_BASE_S);
+static GPTIMER_Regs                                   *const TIMG4_2_S                                   = ((GPTIMER_Regs *)TIMG4_2_BASE_S);
+static GPTIMER_Regs                                   *const TIMG4_3_S                                   = ((GPTIMER_Regs *)TIMG4_3_BASE_S);
+static GPTIMER_Regs                                   *const TIMG8_0_S                                   = ((GPTIMER_Regs *)TIMG8_0_BASE_S);
+static GPTIMER_Regs                                   *const TIMG8_1_S                                   = ((GPTIMER_Regs *)TIMG8_1_BASE_S);
+static GPTIMER_Regs                                   *const TIMG12_0_S                                  = ((GPTIMER_Regs *)TIMG12_0_BASE_S);
+static FLASHCTL_Regs                                  *const FLASHCTL_S                                  = ((FLASHCTL_Regs *)FLASHCTL_BASE_S);
+static IOMUX_Regs                                     *const IOMUX_S                                     = ((IOMUX_Regs *)IOMUX_BASE_S);
+static SHAW_Regs                                      *const SHAW_S                                      = ((SHAW_Regs *)SHAW_BASE_S);
+static QSPI_Regs                                      *const QSPI_S                                      = ((QSPI_Regs *)QSPI_BASE_S);
+static SYSCTL_Regs                                    *const SYSCTL_S                                    = ((SYSCTL_Regs *)SYSCTL_BASE_S);
 static COMP_Regs                                      *const COMP0_S                                     = ((COMP_Regs *) COMP0_BASE_S);
-static GSC_Regs                                       *const GSC_S                                       = ((GSC_Regs *)GSC_BASE_S); 
-static FACTORYREGION_OPEN_Regs                        *const FACTORYREGION_S                             = ((FACTORYREGION_OPEN_Regs *)FACTORYREGION_BASE_S); 
-static FRI_Regs                                       *const FRI_S                                       = ((FRI_Regs *)FRI_BASE_S); 
+static GSC_Regs                                       *const GSC_S                                       = ((GSC_Regs *)GSC_BASE_S);
+static FACTORYREGION_OPEN_Regs                        *const FACTORYREGION_S                             = ((FACTORYREGION_OPEN_Regs *)FACTORYREGION_BASE_S);
+static FRI_Regs                                       *const FRI_S                                       = ((FRI_Regs *)FRI_BASE_S);
 static EAM_Regs                                       *const EAM_S                                       = ((EAM_Regs *) EAM_BASE_S);
-static MCAN_Regs                                      *const CANFD0_S                                    = ((MCAN_Regs *)CANFD0_BASE_S); 
-static MCAN_Regs                                      *const CANFD1_S                                    = ((MCAN_Regs *)CANFD1_BASE_S); 
-static MEMCFG_Regs                                    *const MEMCFG_S                                    = ((MEMCFG_Regs *)MEMCFG_BASE_S); 
-static DMA_Regs                                       *const DMA0_S                                      = ((DMA_Regs *)DMA0_BASE_S); 
-static DMA_Regs                                       *const DMA1_S                                      = ((DMA_Regs *)DMA1_BASE_S); 
-static PKA_Regs                                       *const PKA_S                                       = ((PKA_Regs *)PKA_BASE_S); 
-static VREF_Regs                                      *const VREF_S                                      = ((VREF_Regs *)VREF_BASE_S); 
-static hsadc_ADC_LITE_REGS_Regs                       *const ADC0_ADC_LITE_REGS_S                        = ((hsadc_ADC_LITE_REGS_Regs *)ADC0_ADC_LITE_REGS_BASE_S); 
-static hsadc_ADC_LITE_RESULT_REGS_Regs                *const ADC0_ADC_LITE_RESULT_REGS_S                   = ((hsadc_ADC_LITE_RESULT_REGS_Regs *)ADC0_ADC_LITE_RESULT_REGS_BASE_S); 
-static hsadc_ADC_LITE_REGS_Regs                       *const ADC1_ADC_LITE_REGS_S                        = ((hsadc_ADC_LITE_REGS_Regs *)ADC1_ADC_LITE_REGS_BASE_S); 
-static hsadc_ADC_LITE_RESULT_REGS_Regs                *const ADC1_ADC_LITE_RESULT_REGS_S                   = ((hsadc_ADC_LITE_RESULT_REGS_Regs *)ADC1_ADC_LITE_RESULT_REGS_BASE_S); 
-static COMP_Regs                                      *const COMP1_S                                     = ((COMP_Regs *)COMP1_BASE_S); 
-static RTC_Regs                                       *const RTC_S                                       = ((RTC_Regs *)RTC_BASE_S); 
-static RTC_Regs                                       *const RTC_A_S                                     = ((RTC_Regs *)RTC_A_BASE_S); 
-static RTC_Regs                                       *const RTC_B_S                                     = ((RTC_Regs *)RTC_B_BASE_S); 
+static MCAN_Regs                                      *const CANFD0_S                                    = ((MCAN_Regs *)CANFD0_BASE_S);
+static MCAN_Regs                                      *const CANFD1_S                                    = ((MCAN_Regs *)CANFD1_BASE_S);
+static MEMCFG_Regs                                    *const MEMCFG_S                                    = ((MEMCFG_Regs *)MEMCFG_BASE_S);
+static DMA_Regs                                       *const DMA0_S                                      = ((DMA_Regs *)DMA0_BASE_S);
+static DMA_Regs                                       *const DMA1_S                                      = ((DMA_Regs *)DMA1_BASE_S);
+static PKA_Regs                                       *const PKA_S                                       = ((PKA_Regs *)PKA_BASE_S);
+static VREF_Regs                                      *const VREF_S                                      = ((VREF_Regs *)VREF_BASE_S);
+static hsadc_ADC_LITE_REGS_Regs                       *const ADC0_ADC_LITE_REGS_S                        = ((hsadc_ADC_LITE_REGS_Regs *)ADC0_ADC_LITE_REGS_BASE_S);
+static hsadc_ADC_LITE_RESULT_REGS_Regs                *const ADC0_ADC_LITE_RESULT_REGS_S                   = ((hsadc_ADC_LITE_RESULT_REGS_Regs *)ADC0_ADC_LITE_RESULT_REGS_BASE_S);
+static hsadc_ADC_LITE_REGS_Regs                       *const ADC1_ADC_LITE_REGS_S                        = ((hsadc_ADC_LITE_REGS_Regs *)ADC1_ADC_LITE_REGS_BASE_S);
+static hsadc_ADC_LITE_RESULT_REGS_Regs                *const ADC1_ADC_LITE_RESULT_REGS_S                   = ((hsadc_ADC_LITE_RESULT_REGS_Regs *)ADC1_ADC_LITE_RESULT_REGS_BASE_S);
+static COMP_Regs                                      *const COMP1_S                                     = ((COMP_Regs *)COMP1_BASE_S);
+static RTC_Regs                                       *const RTC_S                                       = ((RTC_Regs *)RTC_BASE_S);
+static RTC_Regs                                       *const RTC_A_S                                     = ((RTC_Regs *)RTC_A_BASE_S);
+static RTC_Regs                                       *const RTC_B_S                                     = ((RTC_Regs *)RTC_B_BASE_S);
 static UNICOMMUART_Regs                               * const UC0_UART_S                                   = ((UNICOMMUART_Regs *) UC0_UART_BASE_S);
 static UNICOMMUART_Regs                               * const UC1_UART_S                                   = ((UNICOMMUART_Regs *) UC1_UART_BASE_S);
 static UNICOMMI2CC_Regs                               * const UC0_I2CC_S                                   = ((UNICOMMI2CC_Regs *) UC0_I2CC_BASE_S);

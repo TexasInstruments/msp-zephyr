@@ -35,7 +35,7 @@
 
 char *boot_str = "M33 Zephyr is Alive";
 char *t1_str = "Zephyr Thread 1";
-char *t2_str = "Zephyr Thread 2";
+char *t2_str = "Zephyrblink0_id Thread 2";
 //void drawTiLogo(char *);
 void drawTiLogo(Graphics_Context *ctx, char *str);
 
@@ -94,7 +94,7 @@ void blink1(void)
   Graphics_clearDisplay(&g_sContext2);
   k_sched_unlock();
   while(1) {
-    //while(k_sem_take(&my_sem, K_MSEC(50)) != 0);
+    //while(k_sem_take(&mDL_UNICOMM_SPIy_sem, K_MSEC(50)) != 0);
 
     k_sched_lock();
     drawTiLogo(&g_sContext2, t2_str);
@@ -308,7 +308,7 @@ int main(void)
     k_msleep(SLEEP_TIME_MS);
   }
   #endif
-  
+
   //TZM_JumpToNormalWorld(NON_SECURE_START);
 
 	//return 0;

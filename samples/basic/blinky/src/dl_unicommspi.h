@@ -31,15 +31,16 @@
  */
 /*!****************************************************************************
  *  @file       dl_unicommspi.h
- *  @brief      Unified Communication SPI (UNICOMMSPI) Driver Library
- *  @defgroup   UNICOMMSPI UNICOMM SPI Unified Communication SPI (UNICOMMSPI)
+ *  @brief      Unified Communication Module (UNICOMM) - Serial Peripheral Interface (SPI) Driver Library
+ *  @defgroup   UNICOMMSPI Unified Communication Module (UNICOMM) - Serial Peripheral Interface (SPI)
  *
  *  @anchor ti_dl_dl_unicommspi_Overview
  *  # Overview
  *
- *  The Serial Peripheral Interface Driver Library allows full configuration of
- *  the SPI module.
- *  The serial peripheral interface (SPI) module provides a standardized
+ *  The Unified Communication Module Serial Peripheral Interface Driver Library allows
+ *  full configuration of the UNICOMM SPI module.
+ *
+ *  This Serial Peripheral Interface (SPI) module provides a standardized
  *  serial interface to transfer data between devices and other external
  *  devices with SPI interface.
  *
@@ -59,6 +60,7 @@
 #include <ti/driverlib/dl_common.h>
 #include <ti/driverlib/dl_unicomm.h>
 
+#ifdef __MCU_HAS_UNICOMMSPI__
 
 #ifdef __cplusplus
 extern "C" {
@@ -371,86 +373,6 @@ typedef enum {
     DL_SPI_IIDX_LTOUT = UNICOMMSPI_IIDX_STAT_LTOUT,
 } DL_SPI_IIDX;
 
-/*! @enum DL_SPI_SPG_DMA_RX_DEST_ADDR*/
-typedef enum {
-    /*! Increment destination memory location after each transfer */
-    DL_SPI_SPG_DMA_RX_DEST_ADDR_INCREMENT =
-        UNICOMMSPI_SPGDMARXCTL_DMAMEMINCR_INCREMENT,
-    /*! Decrement destination memory location after each transfer */
-    DL_SPI_SPG_DMA_RX_DEST_ADDR_DECREMENT =
-        UNICOMMSPI_SPGDMARXCTL_DMAMEMINCR_DECREMENT
-} DL_SPI_SPG_DMA_RX_DEST_ADDR;
-
-/*! @enum DL_SPI_SPG_DMA_RX_PREEMPT_INT */
-typedef enum {
-    /*! Disable pre-emptive interrupt */
-    DL_SPI_SPG_DMA_RX_PREEMPT_INT_DISABLE =
-        UNICOMMSPI_SPGDMARXCTL_DMAPREIRQ_PREIRQ_DISABLE,
-    /*! Trigger interrupt pre-emptively when DMA transfer is half done */
-    DL_SPI_SPG_DMA_RX_PREEMPT_INT_HALF =
-        UNICOMMSPI_SPGDMARXCTL_DMAPREIRQ_PREIRQ_HALF
-} DL_SPI_SPG_DMA_RX_PREEMPT_INT;
-
-/*! @enum DL_SPI_SPG_DMA_RX_TRANSFER_MODE */
-typedef enum {
-    /*! DMA transfers defined number of elements and stops */
-    DL_SPI_SPG_DMA_RX_TRANSFER_MODE_SINGLE =
-        UNICOMMSPI_SPGDMARXCTL_DMATM_SINGLE,
-    /*! DMA wraps around to the starting memory location after the configured number of transfers are completed */
-    DL_SPI_SPG_DMA_RX_TRANSFER_MODE_REPEAT =
-        UNICOMMSPI_SPGDMARXCTL_DMATM_RPTSNGL
-} DL_SPI_SPG_DMA_RX_TRANSFER_MODE;
-
-/*! @enum DL_SPI_SPG_DMA_RX_DATA_WIDTH */
-typedef enum {
-    /*! Width of each RX FIFO element is 1 Byte */
-    DL_SPI_SPG_DMA_RX_DATA_WIDTH_BYTE = UNICOMMSPI_SPGDMARXCTL_DMADSTWDTH_BYTE,
-    /*! Width of each RX FIFO element is half of 1 word */
-    DL_SPI_SPG_DMA_RX_DATA_WIDTH_HALF = UNICOMMSPI_SPGDMARXCTL_DMADSTWDTH_HALF,
-    /*! Width of each RX FIFO element is 1 word */
-    DL_SPI_SPG_DMA_RX_DATA_WIDTH_WORD = UNICOMMSPI_SPGDMARXCTL_DMADSTWDTH_WORD,
-} DL_SPI_SPG_DMA_RX_DATA_WIDTH;
-
-/*! @enum DL_SPI_SPG_DMA_TX_DEST_ADDR*/
-typedef enum {
-    /*! Increment memory location after each transfer */
-    DL_SPI_SPG_DMA_TX_DEST_ADDR_INCREMENT =
-        UNICOMMSPI_SPGDMATXCTL_DMAMEMINCR_INCREMENT,
-    /*! Decrement memory location after each transfer */
-    DL_SPI_SPG_DMA_TX_DEST_ADDR_DECREMENT =
-        UNICOMMSPI_SPGDMATXCTL_DMAMEMINCR_DECREMENT
-} DL_SPI_SPG_DMA_TX_DEST_ADDR;
-
-/*! @enum DL_SPI_SPG_DMA_TX_PREEMPT_INT */
-typedef enum {
-    /*! Disable pre-emptive interrupt */
-    DL_SPI_SPG_DMA_TX_PREEMPT_INT_DISABLE =
-        UNICOMMSPI_SPGDMATXCTL_DMAPREIRQ_PREIRQ_DISABLE,
-    /*! Trigger interrupt pre-emptively when DMA transfer is half done */
-    DL_SPI_SPG_DMA_TX_PREEMPT_INT_HALF =
-        UNICOMMSPI_SPGDMATXCTL_DMAPREIRQ_PREIRQ_HALF
-} DL_SPI_SPG_DMA_TX_PREEMPT_INT;
-
-/*! @enum DL_SPI_SPG_DMA_TX_TRANSFER_MODE */
-typedef enum {
-    /*! DMA transfers defined number of elements and stops */
-    DL_SPI_SPG_DMA_TX_TRANSFER_MODE_SINGLE =
-        UNICOMMSPI_SPGDMATXCTL_DMATM_SINGLE,
-    /*! DMA wraps around to the starting memory location after the configured number of transfers are completed */
-    DL_SPI_SPG_DMA_TX_TRANSFER_MODE_REPEAT =
-        UNICOMMSPI_SPGDMATXCTL_DMATM_RPTSNGL
-} DL_SPI_SPG_DMA_TX_TRANSFER_MODE;
-
-/*! @enum DL_SPI_SPG_DMA_TX_DATA_WIDTH */
-typedef enum {
-    /*! Width of each TX FIFO element is 1 Byte */
-    DL_SPI_SPG_DMA_TX_DATA_WIDTH_BYTE = UNICOMMSPI_SPGDMATXCTL_DMASRCWDTH_BYTE,
-    /*! Width of each TX FIFO element is half of 1 word */
-    DL_SPI_SPG_DMA_TX_DATA_WIDTH_HALF = UNICOMMSPI_SPGDMATXCTL_DMASRCWDTH_HALF,
-    /*! Width of each TX FIFO element is 1 word */
-    DL_SPI_SPG_DMA_TX_DATA_WIDTH_WORD = UNICOMMSPI_SPGDMATXCTL_DMASRCWDTH_WORD,
-} DL_SPI_SPG_DMA_TX_DATA_WIDTH;
-
 /*! @enum DL_SPI_CLOCK_DIVIDE_RATIO */
 typedef enum {
     /*! SPI source clock divide ratio set to 1 */
@@ -599,7 +521,7 @@ void DL_SPI_init(UNICOMM_Inst_Regs *unicomm, DL_SPI_Config *config);
 /**
  * @brief Enables power on SPI module
  *
- * @param spi        Pointer to the register overlay for the peripheral
+ * @param unicomm        Pointer to the register overlay for the peripheral
  */
 __STATIC_INLINE void DL_SPI_enablePower(UNICOMM_Inst_Regs *unicomm)
 {
@@ -612,7 +534,7 @@ __STATIC_INLINE void DL_SPI_enablePower(UNICOMM_Inst_Regs *unicomm)
 /**
  * @brief Disables power on spi module
  *
- * @param spi        Pointer to the register overlay for the peripheral
+ * @param unicomm        Pointer to the register overlay for the peripheral
  */
 __STATIC_INLINE void DL_SPI_disablePower(UNICOMM_Inst_Regs *unicomm)
 {
@@ -622,7 +544,7 @@ __STATIC_INLINE void DL_SPI_disablePower(UNICOMM_Inst_Regs *unicomm)
 /**
  * @brief Returns if  power on spi module
  *
- * @param spi        Pointer to the register overlay for the peripheral
+ * @param unicomm        Pointer to the register overlay for the peripheral
  *
  * @return true if power is enabled
  * @return false if power is disabled
@@ -635,7 +557,7 @@ __STATIC_INLINE bool DL_SPI_isPowerEnabled(UNICOMM_Inst_Regs *unicomm)
 /**
  * @brief Resets spi peripheral
  *
- * @param spi        Pointer to the register overlay for the peripheral
+ * @param unicomm        Pointer to the register overlay for the peripheral
  */
 __STATIC_INLINE void DL_SPI_reset(UNICOMM_Inst_Regs *unicomm)
 {
@@ -645,7 +567,7 @@ __STATIC_INLINE void DL_SPI_reset(UNICOMM_Inst_Regs *unicomm)
 /**
  * @brief Returns if spi peripheral was reset
  *
- * @param spi        Pointer to the register overlay for the peripheral
+ * @param unicomm        Pointer to the register overlay for the peripheral
  *
  * @return true if peripheral was reset
  * @return false if peripheral wasn't reset
@@ -1060,8 +982,8 @@ __STATIC_INLINE DL_SPI_DATA_SIZE DL_SPI_getDataSize(UNICOMM_Inst_Regs *unicomm)
 __STATIC_INLINE void DL_SPI_setMode(
     UNICOMM_Inst_Regs *unicomm, DL_SPI_MODE mode)
 {
-    DL_Common_updateReg(&unicomm->spi->CTL1, UNICOMMSPI_CTL1_CP_ENABLE,
-        UNICOMMSPI_CTL1_CP_MASK);
+    DL_Common_updateReg(
+        &unicomm->spi->CTL1, (uint32_t) mode, UNICOMMSPI_CTL1_CP_MASK);
 }
 
 /**
@@ -1511,8 +1433,8 @@ __STATIC_INLINE void DL_SPI_setDelayedSampling(
  */
 __STATIC_INLINE uint32_t DL_SPI_getDelayedSampling(UNICOMM_Inst_Regs *unicomm)
 {
-    return (unicomm->spi->CLKCTL &
-            UNICOMMSPI_CLKCTL_DSAMPLE_MASK >> UNICOMMSPI_CLKCTL_DSAMPLE_OFS);
+    return ((unicomm->spi->CLKCTL & UNICOMMSPI_CLKCTL_DSAMPLE_MASK) >>
+            UNICOMMSPI_CLKCTL_DSAMPLE_OFS);
 }
 
 /**
@@ -1686,15 +1608,9 @@ __STATIC_INLINE void DL_SPI_transmitData16(
  *
  *  Can be used for any data transfers that are less than or equal to 32 bits.
  *
- *  NOTE: If packing is enabled by calling @ref DL_SPI_enablePacking prior to
- *  calling this API, then a 32-bit write will be written as one FIFO entry. If
- *  packing is disabled, then a 32-bit write will be written as two FIFO
- *  entries.
- *
  *  @param[in]  unicomm   pointer to the register overlay for the peripheral
  *  @param[in]  data  data to send
  *
- *  @sa         DL_SPI_enablePacking
  *  @sa         DL_SPI_transmitDataBlocking32
  *  @sa         DL_SPI_transmitDataCheck32
  */
@@ -1755,15 +1671,9 @@ __STATIC_INLINE uint16_t DL_SPI_receiveData16(UNICOMM_Inst_Regs *unicomm)
  *
  *  Can be used for any data transfers that are less than or equal to 32 bits.
  *
- *  NOTE: Requires that packing has been enabled by calling
- *  @ref DL_SPI_enablePacking prior to calling this API. When packing is
- *  enabled, two entries of the RX FIFO are returned as a 32-bit value.
- *
  *  @param[in]  unicomm   pointer to the register overlay for the peripheral
  *
  *  @return     The data in the RX FIFO
- *
- *  @pre         DL_SPI_enablePacking
  *
  *  @sa         DL_SPI_receiveDataBlocking32
  *  @sa         DL_SPI_receiveDataCheck32
@@ -1938,15 +1848,9 @@ void DL_SPI_transmitDataBlocking16(UNICOMM_Inst_Regs *unicomm, uint16_t data);
  *
  *  Can be used for any data transfers that are less than or equal to 32 bits.
  *
- *  NOTE: If packing is enabled by calling @ref DL_SPI_enablePacking prior to
- *  calling this API, then a 32-bit write will be written as one FIFO entry. If
- *  packing is disabled, then a 32-bit write will be written as two FIFO
- *  entries.
- *
  *  @param[in]  unicomm   pointer to the register overlay for the peripheral
  *  @param[in]  data  data to send
  *
- *  @sa         DL_SPI_enablePacking
  *  @sa         DL_SPI_transmitData32
  *  @sa         DL_SPI_transmitDataCheck32
  */
@@ -1997,15 +1901,9 @@ uint16_t DL_SPI_receiveDataBlocking16(UNICOMM_Inst_Regs *unicomm);
  *
  *  Can be used for any data transfers that are less than or equal to 32 bits.
  *
- *  NOTE: Requires that packing has been enabled by calling
- *  @ref DL_SPI_enablePacking prior to calling this API. When packing is
- *  enabled, two entries of the RX FIFO are returned as a 32-bit value.
- *
  *  @param[in]  unicomm   pointer to the register overlay for the peripheral
  *
  *  @return     The data in the RX FIFO
- *
- *  @pre         DL_SPI_enablePacking
  *
  *  @sa         DL_SPI_transmitData32
  *  @sa         DL_SPI_transmitDataCheck32
@@ -2065,11 +1963,6 @@ bool DL_SPI_transmitDataCheck16(UNICOMM_Inst_Regs *unicomm, uint16_t data);
  *
  *  Can be used for any data transfers that are less than or equal to 32 bits.
  *
- *  NOTE: If packing is enabled by calling @ref DL_SPI_enablePacking prior to
- *  calling this API, then a 32-bit write will be written as one FIFO entry. If
- *  packing is disabled, then a 32-bit write will be written as two FIFO
- *  entries.
- *
  *  @param[in]  unicomm   pointer to the register overlay for the peripheral
  *  @param[in]  data  data to send
  *
@@ -2078,7 +1971,6 @@ bool DL_SPI_transmitDataCheck16(UNICOMM_Inst_Regs *unicomm, uint16_t data);
  *  @retval     true  if data was added to the TX FIFO
  *  @retval     false if the TX FIFO was full and data was not added
  *
- *  @sa         DL_SPI_enablePacking
  *  @sa         DL_SPI_transmitData32
  *  @sa         DL_SPI_transmitDataBlocking32
  */
@@ -2137,10 +2029,6 @@ bool DL_SPI_receiveDataCheck16(UNICOMM_Inst_Regs *unicomm, uint16_t *buffer);
  *
  *  Can be used for any data transfers that are less than or equal to 32 bits.
  *
- *  NOTE: Requires that packing has been enabled by calling
- *  @ref DL_SPI_enablePacking prior to calling this API. When packing is
- *  enabled, two entries of the RX FIFO are returned as a 32-bit value.
- *
  *  @param[in]  unicomm    pointer to the register overlay for the peripheral
  *  @param[in]  buffer a buffer to write the received data into
  *
@@ -2148,8 +2036,6 @@ bool DL_SPI_receiveDataCheck16(UNICOMM_Inst_Regs *unicomm, uint16_t *buffer);
  *
  *  @retval     true  if data was read from the RX FIFO
  *  @retval     false if the RX FIFO was empty and data was not read
- *
- *  @pre         DL_SPI_enablePacking
  *
  *  @sa         DL_SPI_receiveData32
  *  @sa         DL_SPI_receiveDataBlocking32
@@ -2159,7 +2045,7 @@ bool DL_SPI_receiveDataCheck32(UNICOMM_Inst_Regs *unicomm, uint32_t *buffer);
 /**
  *  @brief       Read all available data out of the RX FIFO using 8 bit access
  *
- *  @param[in]   SPI       Pointer to the register overlay for the peripheral
+ *  @param[in]   unicomm   Pointer to the register overlay for the peripheral
  *  @param[out]  buffer    Buffer to write received data into
  *  @param[in]   maxCount  Max number of bytes to read from the RX FIFO
  *
@@ -2171,7 +2057,7 @@ uint32_t DL_SPI_drainRXFIFO8(
 /**
  *  @brief       Read all available data out of the RX FIFO using 16 bit access
  *
- *  @param[in]   SPI       Pointer to the register overlay for the peripheral
+ *  @param[in]   unicomm   Pointer to the register overlay for the peripheral
  *  @param[out]  buffer    Buffer to write received data into
  *  @param[in]   maxCount  Max number of halfwords to read from the RX FIFO
  *
@@ -2183,17 +2069,11 @@ uint32_t DL_SPI_drainRXFIFO16(
 /**
  *  @brief       Read all available data out of the RX FIFO using 32 bit access
  *
- *  NOTE: Requires that packing has been enabled by calling
- *  @ref DL_SPI_enablePacking prior to calling this API. When packing is
- *  enabled, two entries of the RX FIFO are returned as a 32-bit value.
- *
- *  @param[in]   SPI       Pointer to the register overlay for the peripheral
+ *  @param[in]   unicomm   Pointer to the register overlay for the peripheral
  *  @param[out]  buffer    Buffer to write received data into
  *  @param[in]   maxCount  Max number of words to read from the RX FIFO
  *
  *  @return      Number of words read from the RX FIFO
- *
- *  @pre         DL_SPI_enablePacking
  *
  */
 uint32_t DL_SPI_drainRXFIFO32(
@@ -2234,10 +2114,6 @@ uint32_t DL_SPI_fillTXFIFO16(
  *
  *  Continuously write data into the TX FIFO until it is filled up or count has
  *  been reached.
- *
- *  NOTE: If packing is enabled by calling @ref DL_SPI_enablePacking prior to
- *  calling this API, then a 32-bit write will be written as one FIFO entry. If
- *  packing is disabled, then a 32-bit write will be written as two FIFO
  *  entries.
  *
  *  @param[in]  unicomm     Pointer to the register overlay for the peripheral
@@ -2245,8 +2121,6 @@ uint32_t DL_SPI_fillTXFIFO16(
  *  @param[in]  count   Max number of words to write to the TX FIFO
  *
  *  @return     Number of words written to the TX FIFO
- *
- *  @sa         DL_SPI_enablePacking
  */
 uint32_t DL_SPI_fillTXFIFO32(
     UNICOMM_Inst_Regs *unicomm, uint32_t *buffer, uint32_t count);
@@ -2507,388 +2381,6 @@ bool DL_SPI_restoreConfiguration(
     UNICOMM_Inst_Regs *unicomm, DL_SPI_backupConfig *ptr);
 
 /**
- *  @brief      Enable SPG DMA receive channel
- *
- *  @param[in]  unicomm       Pointer to the register overlay for the
- *                         peripheral
- */
-__STATIC_INLINE void DL_SPI_enableSPGDMAReceiveChannel(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    unicomm->spi->SPGDMA.SPGDMARXCTL |= UNICOMMSPI_SPGDMARXCTL_DMAEN_ENABLE;
-}
-
-/**
- *  @brief      Disable SPG DMA receive channel
- *
- *  @param[in]  unicomm       Pointer to the register overlay for the
- *                         peripheral
- */
-__STATIC_INLINE void DL_SPI_disableSPGDMAReceiveChannel(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    unicomm->spi->SPGDMA.SPGDMARXCTL &= ~(UNICOMMSPI_SPGDMARXCTL_DMAEN_ENABLE);
-}
-
-/**
- *  @brief      Set SPG DMA receive channel destination increment
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  config  The increment direction to use.
- *                      One of @ref DL_SPI_SPG_DMA_RX_DEST_ADDR.
- */
-__STATIC_INLINE void DL_SPI_setSPGDMAReceiveIncrement(
-    UNICOMM_Inst_Regs *unicomm, DL_SPI_SPG_DMA_RX_DEST_ADDR config)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMARXCTL, (uint32_t) config,
-        UNICOMMSPI_SPGDMARXCTL_DMAMEMINCR_MASK);
-}
-/**
- *  @brief      Get SPG DMA receive channel destination increment
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured destincation increment schema for receive channel
- *  @retval  One of @ref DL_SPI_SPG_DMA_RX_DEST_ADDR
- */
-__STATIC_INLINE DL_SPI_SPG_DMA_RX_DEST_ADDR DL_SPI_getSPGDMAReceiveIncrement(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    return (DL_SPI_SPG_DMA_RX_DEST_ADDR)(
-        unicomm->spi->SPGDMA.SPGDMARXCTL &
-        UNICOMMSPI_SPGDMARXCTL_DMAMEMINCR_MASK);
-}
-
-/**
- *  @brief      Set SPG DMA receive channel pre-emptive interrupt
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  config  Pre-emptive interrupt schema to use.
- *                      One of @ref DL_SPI_SPG_DMA_RX_PREEMPT_INT.
- */
-__STATIC_INLINE void DL_SPI_setSPGDMAReceivePreemtiveInterrupt(
-    UNICOMM_Inst_Regs *unicomm, DL_SPI_SPG_DMA_RX_PREEMPT_INT config)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMARXCTL, (uint32_t) config,
-        UNICOMMSPI_SPGDMARXCTL_DMAPREIRQ_MASK);
-}
-/**
- *  @brief      Get SPG DMA receive channel pre-emptive interrupt
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured pre-emptive interrupt schema for receive channel
- *  @retval  One of @ref DL_SPI_SPG_DMA_RX_PREEMPT_INT
- */
-__STATIC_INLINE DL_SPI_SPG_DMA_RX_PREEMPT_INT
-DL_SPI_getSPGDMAReceivePreemtiveInterrupt(UNICOMM_Inst_Regs *unicomm)
-{
-    return (DL_SPI_SPG_DMA_RX_PREEMPT_INT)(
-        unicomm->spi->SPGDMA.SPGDMARXCTL &
-        UNICOMMSPI_SPGDMARXCTL_DMAPREIRQ_MASK);
-}
-
-/**
- *  @brief      Set SPG DMA receive channel transfer mode
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  config  Transfer mode to use.
- *                      One of @ref DL_SPI_SPG_DMA_RX_TRANSFER_MODE.
- */
-__STATIC_INLINE void DL_SPI_setSPGDMAReceiveTransferMode(
-    UNICOMM_Inst_Regs *unicomm, DL_SPI_SPG_DMA_RX_TRANSFER_MODE config)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMARXCTL, (uint32_t) config,
-        UNICOMMSPI_SPGDMARXCTL_DMATM_MASK);
-}
-/**
- *  @brief      Get SPG DMA receive channel transfer mode
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured transfer mode for receive channel
- *  @retval  One of @ref DL_SPI_SPG_DMA_RX_TRANSFER_MODE
- */
-__STATIC_INLINE DL_SPI_SPG_DMA_RX_TRANSFER_MODE
-DL_SPI_getSPGDMAReceiveTransferMode(UNICOMM_Inst_Regs *unicomm)
-{
-    return (DL_SPI_SPG_DMA_RX_TRANSFER_MODE)(
-        unicomm->spi->SPGDMA.SPGDMARXCTL & UNICOMMSPI_SPGDMARXCTL_DMATM_MASK);
-}
-
-/**
- *  @brief      Set SPG DMA receive channel data width
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  config  Data width to use.
- *                      One of @ref DL_SPI_SPG_DMA_RX_DATA_WIDTH.
- */
-__STATIC_INLINE void DL_SPI_setSPGDMAReceiveDataWidth(
-    UNICOMM_Inst_Regs *unicomm, DL_SPI_SPG_DMA_RX_DATA_WIDTH config)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMARXCTL, (uint32_t) config,
-        UNICOMMSPI_SPGDMARXCTL_DMADSTWDTH_MASK);
-}
-/**
- *  @brief      Get SPG DMA receive channel data width
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured data width for receive channel
- *  @retval  One of @ref DL_SPI_SPG_DMA_RX_DATA_WIDTH
- */
-__STATIC_INLINE DL_SPI_SPG_DMA_RX_DATA_WIDTH DL_SPI_getSPGDMAReceiveDataWidth(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    return (DL_SPI_SPG_DMA_RX_DATA_WIDTH)(
-        unicomm->spi->SPGDMA.SPGDMARXCTL &
-        UNICOMMSPI_SPGDMARXCTL_DMADSTWDTH_MASK);
-}
-
-/**
- *  @brief      Set SPG DMA receive channel memory starting address
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  address  Starting memory address to use
- */
-__STATIC_INLINE void DL_SPI_setSPGDMAReceiveStartAddress(
-    UNICOMM_Inst_Regs *unicomm, uint32_t address)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMARXDA, address,
-        UNICOMMSPI_SPGDMARXDA_ADDR_MAXIMUM);
-}
-/**
- *  @brief      Get SPG DMA receive channel memory starting address
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured memory starting address for receive channel
- */
-__STATIC_INLINE uint32_t DL_SPI_getSPGDMAReceiveStartAddress(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    return (
-        unicomm->spi->SPGDMA.SPGDMARXDA & UNICOMMSPI_SPGDMARXDA_ADDR_MAXIMUM);
-}
-
-/**
- *  @brief      Set SPG DMA receive channel size
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  size  Starting memory address to use
- */
-__STATIC_INLINE void DL_SPI_setSPGDMAReceiveChannelSize(
-    UNICOMM_Inst_Regs *unicomm, uint16_t size)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMARXSZ, (uint32_t) size,
-        UNICOMMSPI_SPGDMARXSZ_SIZE_MAXIMUM);
-}
-/**
- *  @brief      Get SPG DMA receive channel size
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured size of receive channel
- */
-__STATIC_INLINE uint16_t DL_SPI_getSPGDMAReceiveChannelSize(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    return (uint16_t)(
-        unicomm->spi->SPGDMA.SPGDMARXSZ & UNICOMMSPI_SPGDMARXSZ_SIZE_MAXIMUM);
-}
-
-/**
- *  @brief      Enable SPG DMA transmit channel
- *
- *  @param[in]  unicomm       Pointer to the register overlay for the
- *                         peripheral
- */
-__STATIC_INLINE void DL_SPI_enableSPGDMATransmitChannel(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    unicomm->spi->SPGDMA.SPGDMATXCTL |= UNICOMMSPI_SPGDMATXCTL_DMAEN_ENABLE;
-}
-
-/**
- *  @brief      Disable SPG DMA transmit channel
- *
- *  @param[in]  unicomm       Pointer to the register overlay for the
- *                         peripheral
- */
-__STATIC_INLINE void DL_SPI_disableSPGDMATransmitChannel(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    unicomm->spi->SPGDMA.SPGDMATXCTL &= ~(UNICOMMSPI_SPGDMATXCTL_DMAEN_ENABLE);
-}
-
-/**
- *  @brief      Set SPG DMA transmit channel destination increment
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  config  The increment direction to use.
- *                      One of @ref DL_SPI_SPG_DMA_TX_DEST_ADDR.
- */
-__STATIC_INLINE void DL_SPI_setSPGDMATransmitIncrement(
-    UNICOMM_Inst_Regs *unicomm, DL_SPI_SPG_DMA_TX_DEST_ADDR config)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMATXCTL, (uint32_t) config,
-        UNICOMMSPI_SPGDMATXCTL_DMAMEMINCR_MASK);
-}
-/**
- *  @brief      Get SPG DMA transmit channel destination increment
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured destincation increment schema for transmit channel
- *  @retval  One of @ref DL_SPI_SPG_DMA_TX_DEST_ADDR
- */
-__STATIC_INLINE DL_SPI_SPG_DMA_TX_DEST_ADDR DL_SPI_getSPGDMATransmitIncrement(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    return (DL_SPI_SPG_DMA_TX_DEST_ADDR)(
-        unicomm->spi->SPGDMA.SPGDMATXCTL &
-        UNICOMMSPI_SPGDMATXCTL_DMAMEMINCR_MASK);
-}
-
-/**
- *  @brief      Set SPG DMA transmit channel pre-emptive interrupt
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  config  Pre-emptive interrupt schema to use.
- *                      One of @ref DL_SPI_SPG_DMA_TX_PREEMPT_INT.
- */
-__STATIC_INLINE void DL_SPI_setSPGDMATransmitPreemtiveInterrupt(
-    UNICOMM_Inst_Regs *unicomm, DL_SPI_SPG_DMA_TX_PREEMPT_INT config)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMATXCTL, (uint32_t) config,
-        UNICOMMSPI_SPGDMATXCTL_DMAPREIRQ_MASK);
-}
-/**
- *  @brief      Get SPG DMA transmit channel pre-emptive interrupt
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured pre-emptive interrupt schema for transmit channel
- *  @retval  One of @ref DL_SPI_SPG_DMA_TX_PREEMPT_INT
- */
-__STATIC_INLINE DL_SPI_SPG_DMA_TX_PREEMPT_INT
-DL_SPI_getSPGDMATransmitPreemtiveInterrupt(UNICOMM_Inst_Regs *unicomm)
-{
-    return (DL_SPI_SPG_DMA_TX_PREEMPT_INT)(
-        unicomm->spi->SPGDMA.SPGDMATXCTL &
-        UNICOMMSPI_SPGDMATXCTL_DMAPREIRQ_MASK);
-}
-
-/**
- *  @brief      Set SPG DMA transmit channel transfer mode
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  config  Transfer mode to use.
- *                      One of @ref DL_SPI_SPG_DMA_TX_TRANSFER_MODE.
- */
-__STATIC_INLINE void DL_SPI_setSPGDMATransmitTransferMode(
-    UNICOMM_Inst_Regs *unicomm, DL_SPI_SPG_DMA_TX_TRANSFER_MODE config)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMATXCTL, (uint32_t) config,
-        UNICOMMSPI_SPGDMATXCTL_DMATM_MASK);
-}
-/**
- *  @brief      Get SPG DMA transmit channel transfer mode
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured transfer mode for transmit channel
- *  @retval  One of @ref DL_SPI_SPG_DMA_TX_TRANSFER_MODE
- */
-__STATIC_INLINE DL_SPI_SPG_DMA_TX_TRANSFER_MODE
-DL_SPI_getSPGDMATransmitTransferMode(UNICOMM_Inst_Regs *unicomm)
-{
-    return (DL_SPI_SPG_DMA_TX_TRANSFER_MODE)(
-        unicomm->spi->SPGDMA.SPGDMATXCTL & UNICOMMSPI_SPGDMATXCTL_DMATM_MASK);
-}
-
-/**
- *  @brief      Set SPG DMA transmit channel data width
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  config  Data width to use.
- *                      One of @ref DL_SPI_SPG_DMA_TX_DATA_WIDTH.
- */
-__STATIC_INLINE void DL_SPI_setSPGDMATransmitDataWidth(
-    UNICOMM_Inst_Regs *unicomm, DL_SPI_SPG_DMA_TX_DATA_WIDTH config)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMATXCTL, (uint32_t) config,
-        UNICOMMSPI_SPGDMATXCTL_DMASRCWDTH_MASK);
-}
-/**
- *  @brief      Get SPG DMA transmit channel data width
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured data width for transmit channel
- *  @retval  One of @ref DL_SPI_SPG_DMA_TX_DATA_WIDTH
- */
-__STATIC_INLINE DL_SPI_SPG_DMA_TX_DATA_WIDTH DL_SPI_getSPGDMATransmitDataWidth(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    return (DL_SPI_SPG_DMA_TX_DATA_WIDTH)(
-        unicomm->spi->SPGDMA.SPGDMATXCTL &
-        UNICOMMSPI_SPGDMATXCTL_DMASRCWDTH_MASK);
-}
-
-/**
- *  @brief      Set SPG DMA transmit channel memory starting address
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  address  Starting memory address to use
- */
-__STATIC_INLINE void DL_SPI_setSPGDMATransmitStartAddress(
-    UNICOMM_Inst_Regs *unicomm, uint32_t address)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMATXSA, address,
-        UNICOMMSPI_SPGDMATXSA_ADDR_MAXIMUM);
-}
-/**
- *  @brief      Get SPG DMA transmit channel memory starting address
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured memory starting address for transmit channel
- */
-__STATIC_INLINE uint32_t DL_SPI_getSPGDMATransmitStartAddress(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    return (
-        unicomm->spi->SPGDMA.SPGDMATXSA & UNICOMMSPI_SPGDMATXSA_ADDR_MAXIMUM);
-}
-
-/**
- *  @brief      Set SPG DMA transmit channel size
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *  @param[in]  size  Starting memory address to use
- */
-__STATIC_INLINE void DL_SPI_setSPGDMATransmitChannelSize(
-    UNICOMM_Inst_Regs *unicomm, uint16_t size)
-{
-    DL_Common_updateReg(&unicomm->spi->SPGDMA.SPGDMATXSZ, (uint32_t) size,
-        UNICOMMSPI_SPGDMATXSZ_SIZE_MAXIMUM);
-}
-/**
- *  @brief      Get SPG DMA transmit channel size
- *
- *  @param[in]  unicomm    Pointer to the register overlay for the peripheral
- *
- *  @return  Configured size of transmit channel
- */
-__STATIC_INLINE uint16_t DL_SPI_getSPGDMATransmitChannelSize(
-    UNICOMM_Inst_Regs *unicomm)
-{
-    return (uint16_t)(
-        unicomm->spi->SPGDMA.SPGDMATXSZ & UNICOMMSPI_SPGDMATXSZ_SIZE_MAXIMUM);
-}
-
-/**
  *  @brief      Suspend external communication
  *
  *  @param[in]  unicomm  Pointer to the register overlay for the peripheral
@@ -2912,6 +2404,7 @@ __STATIC_INLINE void DL_SPI_disableSuspend(UNICOMM_Inst_Regs *unicomm)
 }
 #endif
 
+#endif /* __MCU_HAS_UNICOMMSPI__ */
 
 #endif /* ti_dl_dl_UNICOMMSPI__include */
 /** @}*/

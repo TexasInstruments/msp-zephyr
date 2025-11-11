@@ -30,7 +30,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dl_unicomm.h"
+#include <ti/driverlib/dl_unicomm.h>
 
 #ifdef __MCU_HAS_UNICOMM__
 #endif /* __MCU_HAS_UNICOMM__ */
