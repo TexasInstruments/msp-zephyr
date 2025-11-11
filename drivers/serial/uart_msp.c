@@ -32,6 +32,7 @@ struct uart_msp_config {
 	uint32_t current_speed;
 	const struct msp_sys_clock *clock_subsys;
 	const struct pinctrl_dev_config *pinctrl;
+	DL_UART_OVERSAMPLING_RATE oversampling_rate;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	void (*irq_config_func)(const struct device *dev);
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
@@ -89,6 +90,7 @@ static int uart_msp_init(const struct device *dev)
 		return ret;
 	}
 
+	DL_UART_setOversampling(config->regs, config->oversampling_rate);
 	DL_UART_Main_configBaudRate(config->regs, clock_rate, config->current_speed);
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
@@ -330,6 +332,10 @@ static DEVICE_API(uart, uart_msp_driver_api) = {
 			 .current_speed = DT_INST_PROP(index, current_speed),                      \
 			 .pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                         \
 			 .clock_subsys = &msp_uart_sys_clock##index,                               \
+			 .oversampling_rate = (DT_INST_PROP(index, oversampling_rate) == 3) ?      \
+				DL_UART_OVERSAMPLING_RATE_3X :                                      \
+				(DT_INST_PROP(index, oversampling_rate) == 8) ?                     \
+				DL_UART_OVERSAMPLING_RATE_8X : DL_UART_OVERSAMPLING_RATE_16X,       \
 			 IF_ENABLED(CONFIG_UART_INTERRUPT_DRIVEN,			   	   \
 			   (.irq_config_func = uart_msp_##index##_irq_register,)) };        \
                                                                                                    \
