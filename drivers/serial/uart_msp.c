@@ -56,8 +56,8 @@ static int uart_msp_init(const struct device *dev)
 {
 	const struct uart_msp_config *config = dev->config;
 	struct uart_msp_data *data = dev->data;
-	const struct device *clk_dev = DEVICE_DT_GET(DT_NODELABEL(ckm));
-	uint32_t clock_rate;
+	// const struct device *clk_dev = DEVICE_DT_GET(DT_NODELABEL(ckm));
+	// uint32_t clock_rate;
 	int ret;
 
 	/* Reset power */
@@ -83,13 +83,20 @@ static int uart_msp_init(const struct device *dev)
 	 * Configure baud rate by setting oversampling and baud rate divisor
 	 * from the device tree data current-speed
 	 */
-	ret = clock_control_get_rate(clk_dev, (struct msp_sys_clock *)config->clock_subsys,
-				     &clock_rate);
-	if (ret < 0) {
-		return ret;
-	}
+	// ret = clock_control_get_rate(clk_dev, (struct msp_sys_clock *)config->clock_subsys,
+	// 			     &clock_rate);
+	// if (ret < 0) {
+	// 	return ret;
+	// }
 
-	DL_UART_Main_configBaudRate(config->regs, clock_rate, config->current_speed);
+	DL_UART_setOversampling(config->regs, DL_UART_OVERSAMPLING_RATE_16X);
+
+	DL_UART_setRXFIFOThreshold(config->regs, DL_UART_RX_FIFO_LEVEL_ONE_ENTRY);
+   	DL_UART_setTXFIFOThreshold(config->regs, DL_UART_TX_FIFO_LEVEL_EMPTY);
+
+	DL_UART_Main_setBaudRateDivisor(config->regs, 520, 53);
+
+	// DL_UART_Main_configBaudRate(config->regs, clock_rate, config->current_speed);
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	config->irq_config_func(dev);
