@@ -1,25 +1,18 @@
-<<<<<<< HEAD
-description: TI MSPM0 SPI
-
-compatible: "ti,mspm0-spi"
-
-include: [spi-controller.yaml, pinctrl-device.yaml, base.yaml]
-=======
 # Copyright (c) 2025 Linumiz GmbH
+# Copyright (c) 2025 Texas Instruments
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
    Texas Instruments MSPM0 SERIAL PERIPHERAL INTERFACE (SPI).
 
 compatible: "ti,mspm0-spi"
+
 include: [spi-controller.yaml, pinctrl-device.yaml]
->>>>>>> dts: bindings: spi: Add DT bindings for TI MSPM0 SPI module
 
 properties:
   reg:
     required: true
 
-<<<<<<< HEAD
   interrupts:
     required: true
 
@@ -27,15 +20,6 @@ properties:
     required: true
 
   pinctrl-names:
-    required: true
-=======
-  pinctrl-0:
-    required: true
-
-  clocks:
-    required: true
-
-  interrupts:
     required: true
 
   ti,clk-div:
@@ -50,4 +34,16 @@ properties:
       - 6
       - 7
       - 8
->>>>>>> dts: bindings: spi: Add DT bindings for TI MSPM0 SPI module
+
+  hw-chip-select:
+    type: string
+    default: "DL_SPI_CHIP_SELECT_NONE"
+    enum:
+      - "DL_SPI_CHIP_SELECT_NONE"
+      - "DL_SPI_CHIP_SELECT_0"
+      - "DL_SPI_CHIP_SELECT_1"
+      - "DL_SPI_CHIP_SELECT_2"
+      - "DL_SPI_CHIP_SELECT_3"
+    description: |
+      Use dedicated hardware chip select pin. The selected signal is controlled
+      automatically during transfer.
