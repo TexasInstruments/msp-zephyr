@@ -16,7 +16,11 @@
 #include <zephyr/logging/log.h>
 
 /* TI DriverLib includes */
+#ifdef CONFIG_HAS_MSP_UNICOMM
+#include <driverlib/dl_unicommspi.h>
+#else
 #include <driverlib/dl_spi.h>
+#endif
 
 LOG_MODULE_REGISTER(spi_mspm0, CONFIG_SPI_LOG_LEVEL);
 
@@ -50,30 +54,19 @@ LOG_MODULE_REGISTER(spi_mspm0, CONFIG_SPI_LOG_LEVEL);
 #define DATA_SIZE_MODE(operation)								\
 	(SPI_WORD_SIZE_GET(operation) - 1)
 
-#define POLARITY_MODE(operation)								\
-	(SPI_MODE_GET(operation) & SPI_MODE_CPOL ? SPI_CTL0_SPO_HIGH : SPI_CTL0_SPO_LOW)
-
-#define PHASE_MODE(operation)									\
-	(SPI_MODE_GET(operation) & SPI_MODE_CPHA ? SPI_CTL0_SPH_SECOND : SPI_CTL0_SPH_FIRST)
-
-#define DUPLEX_MODE(operation)									\
-	(operation & BIT(11) ? SPI_CTL0_FRF_MOTOROLA_3WIRE : SPI_CTL0_FRF_MOTOROLA_4WIRE)
-
-/* TI uses fixed frame format; Motorola combines duplex, polarity, phase */
-#define FRAME_FORMAT_MODE(operation)								\
-	(operation & SPI_FRAME_FORMAT_TI							\
-		? SPI_CTL0_FRF_TI_SYNC								\
-		: DUPLEX_MODE(operation) | POLARITY_MODE(operation) | PHASE_MODE(operation))
-
 /* Computes the minimum number of bytes per frame using word_size. Utilizes ceil
  * division, to ensure sufficient byte allocation for non-multiples of 8 bits
  */
 #define BYTES_PER_FRAME(word_size) (((word_size) + 7) / 8)
 
 struct spi_mspm0_config {
+#ifdef CONFIG_HAS_MSP_UNICOMM
+	UNICOMM_Inst_Regs *spi_base;
+#else
 	SPI_Regs *spi_base;
+#endif
 	const struct pinctrl_dev_config *pinctrl;
-
+	const DL_SPI_CHIP_SELECT hw_cs;
 	const DL_SPI_ClockConfig clock_config;
 	const struct mspm0_sys_clock *clock_subsys;
 	void (*irq_config_func)(const struct device *dev);
@@ -104,6 +97,7 @@ static int spi_mspm0_configure(const struct device *dev, const struct spi_config
 
 	uint32_t clock_rate;
 	uint16_t clock_scr;
+	DL_SPI_FRAME_FORMAT ff;
 	int ret;
 
 	if (spi_context_configured(&data->spi_ctx, spi_cfg)) {
@@ -114,6 +108,17 @@ static int spi_mspm0_configure(const struct device *dev, const struct spi_config
 	/* Only master mode is supported */
 	if (SPI_OP_MODE_GET(spi_cfg->operation) != SPI_OP_MODE_MASTER) {
 		return -ENOTSUP;
+	}
+
+	/* Half duplex mode is not supported */
+	if (spi_cfg->operation == SPI_HALF_DUPLEX) {
+		return -ENOTSUP;
+	}
+
+	if (IS_ENABLED(CONFIG_SPI_EXTENDED_MODES) &&
+		(spi_cfg->operation & SPI_LINES_MASK) != SPI_LINES_SINGLE) {
+		LOG_ERR("Only single line mode is supported");
+		return -EINVAL;
 	}
 
 	ret = clock_control_get_rate(clk_dev, (struct mspm0_sys_clock *)config->clock_subsys,
@@ -132,13 +137,31 @@ static int spi_mspm0_configure(const struct device *dev, const struct spi_config
 		return -EINVAL;
 	}
 
+	if(spi_cfg->operation & SPI_FRAME_FORMAT_TI) {
+		ff = DL_SPI_FRAME_FORMAT_TI_SYNC;
+	}
+	else {
+		if((spi_cfg->operation & SPI_MODE_CPOL) && (spi_cfg->operation & SPI_MODE_CPHA)) {
+			ff = DL_SPI_FRAME_FORMAT_MOTO3_POL1_PHA1;
+		}
+		else if((spi_cfg->operation & SPI_MODE_CPOL)) {
+			ff = DL_SPI_FRAME_FORMAT_MOTO3_POL1_PHA0;
+		}
+		else if((spi_cfg->operation & SPI_MODE_CPHA)) {
+			ff = DL_SPI_FRAME_FORMAT_MOTO3_POL0_PHA1;
+		}
+		else {
+			ff = DL_SPI_FRAME_FORMAT_MOTO3_POL0_PHA0;
+		}
+	}
+
 	const DL_SPI_Config dl_spi_cfg = {
-		.parity = DL_SPI_PARITY_NONE,			/* Currently unused in zephyr */
-		.chipSelectPin = DL_SPI_CHIP_SELECT_NONE,	/* spi_context controls the CS */
+		.parity = DL_SPI_PARITY_NONE,				/* Currently unused in zephyr */
+		.chipSelectPin = config->hw_cs,
 		.mode = SPI_MODE(spi_cfg->operation),
 		.bitOrder = BIT_ORDER_MODE(spi_cfg->operation),
 		.dataSize = DATA_SIZE_MODE(spi_cfg->operation),
-		.frameFormat = FRAME_FORMAT_MODE(spi_cfg->operation),
+		.frameFormat = ff
 	};
 
 	/* Peripheral should be disabled before applying a new configuration */
@@ -148,10 +171,12 @@ static int spi_mspm0_configure(const struct device *dev, const struct spi_config
 	DL_SPI_setBitRateSerialClockDivider(config->spi_base, (uint32_t)clock_scr);
 
 	if (dfs > SPI_DFS_16BIT) {
+#ifdef CONFIG_HAS_MSP_UNICOMM
+		return -ENOTSUP;
+#else
 		DL_SPI_enablePacking(config->spi_base);
-	} else {
-		DL_SPI_disablePacking(config->spi_base);
-	}
+#endif
+	} 
 
 	if (SPI_MODE_GET(spi_cfg->operation) & SPI_MODE_LOOP) {
 		DL_SPI_enableLoopbackMode(config->spi_base);
@@ -198,9 +223,17 @@ static void spi_mspm0_frame_rx(const struct device *dev, uint8_t dfs)
 {
 	const struct spi_mspm0_config *config = dev->config;
 	struct spi_mspm0_data *data = dev->data;
+#ifdef CONFIG_HAS_MSP_UNICOMM
+	uint16_t rx_val = 0;
+#else
 	uint32_t rx_val = 0;
+#endif
 
+#ifdef CONFIG_HAS_MSP_UNICOMM
+	DL_SPI_receiveDataCheck16(config->spi_base, &rx_val);
+#else
 	DL_SPI_receiveDataCheck32(config->spi_base, &rx_val);
+#endif
 
 	if (!spi_context_rx_buf_on(&data->spi_ctx)) {
 		return;
@@ -289,9 +322,10 @@ static const struct spi_driver_api spi_mspm0_api = {
 
 static int spi_mspm0_init(const struct device *dev)
 {
+	const struct spi_mspm0_config *config = dev->config;
 	struct spi_mspm0_data *data = dev->data;
-	const struct spi_mspm0_config *cfg = dev->config;
-	struct spi_context *ctx = &data->ctx;
+	int32_t ret;
+
 	DL_SPI_enablePower(config->spi_base);
 	delay_cycles(POWER_STARTUP_DELAY);
 
@@ -314,38 +348,48 @@ static int spi_mspm0_init(const struct device *dev)
 	return ret;
 }
 
-#define MSPM0_SPI_INIT(inst)									\
-	PINCTRL_DT_INST_DEFINE(inst);								\
-												\
-	static void spi_mspm0_irq_config_##inst(const struct device *dev)			\
-	{											\
-		IRQ_CONNECT(DT_INST_IRQN(inst), DT_INST_IRQ(inst, priority), spi_mspm0_isr,	\
-				DEVICE_DT_INST_GET(inst), 0);					\
-		irq_enable(DT_INST_IRQN(inst));							\
-	};											\
-												\
-	static const struct mspm0_sys_clock mspm0_spi_sys_clock##inst =				\
-		MSPM0_CLOCK_SUBSYS_FN(inst);							\
-												\
-	static struct spi_mspm0_config spi_mspm0_config_##inst = {				\
-		.spi_base = (SPI_Regs *)DT_INST_REG_ADDR(inst),					\
-		.pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(inst),				\
-		.clock_config = {.clockSel =							\
-				  MSPM0_CLOCK_PERIPH_REG_MASK(DT_INST_CLOCKS_CELL(inst, clk)),  \
-				 .divideRatio = SPI_DT_CLK_DIV_ENUM(inst)},			\
-		.clock_subsys = &mspm0_spi_sys_clock##inst,					\
-		.irq_config_func = spi_mspm0_irq_config_##inst,					\
-	};											\
-												\
-	static struct spi_mspm0_data spi_mspm0_data_##inst = {					\
-		.spi_idle = Z_SEM_INITIALIZER(spi_mspm0_data_##inst.spi_idle, 0, 1),		\
-		SPI_CONTEXT_INIT_LOCK(spi_mspm0_data_##inst, spi_ctx),				\
-		SPI_CONTEXT_INIT_SYNC(spi_mspm0_data_##inst, spi_ctx),				\
-		SPI_CONTEXT_CS_GPIOS_INITIALIZE(DT_DRV_INST(inst), spi_ctx)			\
-	};											\
-												\
-	DEVICE_DT_INST_DEFINE(inst, spi_mspm0_init, NULL, &spi_mspm0_data_##inst,		\
-			      &spi_mspm0_config_##inst, POST_KERNEL, CONFIG_SPI_INIT_PRIORITY,	\
+#define MSPM0_SPI_INIT(index)														\
+	PINCTRL_DT_INST_DEFINE(index);													\
+																					\
+	static void spi_mspm0_irq_config_##index(const struct device *dev)				\
+	{																				\
+		IRQ_CONNECT(DT_INST_IRQN(index), DT_INST_IRQ(index, priority), spi_mspm0_isr,\
+				DEVICE_DT_INST_GET(index), 0);										\
+		irq_enable(DT_INST_IRQN(index));											\
+	};																				\
+																					\
+	IF_ENABLED(CONFIG_HAS_MSP_UNICOMM, 												\
+	(static UNICOMM_Inst_Regs spi_mspm0_uc_regs_##index = {							\
+		.inst =  (UNICOMM_Regs *)DT_INST_REG_ADDR(index), 							\
+		.spi = (UNICOMMSPI_Regs *)UC_SPI_BASE(DT_INST_REG_ADDR(index)),				\
+		.fixedMode = DT_CHILD_NUM(DT_PARENT(DT_DRV_INST(index))) == 1,				\
+	};) 																			\
+	)																				\
+																					\
+	static const struct mspm0_sys_clock mspm0_spi_sys_clock##index =				\
+		MSPM0_CLOCK_SUBSYS_FN(index);												\
+																					\
+	static struct spi_mspm0_config spi_mspm0_config_##index = {						\
+		.spi_base = COND_CODE_1(CONFIG_HAS_MSP_UNICOMM, 							\
+			(&spi_mspm0_uc_regs_##index), ((SPI_Regs *)DT_INST_REG_ADDR(index))),	\
+		.pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),							\
+		.hw_cs = DT_STRING_TOKEN(DT_DRV_INST(0), hw_chip_select),					\
+		.clock_config = {.clockSel =												\
+				  MSPM0_CLOCK_PERIPH_REG_MASK(DT_INST_CLOCKS_CELL(index, clk)),		\
+				 .divideRatio = SPI_DT_CLK_DIV_ENUM(index)},						\
+		.clock_subsys = &mspm0_spi_sys_clock##index,								\
+		.irq_config_func = spi_mspm0_irq_config_##index,							\
+	};																				\
+																					\
+	static struct spi_mspm0_data spi_mspm0_data_##index = {							\
+		.spi_idle = Z_SEM_INITIALIZER(spi_mspm0_data_##index.spi_idle, 0, 1),		\
+		SPI_CONTEXT_INIT_LOCK(spi_mspm0_data_##index, spi_ctx),						\
+		SPI_CONTEXT_INIT_SYNC(spi_mspm0_data_##index, spi_ctx),						\
+		SPI_CONTEXT_CS_GPIOS_INITIALIZE(DT_DRV_INST(index), spi_ctx)				\
+	};																				\
+																					\
+	DEVICE_DT_INST_DEFINE(index, spi_mspm0_init, NULL, &spi_mspm0_data_##index,		\
+			      &spi_mspm0_config_##index, POST_KERNEL, CONFIG_SPI_INIT_PRIORITY,	\
 			      &spi_mspm0_api);
 
 DT_INST_FOREACH_STATUS_OKAY(MSPM0_SPI_INIT)
