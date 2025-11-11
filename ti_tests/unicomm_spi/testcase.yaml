@@ -1,0 +1,3 @@
+tests:
+  unicomm.spi:
+    platform_allow: lp_mspm0g5187
