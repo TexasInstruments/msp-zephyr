@@ -125,7 +125,6 @@
 };
 
 &unicomm0_uart {
-	compatible = "ti,mspm0-uart";
 	status = "okay";
 	current-speed = <115200>;
 	pinctrl-0 = <&uc0_tx_pa10 &uc0_rx_pa11>;
