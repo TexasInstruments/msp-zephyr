@@ -35,7 +35,7 @@
 
 char *boot_str = "M33 Zephyr is Alive";
 char *t1_str = "Zephyr Thread 1";
-char *t2_str = "Zephyrblink0_id Thread 2";
+char *t2_str = "Zephyr Thread 2";
 //void drawTiLogo(char *);
 void drawTiLogo(Graphics_Context *ctx, char *str);
 
@@ -76,6 +76,7 @@ void blink0(void)
 
     led_state = !led_state;
     printf("LED state: %s\n", led_state ? "ON" : "OFF");
+    printk("Hello from blink0 thread!\n");
     k_msleep(1000);
     //k_sem_give(&my_sem);
   }
@@ -111,6 +112,7 @@ void blink1(void)
 #endif
 
     led_state = !led_state;
+    printk("Hello from blink1 thread!\n");
     printf("LED state: %s\n", led_state ? "ON" : "OFF");
     k_msleep(1000);
   }
