@@ -42,6 +42,10 @@ static int regulator_mspm0_vref_enable(const struct device *dev)
 	k_mutex_lock(&common->lock, K_FOREVER);
 #endif
 
+#ifdef CONFIG_REGULATOR_THREAD_SAFE_REFCNT
+	k_mutex_lock(&common->lock, K_FOREVER);
+#endif	
+
 	DL_VREF_enableInternalRef(config->regs);
 
 #ifdef CONFIG_REGULATOR_THREAD_SAFE_REFCNT
@@ -55,6 +59,10 @@ static int regulator_mspm0_vref_disable(const struct device *dev)
 {
 	const struct regulator_mspm0_vref_config *config = dev->config;
 	struct regulator_common_data *common = dev->data;
+
+#ifdef CONFIG_REGULATOR_THREAD_SAFE_REFCNT
+	k_mutex_lock(&common->lock, K_FOREVER);
+#endif
 
 #ifdef CONFIG_REGULATOR_THREAD_SAFE_REFCNT
 	k_mutex_lock(&common->lock, K_FOREVER);
