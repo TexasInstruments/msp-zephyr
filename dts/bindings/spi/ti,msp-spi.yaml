@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-   Texas Instruments MSPM0 SERIAL PERIPHERAL INTERFACE (SPI).
+   Texas Instruments MSP SERIAL PERIPHERAL INTERFACE (SPI).
 
-compatible: "ti,mspm0-spi"
+compatible: "ti,msp-spi"
 
 include: [spi-controller.yaml, pinctrl-device.yaml]
 

@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT ti_mspm0_spi
+#define DT_DRV_COMPAT ti_msp_spi
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/clock_control.h>
