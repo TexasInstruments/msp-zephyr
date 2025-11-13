@@ -9,7 +9,7 @@
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/clock_control/mspm0_clock_control.h>
+#include <zephyr/drivers/clock_control/msp_clock_control.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/irq.h>
@@ -22,7 +22,7 @@
 #include <driverlib/dl_spi.h>
 #endif
 
-LOG_MODULE_REGISTER(spi_mspm0, CONFIG_SPI_LOG_LEVEL);
+LOG_MODULE_REGISTER(spi_msp, CONFIG_SPI_LOG_LEVEL);
 
 /* This must be included after log module registration */
 #include "spi_context.h"
@@ -32,8 +32,8 @@ LOG_MODULE_REGISTER(spi_mspm0, CONFIG_SPI_LOG_LEVEL);
 #define SPI_DFS_16BIT		2
 
 /* Range for SPI Serial Clock Rate (SCR) */
-#define MSPM0_SPI_SCR_MIN	0
-#define MSPM0_SPI_SCR_MAX	1023
+#define MSP_SPI_SCR_MIN	0
+#define MSP_SPI_SCR_MAX	1023
 
 /* Delay after enabling power for SPI module */
 #define POWER_STARTUP_DELAY	16
@@ -50,7 +50,7 @@ LOG_MODULE_REGISTER(spi_mspm0, CONFIG_SPI_LOG_LEVEL);
 #define BIT_ORDER_MODE(operation)								\
 	(operation & BIT(4) ? DL_SPI_BIT_ORDER_LSB_FIRST : DL_SPI_BIT_ORDER_MSB_FIRST)
 
-/* MSPM0 DSS field expects word size - 1 */
+/* MSP DSS field expects word size - 1 */
 #define DATA_SIZE_MODE(operation)								\
 	(SPI_WORD_SIZE_GET(operation) - 1)
 
@@ -59,7 +59,7 @@ LOG_MODULE_REGISTER(spi_mspm0, CONFIG_SPI_LOG_LEVEL);
  */
 #define BYTES_PER_FRAME(word_size) (((word_size) + 7) / 8)
 
-struct spi_mspm0_config {
+struct spi_msp_config {
 #ifdef CONFIG_HAS_MSP_UNICOMM
 	UNICOMM_Inst_Regs *spi_base;
 #else
@@ -68,19 +68,19 @@ struct spi_mspm0_config {
 	const struct pinctrl_dev_config *pinctrl;
 	const DL_SPI_CHIP_SELECT hw_cs;
 	const DL_SPI_ClockConfig clock_config;
-	const struct mspm0_sys_clock *clock_subsys;
+	const struct msp_sys_clock *clock_subsys;
 	void (*irq_config_func)(const struct device *dev);
 };
 
-struct spi_mspm0_data {
+struct spi_msp_data {
 	struct spi_context spi_ctx;
 	struct k_sem spi_idle;
 };
 
-static void spi_mspm0_isr(const struct device *dev)
+static void spi_msp_isr(const struct device *dev)
 {
-	const struct spi_mspm0_config *config = dev->config;
-	struct spi_mspm0_data *data = dev->data;
+	const struct spi_msp_config *config = dev->config;
+	struct spi_msp_data *data = dev->data;
 
 	if (DL_SPI_getPendingInterrupt(config->spi_base) == DL_SPI_IIDX_IDLE) {
 		DL_SPI_disableInterrupt(config->spi_base, DL_SPI_INTERRUPT_IDLE);
@@ -88,11 +88,11 @@ static void spi_mspm0_isr(const struct device *dev)
 	}
 }
 
-static int spi_mspm0_configure(const struct device *dev, const struct spi_config *spi_cfg,
+static int spi_msp_configure(const struct device *dev, const struct spi_config *spi_cfg,
 			       uint8_t dfs)
 {
-	const struct spi_mspm0_config *const config = dev->config;
-	struct spi_mspm0_data *const data = dev->data;
+	const struct spi_msp_config *const config = dev->config;
+	struct spi_msp_data *const data = dev->data;
 	const struct device *clk_dev = DEVICE_DT_GET(DT_NODELABEL(ckm));
 
 	uint32_t clock_rate;
@@ -121,7 +121,7 @@ static int spi_mspm0_configure(const struct device *dev, const struct spi_config
 		return -EINVAL;
 	}
 
-	ret = clock_control_get_rate(clk_dev, (struct mspm0_sys_clock *)config->clock_subsys,
+	ret = clock_control_get_rate(clk_dev, (struct msp_sys_clock *)config->clock_subsys,
 				     &clock_rate);
 	if (ret < 0) {
 		return ret;
@@ -133,7 +133,7 @@ static int spi_mspm0_configure(const struct device *dev, const struct spi_config
 
 	/* See DL_SPI_setBitRateSerialClockDivider for details */
 	clock_scr = (clock_rate / (2 * spi_cfg->frequency)) - 1;
-	if (!IN_RANGE(clock_scr, MSPM0_SPI_SCR_MIN, MSPM0_SPI_SCR_MAX)) {
+	if (!IN_RANGE(clock_scr, MSP_SPI_SCR_MIN, MSP_SPI_SCR_MAX)) {
 		return -EINVAL;
 	}
 
@@ -180,7 +180,7 @@ static int spi_mspm0_configure(const struct device *dev, const struct spi_config
 #else
 		DL_SPI_enablePacking(config->spi_base);
 #endif
-	} 
+	}
 
 	if (SPI_MODE_GET(spi_cfg->operation) & SPI_MODE_LOOP) {
 		DL_SPI_enableLoopbackMode(config->spi_base);
@@ -196,10 +196,10 @@ static int spi_mspm0_configure(const struct device *dev, const struct spi_config
 	return 0;
 }
 
-static void spi_mspm0_frame_tx(const struct device *dev, uint8_t dfs)
+static void spi_msp_frame_tx(const struct device *dev, uint8_t dfs)
 {
-	const struct spi_mspm0_config *config = dev->config;
-	struct spi_mspm0_data *data = dev->data;
+	const struct spi_msp_config *config = dev->config;
+	struct spi_msp_data *data = dev->data;
 
 	/* Transmit dummy frame when no TX data is provided */
 	uint32_t tx_frame = 0;
@@ -223,10 +223,10 @@ static void spi_mspm0_frame_tx(const struct device *dev, uint8_t dfs)
 	spi_context_update_tx(&data->spi_ctx, dfs, 1);
 }
 
-static void spi_mspm0_frame_rx(const struct device *dev, uint8_t dfs)
+static void spi_msp_frame_rx(const struct device *dev, uint8_t dfs)
 {
-	const struct spi_mspm0_config *config = dev->config;
-	struct spi_mspm0_data *data = dev->data;
+	const struct spi_msp_config *config = dev->config;
+	struct spi_msp_data *data = dev->data;
 #ifdef CONFIG_HAS_MSP_UNICOMM
 	uint16_t rx_val = 0;
 #else
@@ -254,27 +254,27 @@ static void spi_mspm0_frame_rx(const struct device *dev, uint8_t dfs)
 	spi_context_update_rx(&data->spi_ctx, dfs, 1);
 }
 
-static void spi_mspm0_start_transfer(const struct device *dev, uint8_t dfs)
+static void spi_msp_start_transfer(const struct device *dev, uint8_t dfs)
 {
-	struct spi_mspm0_data *data = dev->data;
+	struct spi_msp_data *data = dev->data;
 
 	spi_context_cs_control(&data->spi_ctx, true);
 
 	while (spi_context_tx_on(&data->spi_ctx) || spi_context_rx_on(&data->spi_ctx)) {
-		spi_mspm0_frame_tx(dev, dfs);
-		spi_mspm0_frame_rx(dev, dfs);
+		spi_msp_frame_tx(dev, dfs);
+		spi_msp_frame_rx(dev, dfs);
 	}
 
 	spi_context_cs_control(&data->spi_ctx, false);
 	spi_context_complete(&data->spi_ctx, dev, 0);
 }
 
-static int spi_mspm0_transceive(const struct device *dev,
+static int spi_msp_transceive(const struct device *dev,
 				const struct spi_config *spi_cfg,
 				const struct spi_buf_set *tx_bufs,
 				const struct spi_buf_set *rx_bufs)
 {
-	struct spi_mspm0_data *data = dev->data;
+	struct spi_msp_data *data = dev->data;
 	int ret;
 	uint8_t dfs;
 
@@ -286,7 +286,7 @@ static int spi_mspm0_transceive(const struct device *dev,
 
 	dfs = BYTES_PER_FRAME(SPI_WORD_SIZE_GET(spi_cfg->operation));
 
-	ret = spi_mspm0_configure(dev, spi_cfg, dfs);
+	ret = spi_msp_configure(dev, spi_cfg, dfs);
 	if (ret != 0) {
 		spi_context_release(&data->spi_ctx, ret);
 		return ret;
@@ -294,7 +294,7 @@ static int spi_mspm0_transceive(const struct device *dev,
 
 	spi_context_buffers_setup(&data->spi_ctx, tx_bufs, rx_bufs, dfs);
 
-	spi_mspm0_start_transfer(dev, dfs);
+	spi_msp_start_transfer(dev, dfs);
 
 	ret = spi_context_wait_for_completion(&data->spi_ctx);
 	spi_context_release(&data->spi_ctx, ret);
@@ -302,10 +302,10 @@ static int spi_mspm0_transceive(const struct device *dev,
 	return ret;
 }
 
-static int spi_mspm0_release(const struct device *dev, const struct spi_config *spi_cfg)
+static int spi_msp_release(const struct device *dev, const struct spi_config *spi_cfg)
 {
-	const struct spi_mspm0_config *config = dev->config;
-	struct spi_mspm0_data *data = dev->data;
+	const struct spi_msp_config *config = dev->config;
+	struct spi_msp_data *data = dev->data;
 
 	if (!spi_context_configured(&data->spi_ctx, spi_cfg)) {
 		return -EINVAL;
@@ -319,15 +319,15 @@ static int spi_mspm0_release(const struct device *dev, const struct spi_config *
 	return 0;
 }
 
-static const struct spi_driver_api spi_mspm0_api = {
-	.transceive = spi_mspm0_transceive,
-	.release    = spi_mspm0_release,
+static const struct spi_driver_api spi_msp_api = {
+	.transceive = spi_msp_transceive,
+	.release    = spi_msp_release,
 };
 
-static int spi_mspm0_init(const struct device *dev)
+static int spi_msp_init(const struct device *dev)
 {
-	const struct spi_mspm0_config *config = dev->config;
-	struct spi_mspm0_data *data = dev->data;
+	const struct spi_msp_config *config = dev->config;
+	struct spi_msp_data *data = dev->data;
 	int32_t ret;
 
 	DL_SPI_enablePower(config->spi_base);
@@ -352,48 +352,48 @@ static int spi_mspm0_init(const struct device *dev)
 	return ret;
 }
 
-#define MSPM0_SPI_INIT(index)														\
+#define MSP_SPI_INIT(index)														\
 	PINCTRL_DT_INST_DEFINE(index);													\
 																					\
-	static void spi_mspm0_irq_config_##index(const struct device *dev)				\
+	static void spi_msp_irq_config_##index(const struct device *dev)				\
 	{																				\
-		IRQ_CONNECT(DT_INST_IRQN(index), DT_INST_IRQ(index, priority), spi_mspm0_isr,\
+		IRQ_CONNECT(DT_INST_IRQN(index), DT_INST_IRQ(index, priority), spi_msp_isr,\
 				DEVICE_DT_INST_GET(index), 0);										\
 		irq_enable(DT_INST_IRQN(index));											\
 	};																				\
 																					\
 	IF_ENABLED(CONFIG_HAS_MSP_UNICOMM, 												\
-	(static UNICOMM_Inst_Regs spi_mspm0_uc_regs_##index = {							\
+	(static UNICOMM_Inst_Regs spi_msp_uc_regs_##index = {							\
 		.inst =  (UNICOMM_Regs *)DT_INST_REG_ADDR(index), 							\
 		.spi = (UNICOMMSPI_Regs *)UC_SPI_BASE(DT_INST_REG_ADDR(index)),				\
 		.fixedMode = DT_CHILD_NUM(DT_PARENT(DT_DRV_INST(index))) == 1,				\
 	};) 																			\
 	)																				\
 																					\
-	static const struct mspm0_sys_clock mspm0_spi_sys_clock##index =				\
-		MSPM0_CLOCK_SUBSYS_FN(index);												\
+	static const struct msp_sys_clock msp_spi_sys_clock##index =				\
+		MSP_CLOCK_SUBSYS_FN(index);												\
 																					\
-	static struct spi_mspm0_config spi_mspm0_config_##index = {						\
+	static struct spi_msp_config spi_msp_config_##index = {						\
 		.spi_base = COND_CODE_1(CONFIG_HAS_MSP_UNICOMM, 							\
-			(&spi_mspm0_uc_regs_##index), ((SPI_Regs *)DT_INST_REG_ADDR(index))),	\
+			(&spi_msp_uc_regs_##index), ((SPI_Regs *)DT_INST_REG_ADDR(index))),	\
 		.pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),							\
 		.hw_cs = DT_STRING_TOKEN(DT_DRV_INST(index), hw_chip_select),				\
 		.clock_config = {.clockSel =												\
-				  MSPM0_CLOCK_PERIPH_REG_MASK(DT_INST_CLOCKS_CELL(index, clk)),		\
+				  MSP_CLOCK_PERIPH_REG_MASK(DT_INST_CLOCKS_CELL(index, clk)),		\
 				 .divideRatio = SPI_DT_CLK_DIV_ENUM(index)},						\
-		.clock_subsys = &mspm0_spi_sys_clock##index,								\
-		.irq_config_func = spi_mspm0_irq_config_##index,							\
+		.clock_subsys = &msp_spi_sys_clock##index,								\
+		.irq_config_func = spi_msp_irq_config_##index,							\
 	};																				\
 																					\
-	static struct spi_mspm0_data spi_mspm0_data_##index = {							\
-		.spi_idle = Z_SEM_INITIALIZER(spi_mspm0_data_##index.spi_idle, 0, 1),		\
-		SPI_CONTEXT_INIT_LOCK(spi_mspm0_data_##index, spi_ctx),						\
-		SPI_CONTEXT_INIT_SYNC(spi_mspm0_data_##index, spi_ctx),						\
+	static struct spi_msp_data spi_msp_data_##index = {							\
+		.spi_idle = Z_SEM_INITIALIZER(spi_msp_data_##index.spi_idle, 0, 1),		\
+		SPI_CONTEXT_INIT_LOCK(spi_msp_data_##index, spi_ctx),						\
+		SPI_CONTEXT_INIT_SYNC(spi_msp_data_##index, spi_ctx),						\
 		SPI_CONTEXT_CS_GPIOS_INITIALIZE(DT_DRV_INST(index), spi_ctx)				\
 	};																				\
 																					\
-	DEVICE_DT_INST_DEFINE(index, spi_mspm0_init, NULL, &spi_mspm0_data_##index,		\
-			      &spi_mspm0_config_##index, POST_KERNEL, CONFIG_SPI_INIT_PRIORITY,	\
-			      &spi_mspm0_api);
+	DEVICE_DT_INST_DEFINE(index, spi_msp_init, NULL, &spi_msp_data_##index,		\
+			      &spi_msp_config_##index, POST_KERNEL, CONFIG_SPI_INIT_PRIORITY,	\
+			      &spi_msp_api);
 
-DT_INST_FOREACH_STATUS_OKAY(MSPM0_SPI_INIT)
+DT_INST_FOREACH_STATUS_OKAY(MSP_SPI_INIT)
