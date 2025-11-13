@@ -2,14 +2,14 @@
 # Copyright (c) 2025 Texas Instruments
 # Copyright (c) 2025 Linumiz
 
-config UART_MSPM0
-	bool "MSPM0 UART driver"
+config UART_MSP
+	bool "MSP UART driver"
 	default y
 	depends on DT_HAS_TI_MSPM0_UART_ENABLED
 	select SERIAL_HAS_DRIVER
 	select SERIAL_SUPPORT_INTERRUPT
-	select USE_MSPM0_DL_UNICOMM_UART if (HAS_MSP_UNICOMM)
-	select USE_MSPM0_DL_UART if !(HAS_MSP_UNICOMM)
+	select USE_MSP_DL_UNICOMM_UART if (HAS_MSP_UNICOMM)
+	select USE_MSP_DL_UART if !(HAS_MSP_UNICOMM)
 	select PINCTRL
 	help
-	  This option enables the TI MSPM0 UART driver.
+	  This option enables the TI MSP family UART driver.
