@@ -23,9 +23,9 @@ config USE_MSPM0_DL_I2C
 
 config USE_MSPM0_DL_FLASHCTL
 	bool
-	
-config USE_MSPM0_DL_SPI
+
+config USE_MSP_DL_SPI
 	bool
 
-config USE_MSPM0_DL_UNICOMM_SPI
+config USE_MSP_DL_UNICOMM_SPI
 	bool
