@@ -23,6 +23,7 @@ LOG_MODULE_REGISTER(lp5810_lp5811, CONFIG_LED_LOG_LEVEL);
 
 struct lp5810_lp5811_config {
 	struct i2c_dt_spec bus;
+	bool has_boost_power_stage : 1;
 };
 
 int lp5810_lp5811_i2c_write(const struct device *dev, uint16_t reg_addr, uint8_t val) {
@@ -208,11 +209,28 @@ int lp5810_lp5811_disable_max_current(const struct device *dev)
 	return lp5810_lp5811_update_cmd(dev);
 }
 
-#ifdef BOOST_EN	
-int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint8_t boost_output_voltage)
+int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint16_t boost_voltage_mv)
 {
+	const struct lp5810_lp5811_config *config = dev->config;
+
+	if (config->has_boost_power_stage == 0) {
+		LOG_ERR("Boost output voltage not supported on LP5810.");
+		return -ENOTSUP;
+	}
+
 	int ret;
 	uint8_t dev0_config;
+	uint8_t step_val;
+
+	if (boost_voltage_mv <= 3000) {
+		step_val = LP5810_LP5811_DEV_CONFIG_0_BOOST_VOUT_MIN;
+	}
+	else if (boost_voltage_mv >= 5500) {
+		step_val = LP5810_LP5811_DEV_CONFIG_0_BOOST_VOUT_MAX;
+	}
+	else {
+		step_val = (uint8_t)((boost_voltage_mv - 3000) / 100);
+	}
 
 	ret = lp5810_lp5811_i2c_read(dev, LP5810_LP5811_DEV_CONFIG_0_REG, &dev0_config);
 	if (ret < 0) {
@@ -221,7 +239,7 @@ int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint8_t boo
 	}
 
 	dev0_config &= ~LP5810_LP5811_DEV_CONFIG_0_BOOST_VOUT_MASK;
-	dev0_config |= FIELD_PREP(LP5810_LP5811_DEV_CONFIG_0_BOOST_VOUT_MASK, boost_output_voltage);
+	dev0_config |= FIELD_PREP(LP5810_LP5811_DEV_CONFIG_0_BOOST_VOUT_MASK, step_val);
 
 	ret = lp5810_lp5811_i2c_write(dev, LP5810_LP5811_DEV_CONFIG_0_REG, dev0_config);
 	if (ret < 0) {
@@ -231,7 +249,6 @@ int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint8_t boo
 
 	return lp5810_lp5811_update_cmd(dev);
 }
-#endif
 
 int lp5810_lp5811_enable_led(const struct device *dev, uint8_t led)
 {
@@ -935,13 +952,11 @@ static int lp5810_lp5811_init(const struct device *dev)
 
 	ret = lp5810_lp5811_chip_enable(dev);
 	if (ret < 0) {
-		LOG_ERR("Chip enable failed");
 		return ret;
 	}
 
 	ret = lp5810_lp5811_i2c_write(dev, LP5810_LP5811_LED_EN_REG, BIT_MASK(LP5810_LP5811_NUM_LEDS));
 	if (ret < 0) {
-		LOG_ERR("Enabling LEDs failed");
 		return ret;
 	}
 
@@ -955,13 +970,13 @@ static DEVICE_API(led, lp5810_lp5811_led_api) = {
 };
 
 #define LP5810_LP5811_DEFINE(n, id)                                              	       \
-	static const struct lp5810_lp5811_config lp5810_lp5811_config_##id_##n = {             \
+	static const struct lp5810_lp5811_config lp5810_lp5811_config_##id##_##n = {           \
 		.bus = I2C_DT_SPEC_INST_GET(n),                                                    \
+		.has_boost_power_stage = DT_NODE_HAS_COMPAT(DT_DRV_INST(n), ti_lp5811)             \
 	};                                                                                     \
                                                                                            \
-                                                                                           \
 	DEVICE_DT_INST_DEFINE(n, &lp5810_lp5811_init, NULL, NULL,                              \
-			      &lp5810_lp5811_config_##id_##n, POST_KERNEL, CONFIG_LED_INIT_PRIORITY,   \
+			      &lp5810_lp5811_config_##id##_##n, POST_KERNEL, CONFIG_LED_INIT_PRIORITY, \
 			      &lp5810_lp5811_led_api);
 
 #undef DT_DRV_COMPAT

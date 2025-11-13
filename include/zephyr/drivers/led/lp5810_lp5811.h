@@ -9,10 +9,6 @@
 
 #define LP5810_LP5811_NUM_LEDS 4
 
-#if DT_HAS_COMPAT_STATUS_OKAY(ti_lp5811)
-#define BOOST_EN 1
-#endif
-
 /* Chip Enable Register */
 #define LP5810_LP5811_CHIP_EN_REG  0x00
 #define LP5810_LP5811_CHIP_EN BIT(0)
@@ -21,6 +17,8 @@
 /* Dev Config 0 Register: Enable Max Current Drive */
 #define LP5810_LP5811_DEV_CONFIG_0_REG 0x01
 #define LP5810_LP5811_DEV_CONFIG_0_BOOST_VOUT_MASK GENMASK(1, 5)
+#define LP5810_LP5811_DEV_CONFIG_0_BOOST_VOUT_MIN 0x00
+#define LP5810_LP5811_DEV_CONFIG_0_BOOST_VOUT_MAX 0x1F
 #define LP5810_LP5811_DEV_CONFIG_0_EN_MAX_CURRENT BIT(0)
 
 /* Dev Config 1 Register: PWM Frequency Control */
@@ -545,16 +543,14 @@ int lp5810_lp5811_enable_max_current(const struct device *dev);
  */
 int lp5810_lp5811_disable_max_current(const struct device *dev);
 
-
-#if BOOST_EN
 /**
  * @brief Set the boost output voltage
  *
  * @param dev LED device structure
+ * @param boost_voltage_mv Boost output voltage in mV
  * @return 0 on success, or negative error code
  */
-int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint8_t boost_output_voltage);
-#endif //BOOST_EN
+int lp5810_lp5811_set_boost_output_voltage(const struct device *dev, uint16_t boost_voltage_mv);
 
 /**
  * @brief Enable a LED on LP5810_LP5811
