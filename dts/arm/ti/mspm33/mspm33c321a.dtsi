@@ -373,6 +373,23 @@
 			};
 		};
 
+		unicomm2: unicomm2@40680000 {
+			reg = <0x40680000 0x00002000>;
+			interrupts = <27 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			unicomm2_spi: unicomm2_spi@40680000 {
+				compatible = "ti,msp-spi";
+				interrupts = <27 0>;
+				reg = <0x40680000 0x00002000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&ckm MSP_CLOCK_MCLKBY2>;
+				status = "disabled";
+			};
+		};
+
 		unicomm5: unicomm5@40688000 {
 			reg = <0x40688000 0x00002000>;
 			interrupts = <30 0>;
@@ -401,6 +418,16 @@
 				clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 				status = "disabled";
 			};
+
+			unicomm6_spi: unicomm6_spi@4068a000 {
+				compatible = "ti,msp-spi";
+				interrupts = <31 0>;
+				reg = <0x4068a000 0x00002000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&ckm MSP_CLOCK_MCLKBY2>;
+				status = "disabled";
+			};
 		};
 
 		unicomm7: unicomm7@40780000 {
@@ -413,6 +440,16 @@
 				compatible = "ti,msp-uart";
 				interrupts = <50 0>;
 				reg = <0x40780000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_MCLKBY2>;
+				status = "disabled";
+			};
+
+			unicomm7_spi: unicomm7_spi@40780000 {
+				compatible = "ti,msp-spi";
+				interrupts = <50 0>;
+				reg = <0x40780000 0x00002000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 				status = "disabled";
 			};
@@ -431,6 +468,16 @@
 				clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 				status = "disabled";
 			};
+
+			unicomm8_spi: unicomm8_spi@40782000 {
+				compatible = "ti,msp-spi";
+				interrupts = <51 0>;
+				reg = <0x40782000 0x00002000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&ckm MSP_CLOCK_MCLKBY2>;
+				status = "disabled";
+			};
 		};
 
 		unicomm9: unicomm9@40784000 {
@@ -443,6 +490,16 @@
 				compatible = "ti,msp-uart";
 				interrupts = <52 0>;
 				reg = <0x40784000 0x00002000>;
+				clocks = <&ckm MSP_CLOCK_MCLKBY2>;
+				status = "disabled";
+			};
+
+			unicomm9_spi: unicomm9_spi@40784000 {
+				compatible = "ti,msp-spi";
+				interrupts = <52 0>;
+				reg = <0x40784000 0x00002000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 				status = "disabled";
 			};
