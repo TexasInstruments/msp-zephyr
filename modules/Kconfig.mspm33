@@ -15,3 +15,6 @@ config USE_MSP_DL_VREF
 
 config USE_MSP_DL_HSADC
 	bool
+
+config USE_MSP_DL_UNICOMM_SPI
+	bool
