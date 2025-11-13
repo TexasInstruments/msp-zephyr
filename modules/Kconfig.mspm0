@@ -9,10 +9,10 @@ config HAS_MSPM0_SDK
 config USE_MSP_DL_GPIO
 	bool
 
-config USE_MSPM0_DL_UART
+config USE_MSP_DL_UART
 	bool
 
-config USE_MSPM0_DL_UNICOMM_UART
+config USE_MSP_DL_UNICOMM_UART
 	bool
 
 config USE_MSP_DL_TIMER
