@@ -5,8 +5,8 @@ config SPI_MSP
 	bool "TI's MSP SPI"
 	default y
 	depends on DT_HAS_TI_MSPM0_SPI_ENABLED
-	select USE_MSPM0_DL_UNICOMM_SPI if (HAS_MSP_UNICOMM)
-	select USE_MSPM0_DL_SPI if !(HAS_MSP_UNICOMM)
+	select USE_MSP_DL_UNICOMM_SPI if (HAS_MSP_UNICOMM)
+	select USE_MSP_DL_SPI if !(HAS_MSP_UNICOMM)
 	select PINCTRL
 	help
 	 This driver enable TI MSP spi driver.
