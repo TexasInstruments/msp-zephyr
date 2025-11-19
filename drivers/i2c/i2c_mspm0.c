@@ -785,14 +785,14 @@ static DEVICE_API(i2c, i2c_mspm0_driver_api) = {
 	I2C_MSPM0_CONFIG_IRQ_FUNC_DECLARE(index);                                                  \
                                                                                                    \
 	IF_ENABLED(USES_MERGE_BUF(index),                                                          \
-		(static uint8_t mspm0_i2c_##index_msg_buf[MERGE_BUF_SIZE(index)];));       \
+		(static uint8_t mspm0_i2c_msg_buf_##index[MERGE_BUF_SIZE(index)];));       \
 	static const struct i2c_mspm0_config i2c_mspm0_cfg_##index = {                             \
 		.base = (I2C_Regs *)DT_INST_REG_ADDR(index),                                       \
 		.clock_subsys = &mspm0_i2c_clockSys##index,                                        \
 		.bitrate = DT_INST_PROP(index, clock_frequency),                                   \
 		.merge_buf_size = MERGE_BUF_SIZE(index),                                           \
 		IF_ENABLED(USES_MERGE_BUF(index),                                                  \
-			(.merge_buf = mspm0_i2c_##index_msg_buf,)) .pinctrl =      \
+			(.merge_buf = mspm0_i2c_msg_buf_##index,)) .pinctrl =      \
 						   PINCTRL_DT_INST_DEV_CONFIG_GET(index),          \
 					  .irq_config_func = i2c_mspm0_irq_config_func_##index,    \
 					  .gI2CClockConfig = {                                     \
