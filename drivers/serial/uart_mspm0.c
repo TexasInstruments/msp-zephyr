@@ -84,6 +84,9 @@ static int uart_mspm0_init(const struct device *dev)
 				    config->current_speed);
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
+	DL_UART_Main_enableFIFOs(config->regs);
+	DL_UART_Main_setRXFIFOThreshold(config->regs, DL_UART_RX_FIFO_LEVEL_ONE_ENTRY);
+	DL_UART_Main_setTXFIFOThreshold(config->regs, DL_UART_TX_FIFO_LEVEL_EMPTY);
 	config->irq_config_func(dev);
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
