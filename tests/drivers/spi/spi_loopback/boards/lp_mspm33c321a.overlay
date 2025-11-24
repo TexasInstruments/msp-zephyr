@@ -1,0 +1,26 @@
+/*
+ * Copyright (c) 2025 Texas Instruments
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* Enable and configure the SPI interface */
+&unicomm2_spi {
+	status = "okay";
+	hw-chip-select = "DL_SPI_CHIP_SELECT_1";
+	pinctrl-0 = <&uc2_pico_pb17 &uc2_poci_pb19 &uc2_sclk_pb18 &uc2_cs0_pa2>;
+	pinctrl-names = "default";
+	/* Define the slow SPI device for loopback testing */
+	slow@0 {
+		compatible = "test-spi-loopback-slow";
+		reg = <0>;
+		spi-max-frequency = <DT_FREQ_K(500)>;
+	};
+
+	/* Define the fast SPI device for loopback testing */
+	fast@0 {
+		compatible = "test-spi-loopback-fast";
+		reg = <0>;
+		spi-max-frequency = <DT_FREQ_M(10)>;
+	};
+};
