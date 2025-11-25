@@ -2,11 +2,7 @@ name: MSPM33 Zephyr Build Automation Workflow
 
 on:
   push:
-    branches:
-      - dev_mspm33
   pull_request:
-    branches:
-      - dev_mspm33
 
 jobs:
   mspm33_build_all:
@@ -39,7 +35,10 @@ jobs:
       - name: Get the Zephyr source code
         run: |
           source ~/zephyrproject/.venv/bin/activate
-          west init -m https://github.com/TexasInstruments/msp-zephyr --mr dev_mspm33 ~/zephyrproject
+          # For push events, use github.ref_name; for pull_request events, use github.head_ref
+          BRANCH_NAME="${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}"
+          echo "Using branch: $BRANCH_NAME"
+          west init -m ${{ github.server_url }}/${{ github.repository }} --mr $BRANCH_NAME ~/zephyrproject
           cd ~/zephyrproject
           west update
 
@@ -68,10 +67,6 @@ jobs:
           cd ~/zephyrproject/zephyr
           source ~/zephyrproject/zephyr/zephyr-env.sh
           west build -p always -b lp_mspm33c321a samples/basic/blinky
-          mkdir -p ~/artifacts/blinky
-          cp build/zephyr/zephyr.elf ~/artifacts/blinky/
-          cp build/zephyr/zephyr.bin ~/artifacts/blinky/ || true
-          cp build/zephyr/zephyr.hex ~/artifacts/blinky/ || true
 
       - name: Build ADC Sequence example
         run: |
@@ -79,10 +74,6 @@ jobs:
           cd ~/zephyrproject/zephyr
           source ~/zephyrproject/zephyr/zephyr-env.sh
           west build -p always -b lp_mspm33c321a samples/drivers/adc/adc_sequence
-          mkdir -p ~/artifacts/adc_sequence
-          cp build/zephyr/zephyr.elf ~/artifacts/adc_sequence/
-          cp build/zephyr/zephyr.bin ~/artifacts/adc_sequence/ || true
-          cp build/zephyr/zephyr.hex ~/artifacts/adc_sequence/ || true
 
       - name: Build Counter Alarm example
         run: |
@@ -90,7 +81,31 @@ jobs:
           cd ~/zephyrproject/zephyr
           source ~/zephyrproject/zephyr/zephyr-env.sh
           west build -p always -b lp_mspm33c321a samples/drivers/counter/alarm
-          mkdir -p ~/artifacts/counter_alarm
-          cp build/zephyr/zephyr.elf ~/artifacts/counter_alarm/
-          cp build/zephyr/zephyr.bin ~/artifacts/counter_alarm/ || true
-          cp build/zephyr/zephyr.hex ~/artifacts/counter_alarm/ || true
+
+      - name: Build UART Basic API Test
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a tests/drivers/uart/uart_basic_api
+
+      - name: Build UART Interrupt API Test
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a tests/drivers/uart/uart_interrupt_api
+
+      - name: Build Console Line Splitting Test
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a tests/drivers/console/line_splitting
+
+      - name: Build UART Echo Bot Sample
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a samples/drivers/uart/echo_bot
