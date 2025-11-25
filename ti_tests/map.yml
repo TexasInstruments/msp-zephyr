@@ -1,0 +1,11 @@
+- connected: true
+  id: MG000002
+  platform: lp_mspm0g5187
+  product: XDS110 (03.00.00.31) Embed with CMSIS-DAP
+  runner: openocd
+  runner_params:
+    - --openocd
+    - /home/a0507750/openocd/src/openocd
+    - --openocd-search
+    - /home/a0507750/openocd/tcl
+  serial: /dev/ttyACM0

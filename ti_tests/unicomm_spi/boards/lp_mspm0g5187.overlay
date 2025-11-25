@@ -1,0 +1,13 @@
+&unicomm2_spi {
+	status = "okay";
+	hw-chip-select = "DL_SPI_CHIP_SELECT_1";
+	pinctrl-0 = <&uc2_pico_pb17 &uc2_poci_pb19 &uc2_sclk_pb3>;
+	pinctrl-names = "default";
+};
+
+&unicomm3_spi {
+	status = "okay";
+	pinctrl-0 = <&uc3_pico_pa21 &uc3_poci_pb21 &uc3_sclk_pb23>;
+	cs-gpios = <&gpiob 0 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+};
