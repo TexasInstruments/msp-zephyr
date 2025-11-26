@@ -350,7 +350,7 @@ static int pwm_mspm0_init(const struct device *dev)
 		DL_Timer_enablePower(config->base);
 	}
 
-	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
+	delay_cycles(CONFIG_MSP_PERIPH_STARTUP_DELAY);
 	DL_Timer_setClockConfig(config->base, (DL_Timer_ClockConfig *)&config->clk_config);
 	if (config->is_capture) {
 #ifdef CONFIG_PWM_CAPTURE

@@ -173,8 +173,8 @@ static int adc_msp_hsadc_config_vref(int ref_internal)
 	if (init_vref) {
 		/* Initialize VREF module */
 		DL_VREF_reset(VREF);
-		DL_VREF_enablePower(VREF);
-		delay_cycles(CONFIG_MSPM33_PERIPH_STARTUP_DELAY);
+	DL_VREF_enablePower(VREF);
+	delay_cycles(CONFIG_MSP_PERIPH_STARTUP_DELAY);
 
 		/* Configure VREF clock */
 		DL_VREF_ClockConfig vref_clk_config = {.clockSel = DL_VREF_CLOCK_BUSCLK,
@@ -214,7 +214,7 @@ static int adc_msp_hsadc_init(const struct device *dev)
 	DL_HSADC_reset((hsadc_ADC_LITE_REGS_Regs *)config->config_base);
 	DL_HSADC_enablePower((hsadc_ADC_LITE_REGS_Regs *)config->config_base);
 
-	delay_cycles(CONFIG_MSPM33_PERIPH_STARTUP_DELAY); // wait for power to stabilize
+	delay_cycles(CONFIG_MSP_PERIPH_STARTUP_DELAY); // wait for power to stabilize
 
 	/* Configure clock */
 	DL_HSADC_setClockDivideRatio((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
