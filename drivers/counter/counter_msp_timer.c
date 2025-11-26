@@ -17,14 +17,6 @@
 #include <ti/driverlib/dl_timerg.h>
 #include <ti/driverlib/dl_timer.h>
 
-/**
- * @brief Platform detection macros
- */
-#if defined(CONFIG_SOC_SERIES_MSPM0G) || defined(CONFIG_SOC_SERIES_MSPM0L)
-#define MSP_M0 1
-#elif defined(CONFIG_SOC_SERIES_MSPM33C)
-#define MSP_M33 1
-#endif
 
 LOG_MODULE_REGISTER(msp_counter, CONFIG_COUNTER_LOG_LEVEL);
 
@@ -210,11 +202,7 @@ static int counter_msp_init(const struct device *dev)
 		DL_Timer_enablePower(config->base);
 	}
 
-#if defined(MSP_M0)
-	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
-#elif defined(MSP_M33)
-	delay_cycles(CONFIG_MSPM33_PERIPH_STARTUP_DELAY);
-#endif
+	delay_cycles(CONFIG_MSP_PERIPH_STARTUP_DELAY);
 
 	DL_Timer_setClockConfig(config->base, (DL_Timer_ClockConfig *)&config->clk_config);
 	DL_Timer_initTimerMode(config->base, &tim_config);

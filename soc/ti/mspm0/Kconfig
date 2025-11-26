@@ -11,7 +11,7 @@ rsource "*/Kconfig"
 # clock cycles before accessing the peripheral's memory-mapped registers.
 # ULPCLK will either be equivalent or half of the main MCLK and CPUCLK,
 # yielding the delay time of 8 cycles
-config MSPM0_PERIPH_STARTUP_DELAY
+config MSP_PERIPH_STARTUP_DELAY
 	int
 	default 8
 

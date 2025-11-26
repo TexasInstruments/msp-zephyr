@@ -192,7 +192,7 @@ static int i2c_mspm0_init(const struct device *dev)
 	/* Init power */
 	DL_I2C_reset(config->base);
 	DL_I2C_enablePower(config->base);
-	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
+	delay_cycles(CONFIG_MSP_PERIPH_STARTUP_DELAY);
 	DL_I2C_resetControllerTransfer(config->base);
 #ifdef CONFIG_I2C_TARGET
 	/* Workaround for errata I2C_ERR_04 */
@@ -234,7 +234,7 @@ static int i2c_mspm0_reset_peripheral_controller(const struct device *dev)
 	DL_I2C_disablePower(config->base);
 
 	DL_I2C_enablePower(config->base);
-	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
+	delay_cycles(CONFIG_MSP_PERIPH_STARTUP_DELAY);
 
 	DL_I2C_disableTargetWakeup(config->base);
 
@@ -525,7 +525,7 @@ static int i2c_mspm0_reset_peripheral_target(const struct device *dev)
 	DL_I2C_disablePower(config->base);
 
 	DL_I2C_enablePower(config->base);
-	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
+	delay_cycles(CONFIG_MSP_PERIPH_STARTUP_DELAY);
 
 	DL_I2C_disableTargetWakeup(config->base);
 
