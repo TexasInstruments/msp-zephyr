@@ -62,6 +62,11 @@
 	clocks = <&hsclk 0>;
 };
 
+&mclkby2 {
+	status = "okay";
+	clock-frequency = <DT_FREQ_M(80)>;
+};
+
 &hsclk {
 	status = "okay";
 	clocks = <&syspll0 0>;

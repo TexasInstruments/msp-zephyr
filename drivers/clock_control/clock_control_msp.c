@@ -109,12 +109,16 @@ static struct msp_clk_cfg msp_ulpclk_cfg = {
 	.clk_div = MSP_ULPCLK_DIV,
 };
 
-#if defined(MSP_M0)
 static struct msp_clk_cfg msp_mclk_cfg = {
 	.clk_freq = DT_PROP(DT_NODELABEL(mclk), clock_frequency),
 	.clk_div = MSP_MCLK_DIV,
 };
-#endif
+
+#if defined(MSP_M33)
+static struct msp_clk_cfg msp_mclkby2_cfg = {
+	.clk_freq = DT_PROP(DT_NODELABEL(mclkby2), clock_frequency),
+};
+#endif /* defined(MSP_M33) */
 
 #if MSP_MFCLK_ENABLED
 static struct msp_clk_cfg msp_mfclk_cfg = {
@@ -215,8 +219,14 @@ static int clock_msp_get_rate(const struct device *dev, clock_control_subsys_t s
 		break;
 
 	case MSP_CLOCK_MCLK:
-		*rate = CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC;
+		*rate = msp_mclk_cfg.clk_freq;
 		break;
+
+#if defined(MSP_M33)
+	case MSP_CLOCK_MCLKBY2:
+		*rate = msp_mclkby2_cfg.clk_freq;
+		break;
+#endif /* defined(MSP_M33) */
 
 #if MSP_MFPCLK_ENABLED
 	case MSP_CLOCK_MFPCLK:
