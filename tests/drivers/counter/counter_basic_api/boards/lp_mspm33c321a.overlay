@@ -1,0 +1,13 @@
+/*
+ * Copyright (c) 2025 Texas Instruments
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&tima0_0 {
+	status = "okay";
+};
+
+&countera0_0 {
+	status = "okay";
+};
