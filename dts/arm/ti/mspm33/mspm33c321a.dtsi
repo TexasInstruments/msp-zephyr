@@ -226,7 +226,7 @@
 		timg4_2: timg4_2@40180000 {
 			compatible = "ti,msp-timer";
 			reg = <0x40180000 0x2000>;
-			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 			interrupts = <35 0>;
 			ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
@@ -243,7 +243,7 @@
 		timg4_3: timg4_3@40182000 {
 			compatible = "ti,msp-timer";
 			reg = <0x40182000 0x2000>;
-			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 			interrupts = <36 0>;
 			ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
@@ -260,7 +260,7 @@
 		timg8_0: timg8_0@40184000 {
 			compatible = "ti,msp-timer";
 			reg = <0x40184000 0x2000>;
-			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 			interrupts = <23 0>;
 			ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
@@ -277,7 +277,7 @@
 		timg8_1: timg8_1@40186000 {
 			compatible = "ti,msp-timer";
 			reg = <0x40186000 0x2000>;
-			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 			interrupts = <37 0>;
 			ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
@@ -294,7 +294,7 @@
 		timg12_0: timg12_0@40188000 {
 			compatible = "ti,msp-timer";
 			reg = <0x40188000 0x2000>;
-			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 			interrupts = <24 0>;
 			// ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
@@ -311,7 +311,7 @@
 		tima0_0: tima0_0@40010000 {
 			compatible = "ti,msp-timer";
 			reg = <0x40010000 0x2000>;
-			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			clocks = <&ckm MSP_CLOCK_MCLK>;
 			interrupts = <20 0>;
 			ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
@@ -328,7 +328,7 @@
 		tima0_1: tima0_1@40012000 {
 			compatible = "ti,msp-timer";
 			reg = <0x40012000 0x2000>;
-			clocks = <&ckm MSP_CLOCK_BUSCLK>;
+			clocks = <&ckm MSP_CLOCK_MCLK>;
 			interrupts = <34 0>;
 			ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
