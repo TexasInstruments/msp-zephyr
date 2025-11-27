@@ -116,7 +116,7 @@ static struct msp_clk_cfg msp_mclk_cfg = {
 
 #if defined(MSP_M33)
 static struct msp_clk_cfg msp_mclkby2_cfg = {
-	.clk_freq = DT_PROP(DT_NODELABEL(mclkby2), clock_frequency),
+	.clk_freq = DT_PROP(DT_NODELABEL(mclk), clock_frequency) / 2,
 };
 #endif /* defined(MSP_M33) */
 

@@ -67,7 +67,6 @@
 
 &mclkby2 {
 	status = "okay";
-	clock-frequency = <DT_FREQ_M(80)>;
 };
 
 &hsclk {
