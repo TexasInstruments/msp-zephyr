@@ -64,7 +64,6 @@
 		mclkby2: mclkby2 {
 			#clock-cells = <1>;
 			compatible = "ti,msp-clk";
-			clock-frequency = <DT_FREQ_M(32)>;
 		};
 
 		mfclk: mfclk {
