@@ -150,6 +150,9 @@ static const struct device *const devices[] = {
 #ifdef CONFIG_COUNTER_INFINEON_TCPWM
 	DEVS_FOR_DT_COMPAT(infineon_tcpwm_counter)
 #endif
+#ifdef CONFIG_COUNTER_MSP_TIMER
+	DEVS_FOR_DT_COMPAT(ti_msp_timer_counter)
+#endif
 };
 
 static const struct device *const period_devs[] = {
