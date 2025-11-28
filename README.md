@@ -8,6 +8,7 @@
 <div align="left">
 
 # MSPM33 Downstream Support For Zephyr
+
 This repository contains early Zephyr Support for MSPM33-class devices
 
 The Texas Instruments Zephyr GitHub repository is the starting point for Zephyr
@@ -32,6 +33,20 @@ This release contains support for the `MSPM33C321A` device.
 
 ## Release Information
 
+| Version | v4.2.0-ti-1.01.00.00_EA |
+|---------|--------------------------|
+| Zephyr RTOS | <br>• Zephyr Base Device Support<br>• Board Configuration, DTS, Interrupts, Timers, Clock (Fix Clocked), Pinmux, GPIO<br>• HS-ADC (Basic)<br>• UART Support (Polling and Interrupt-driven modes)<br>• SPI Support (Master mode) |
+
+### What's New
+
+This release adds the following new features:
+
+- **UART Support**: Added MSPM33 support to the MSP UART driver with both polling and interrupt-driven modes
+- **SPI Support**: Added MSPM33 support to the MSP SPI driver with master mode operation
+- **Testing**: Added comprehensive test coverage for UART and SPI functionality
+
+### Previous Releases
+
 | Version | v4.2.0-ti-1.00.00.00_EA (pre-APL) |
 |---------|--------------------------|
 | Zephyr RTOS | <br>• Zephyr Base Device Support<br>• Board Configuration, DTS, Interrupts, Timers, Clock (Fix Clocked), Pinmux, GPIO<br>• HS-ADC (Basic)<br>• Blinky Example |
@@ -55,10 +70,10 @@ For getting started, please refer to the [Zephyr Getting Started Guide](https://
 For detailed board-specific information, building instructions, flashing procedures, and required development tools, please refer to the board documentation in `boards/ti/lp_mspm33c321a/doc/index.rst`.
 
 > **_NOTE:_** When running `west init` in the getting-started guide it's
-> important to instead run `west init -m https://github.com/TexasInstruments/msp-zephyr --mr v4.2.0-ti-1.00.00.00_ea zephyrproject`
+> important to instead run `west init -m https://github.com/TexasInstruments/msp-zephyr --mr v4.2.0-ti-1.01.00.00_ea zephyrproject`
 > in order to use the TI Zephyr repository.
 > Replace `zephyrproject` with your desired project directory name.
-> The `v4.2.0-ti-1.00.00.00_ea` tag changes with each release from TI and zephyr .
+> The `v4.2.0-ti-1.01.00.00_ea` tag changes with each release from TI and zephyr.
 >
 
 
