@@ -16,38 +16,28 @@ communication interfaces.
 Hardware
 ********
 
-Zephyr uses the ``lp_mspm33c321a`` board for building LP_MSPM33C321A
+The LP_MSPM33C321A LaunchPad is a development platform for the MSPM33C321A microcontroller.
+Zephyr uses the ``lp_mspm33c321a`` board configuration for building applications for this platform.
 
-Supported Features
-=================
+Board Features
+=============
 
-.. zephyr:board-supported-hw::
+* MSPM33C321A microcontroller with Arm® Cortex®-M33 core running at up to 160 MHz
+* 1MB Flash memory with ECC
+* 256KB SRAM
+* On-board XDS110 debugger
+* User LEDs and buttons
+* Multiple expansion headers for BoosterPack ecosystem compatibility
 
 
 Development Environment
-======================
+**********************
 
 The following development environment was used while developing and testing:
 
 * TI Code Composer Studio (CCS) version 20.3.0 (`Download Link <https://www.ti.com/tool/download/CCSTUDIO/20.3.0>`_)
 * Zephyr SDK version 0.17.4
-* Zephyr version v4.2.0 (v4.2.0-4346-g212edd9ebef)
-
-
-Release Information
-******************
-
-.. list-table::
-   :header-rows: 1
-
-   * - Version
-     - v4.2.0-ti-1.00.00.00_EA (pre-APL)
-   * - Zephyr RTOS
-     - | • Zephyr Base Device Support
-       | • Board Configuration, DTS, Interrupts, Timers, Clock (Fix Clocked), Pinmux, GPIO
-       | • HS-ADC (Basic)
-       | • Blinky Example
-
+* Zephyr version v4.2.0
 
 Building and Flashing
 *********************
@@ -70,7 +60,7 @@ MSPM33C321A LaunchPad using the steps mentioned below.
 Flashing
 ========
 
-Currently, the MSPM33C321A board does not support the west flashing tool or OpenOCD support currently.
+Currently, the MSPM33C321A board does not support the west flashing tool or OpenOCD support.
 Instead, we use SRAM-based loading where we build the samples and load the zephyr.elf file
 from the build directory to the TI Code Composer Studio (CCS) IDE in debugger mode.
 
@@ -86,7 +76,23 @@ To flash the board:
 8. The program will be loaded into the SRAM of the device
 9. Click "Resume" to start the program execution
 
-Future updates to the Zephyr support for this board will include flash-based programming.
+Future updates to the Zephyr support for this board will include flash-based programming
+and support for the west flash command.
+
+Serial Console
+=============
+
+The MSPM33C321A LaunchPad includes an on-board XDS110 debugger that also provides a
+virtual COM port over USB. This can be used for serial console output.
+
+To connect to the serial console, use a terminal emulator such as PuTTY, minicom, or screen
+with the following settings:
+
+* Baud rate: 115200
+* Data bits: 8
+* Parity: None
+* Stop bits: 1
+* Flow control: None
 
 Debugging
 =========
