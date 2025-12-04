@@ -3,6 +3,8 @@
 #include <ti/mspm0/g/mspm0g.dtsi>
 #include <zephyr/dt-bindings/i2c/i2c.h>
 
+/delete-node/ &sram0;
+
 / {
 	soc {
 		i2c0: i2c@400f0000 {
