@@ -24,8 +24,8 @@
 	chosen {
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
-		zephyr,console = &unicomm5_uart;
-		zephyr,shell-uart = &unicomm5_uart;
+		zephyr,console = &unicomm12_uart;
+		zephyr,shell-uart = &unicomm12_uart;
 
 	};
 
@@ -142,7 +142,7 @@
 	status = "okay";
 };
 
-&unicomm0_uart {
+&unicomm1_0_uart {
 	status = "okay";
 
 	current-speed = <115200>;
@@ -151,7 +151,7 @@
 };
 
 /* Primary UART for console and shell */
-&unicomm5_uart {
+&unicomm12_uart {
 	status = "okay";
 
 	current-speed = <115200>;
