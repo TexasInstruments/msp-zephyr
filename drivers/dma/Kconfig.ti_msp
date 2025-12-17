@@ -1,0 +1,11 @@
+# Copyright (c) 2025 Texas Instruments.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+config DMA_TI_MSP
+	bool "Texas Instruments MSP DMA Controller Driver"
+	default y
+	depends on DT_HAS_TI_MSP_DMA_ENABLED
+	select USE_MSP_DL_DMA
+	help
+	  Enable Texas Instruments MSP Family DMA driver.
