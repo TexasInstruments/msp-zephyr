@@ -1,0 +1,49 @@
+#
+#  Copyright (c) 2025 Texas Instruments.
+#  Copyright (c) 2025 Linumiz GmbH
+#
+#  SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Texas Instruments MSP Series DMA Driver
+
+  Supported Functions:
+    dma_configure()
+    dma_start()
+    dma_stop()
+    dma_reload()
+    dma_get_status()
+    dma_suspend()
+    dma_resume()
+
+  Supported transfer types:
+    - Memory to Memory (M2M)
+    - Memory to Peripheral (M2P)
+    - Peripheral to Memory (P2M)
+
+  Key assumptions/limitations:
+    - Source and destination data widths must be the same
+    - Source and destination burst lengths must be the same
+    - Supports burst sizes of 8, 16, 32, or infinity (no burst interruption)
+    - This driver does NOT support linked transfers, chained transfers, or gather/scatter operations
+
+compatible: "ti,msp-dma"
+
+include: dma-controller.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  dma-channels:
+    required: true
+
+  "#dma-cells":
+    const: 2
+
+dma-cells:
+  - channel
+  - trigger
