@@ -7,6 +7,6 @@ config DMA_TI_MSP
 	bool "Texas Instruments MSP DMA Controller Driver"
 	default y
 	depends on DT_HAS_TI_MSP_DMA_ENABLED
-	select USE_MSPM0_DL_DMA
+	select USE_MSP_DL_DMA
 	help
 	  Enable Texas Instruments MSP DMA driver.

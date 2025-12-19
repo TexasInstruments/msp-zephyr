@@ -30,5 +30,5 @@ config USE_MSP_DL_SPI
 config USE_MSP_DL_UNICOMM_SPI
 	bool
 
-config USE_MSPM0_DL_DMA
+config USE_MSP_DL_DMA
 	bool
