@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT ti_mspm0_dma
+#define DT_DRV_COMPAT ti_msp_dma
 
 #include <stdio.h>
 #include <string.h>
