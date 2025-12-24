@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT ti_mspm0_trng
+#define DT_DRV_COMPAT ti_msp_trng
 
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -17,7 +17,7 @@
 #include <ti/driverlib/dl_trng.h>
 #include <ti/devices/msp/peripherals/hw_trng.h>
 
-#define TRNG_DECIMATION_RATE	CONFIG_ENTROPY_MSPM0_TRNG_DECIMATION_RATE
+#define TRNG_DECIMATION_RATE	CONFIG_ENTROPY_MSP_TRNG_DECIMATION_RATE
 #define TRNG_SAMPLE_SIZE	4
 
 #define TRNG_CLOCK_DIVIDE_RATIO		CONCAT(DL_TRNG_CLOCK_DIVIDE_, DT_INST_PROP(0, ti_clk_div))
@@ -25,18 +25,18 @@
 #define TRNG_SAMPLE_GENERATE_TIME	(1000000 * (32 * (TRNG_DECIMATION_RATE + 1)) \
 			/ (CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC / (TRNG_CLOCK_DIVIDE_RATIO)))
 
-struct entropy_mspm0_trng_config {
+struct entropy_msp_trng_config {
 	TRNG_Regs *base;
 };
 
-struct entropy_mspm0_trng_data {
+struct entropy_msp_trng_data {
 	struct k_mutex mutex_lock;
 	struct k_sem sem_sync;
 	struct ring_buf entropy_pool;
-	uint8_t pool_buffer[CONFIG_ENTROPY_MSPM0_TRNG_POOL_SIZE];
+	uint8_t pool_buffer[CONFIG_ENTROPY_MSP_TRNG_POOL_SIZE];
 };
 
-static inline bool entropy_mspm0_trng_run_dig_test(TRNG_Regs *base)
+static inline bool entropy_msp_trng_run_dig_test(TRNG_Regs *base)
 {
 	uint8_t dig_test = DL_TRNG_getDigitalHealthTestResults(base);
 
@@ -49,7 +49,7 @@ static inline bool entropy_mspm0_trng_run_dig_test(TRNG_Regs *base)
 	return false;
 }
 
-static inline bool entropy_mspm0_trng_run_ana_test(TRNG_Regs *base)
+static inline bool entropy_msp_trng_run_ana_test(TRNG_Regs *base)
 {
 	uint8_t ana_test = DL_TRNG_getAnalogHealthTestResults(base);
 
@@ -62,10 +62,10 @@ static inline bool entropy_mspm0_trng_run_ana_test(TRNG_Regs *base)
 	return false;
 }
 
-static void entropy_mspm0_trng_isr(const struct device *dev)
+static void entropy_msp_trng_isr(const struct device *dev)
 {
-	const struct entropy_mspm0_trng_config *config = dev->config;
-	struct entropy_mspm0_trng_data *data = dev->data;
+	const struct entropy_msp_trng_config *config = dev->config;
+	struct entropy_msp_trng_data *data = dev->data;
 	uint32_t status;
 	uint32_t entropy_data;
 	uint32_t bytes_written;
@@ -87,13 +87,13 @@ static void entropy_mspm0_trng_isr(const struct device *dev)
 		DL_TRNG_clearInterruptStatus(config->base, DL_TRNG_INTERRUPT_CMD_DONE_EVENT);
 
 		/* Run DIG test */
-		dig_test = entropy_mspm0_trng_run_dig_test(config->base);
+		dig_test = entropy_msp_trng_run_dig_test(config->base);
 		if (!dig_test) {
 			return;
 		}
 
 		/* Run ANALOG test */
-		ana_test = entropy_mspm0_trng_run_ana_test(config->base);
+		ana_test = entropy_msp_trng_run_ana_test(config->base);
 		if (!ana_test) {
 			return;
 		}
@@ -129,11 +129,11 @@ static void entropy_mspm0_trng_isr(const struct device *dev)
 	}
 }
 
-static int entropy_mspm0_trng_get_entropy(const struct device *dev,
+static int entropy_msp_trng_get_entropy(const struct device *dev,
 					  uint8_t *buffer, uint16_t length)
 {
-	const struct entropy_mspm0_trng_config *config = dev->config;
-	struct entropy_mspm0_trng_data *data = dev->data;
+	const struct entropy_msp_trng_config *config = dev->config;
+	struct entropy_msp_trng_data *data = dev->data;
 	uint16_t bytes_read;
 
 	k_mutex_lock(&data->mutex_lock, K_FOREVER);
@@ -160,11 +160,11 @@ static int entropy_mspm0_trng_get_entropy(const struct device *dev,
 	return 0;
 }
 
-static int entropy_mspm0_trng_get_entropy_isr(const struct device *dev, uint8_t *buffer,
+static int entropy_msp_trng_get_entropy_isr(const struct device *dev, uint8_t *buffer,
 					      uint16_t length, uint32_t flags)
 {
-	const struct entropy_mspm0_trng_config *config = dev->config;
-	struct entropy_mspm0_trng_data *data = dev->data;
+	const struct entropy_msp_trng_config *config = dev->config;
+	struct entropy_msp_trng_data *data = dev->data;
 	uint16_t bytes_read;
 	uint16_t total_read;
 	uint32_t entropy_data;
@@ -210,10 +210,10 @@ static int entropy_mspm0_trng_get_entropy_isr(const struct device *dev, uint8_t 
 	return total_read;
 }
 
-static int entropy_mspm0_trng_init(const struct device *dev)
+static int entropy_msp_trng_init(const struct device *dev)
 {
-	const struct entropy_mspm0_trng_config *config = dev->config;
-	struct entropy_mspm0_trng_data *data = dev->data;
+	const struct entropy_msp_trng_config *config = dev->config;
+	struct entropy_msp_trng_data *data = dev->data;
 
 	/* Initialize ring buffer for entropy storage */
 	ring_buf_init(&data->entropy_pool, sizeof(data->pool_buffer), data->pool_buffer);
@@ -228,7 +228,7 @@ static int entropy_mspm0_trng_init(const struct device *dev)
 	DL_TRNG_disableInterrupt(config->base, DL_TRNG_INTERRUPT_CAPTURE_RDY_EVENT);
 
 	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority),
-		    entropy_mspm0_trng_isr, DEVICE_DT_INST_GET(0), 0);
+		    entropy_msp_trng_isr, DEVICE_DT_INST_GET(0), 0);
 	irq_enable(DT_INST_IRQN(0));
 
 	DL_TRNG_enableInterrupt(config->base, DL_TRNG_INTERRUPT_CMD_DONE_EVENT |
@@ -240,22 +240,22 @@ static int entropy_mspm0_trng_init(const struct device *dev)
 	return 0;
 }
 
-static DEVICE_API(entropy, entropy_mspm0_trng_driver_api) = {
-	.get_entropy = entropy_mspm0_trng_get_entropy,
-	.get_entropy_isr = entropy_mspm0_trng_get_entropy_isr,
+static DEVICE_API(entropy, entropy_msp_trng_driver_api) = {
+	.get_entropy = entropy_msp_trng_get_entropy,
+	.get_entropy_isr = entropy_msp_trng_get_entropy_isr,
 };
 
-static const struct entropy_mspm0_trng_config entropy_mspm0_trng_config = {
+static const struct entropy_msp_trng_config entropy_msp_trng_config = {
 	.base = (TRNG_Regs *)DT_INST_REG_ADDR(0),
 };
 
-static struct entropy_mspm0_trng_data entropy_mspm0_trng_data = {
-	.mutex_lock = Z_MUTEX_INITIALIZER(entropy_mspm0_trng_data.mutex_lock),
-	.sem_sync = Z_SEM_INITIALIZER(entropy_mspm0_trng_data.sem_sync, 0, 1),
+static struct entropy_msp_trng_data entropy_msp_trng_data = {
+	.mutex_lock = Z_MUTEX_INITIALIZER(entropy_msp_trng_data.mutex_lock),
+	.sem_sync = Z_SEM_INITIALIZER(entropy_msp_trng_data.sem_sync, 0, 1),
 };
 
-DEVICE_DT_INST_DEFINE(0, entropy_mspm0_trng_init, NULL,
-		      &entropy_mspm0_trng_data,
-		      &entropy_mspm0_trng_config, PRE_KERNEL_1,
+DEVICE_DT_INST_DEFINE(0, entropy_msp_trng_init, NULL,
+		      &entropy_msp_trng_data,
+		      &entropy_msp_trng_config, PRE_KERNEL_1,
 		      CONFIG_ENTROPY_INIT_PRIORITY,
-		      &entropy_mspm0_trng_driver_api);
+		      &entropy_msp_trng_driver_api);

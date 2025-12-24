@@ -518,6 +518,14 @@
 				status = "disabled";
 			};
 		};
+
+		trng: trng@40044000 {
+			compatible = "ti,msp-trng";
+			reg = <0x40044000 0x2000>;
+			interrupts = <40 0>;
+			ti,clk-div = <1>;
+			status = "disabled";
+		};
 	};
 };
 

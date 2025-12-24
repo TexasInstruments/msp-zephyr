@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-  Texas Instruments MSPM0 Series True Random Number Generator (TRNG).
+  Texas Instruments MSP Series True Random Number Generator (TRNG).
   This peripheral provides a hardware-based source of entropy with built-in
   health tests.
 
-compatible: "ti,mspm0-trng"
+compatible: "ti,msp-trng"
 
 include: base.yaml
 properties:
