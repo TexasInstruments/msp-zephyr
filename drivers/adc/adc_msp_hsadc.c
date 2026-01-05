@@ -81,11 +81,11 @@ static void adc_context_start_sampling(struct adc_context *ctx)
 			/* Clear any pending interrupts */
 			DL_HSADC_InterruptStatusClear(
 				(hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-				(DL_HSADC_InterruptNumber)seq);
+				(DL_HSADC_INT)seq);
 
 			/* Enable the interrupt */
 			DL_HSADC_enableInterrupt((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-						 (DL_HSADC_InterruptNumber)seq);
+						 (DL_HSADC_INT)seq);
 		}
 	}
 
@@ -94,7 +94,7 @@ static void adc_context_start_sampling(struct adc_context *ctx)
 		if (data->active_sequencers & BIT(seq)) {
 			DL_HSADC_triggerSequencerSoftwareForce(
 				(hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-				(DL_HSADC_SEQNumber)seq);
+				(DL_HSADC_SEQ_NUMBER)seq);
 		}
 	}
 }
@@ -348,7 +348,7 @@ static int adc_msp_hsadc_configure_sequence(const struct device *dev)
 
 		/* Configure the SOC to use the specified channel */
 		DL_HSADC_SOCChannelSelect((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-					  (DL_HSADC_SOCNumber)soc, (DL_HSADC_ADCIN)ch);
+					  (DL_HSADC_SOC_NUMBER)soc, (DL_HSADC_ADCIN)ch);
 
 		/* Move to next SOC */
 		next_soc++;
@@ -362,7 +362,7 @@ static int adc_msp_hsadc_configure_sequence(const struct device *dev)
 		if (data->active_sequencers & BIT(seq)) {
 			/* Disable the sequencer first for configuration */
 			DL_HSADC_disableSequencer((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-						  (DL_HSADC_SEQNumber)seq);
+						  (DL_HSADC_SEQ_NUMBER)seq);
 
 			/* Calculate start and end SOCs for this sequencer */
 			uint8_t seq_start_soc = seq * 4;
@@ -371,45 +371,45 @@ static int adc_msp_hsadc_configure_sequence(const struct device *dev)
 
 			/* Set up sequencer with proper trigger mode */
 			DL_HSADC_setupSequencer((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-						(DL_HSADC_SEQNumber)seq, config->sampleWindow,
-						DL_HSADC_Trigger_TieLow_SW_Trig,
-						(DL_HSADC_SOCNumber)seq_start_soc);
+						(DL_HSADC_SEQ_NUMBER)seq, config->sampleWindow,
+						DL_HSADC_TRIGGER_TIELOW_SW,
+						(DL_HSADC_SOC_NUMBER)seq_start_soc);
 
-			/* Configure interrupt to trigger on the last channel */
-			DL_HSADC_InterruptSourceSelect(
-				(hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-				(DL_HSADC_InterruptNumber)seq, (DL_HSADC_SOCNumber)seq_end_soc);
+	/* Configure interrupt to trigger on the last channel */
+	DL_HSADC_InterruptSourceSelect(
+		(hsadc_ADC_LITE_REGS_Regs *)config->config_base,
+		(DL_HSADC_INT)seq, (DL_HSADC_SOC_NUMBER)seq_end_soc);
 
 			/* Configure sample cap reset to half VREF for better accuracy */
 			DL_HSADC_setSampleCapReset((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-						   (DL_HSADC_SEQNumber)seq,
-						   DL_HSADC_sampleCapResetSelect_half_vrefhi);
+						   (DL_HSADC_SEQ_NUMBER)seq,
+						   DL_HSADC_SAMPCAPRESET_HALF_VREFHI);
 
 			/* Configure oversampling if requested */
 			if (data->oversampling > 0) {
 				/* Configure oversampling for this sequencer */
 				DL_HSADC_setPPBOversamplingLimit(
 					(hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-					(DL_HSADC_SEQNumber)seq,
-					(DL_HSADC_OversamplingLimit)data->oversampling);
+					(DL_HSADC_SEQ_NUMBER)seq,
+					(DL_HSADC_OVERSAMPLING_LIMIT)data->oversampling);
 
 				/* Set right shift based on oversampling to maintain proper scaling
 				 */
 				DL_HSADC_setPPBRightShift(
 					(hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-					(DL_HSADC_SEQNumber)seq,
-					(DL_HSADC_PPBRightShift)data->oversampling);
+					(DL_HSADC_SEQ_NUMBER)seq,
+					(DL_HSADC_PPB_RIGHTSHIFT)data->oversampling);
 			}
 
 			/* Enable the sequencer */
 			DL_HSADC_enableSequencer((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-						 (DL_HSADC_SEQNumber)seq);
+						 (DL_HSADC_SEQ_NUMBER)seq);
 		}
 	}
 
 	/* Set the end SOC for the sequencer using the last active sequencer's end SOC */
 	DL_HSADC_setEndOfSequencer((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-				   (DL_HSADC_SOCNumber)last_seq_end_soc);
+				   (DL_HSADC_SOC_NUMBER)last_seq_end_soc);
 
 	return 0;
 }
@@ -530,7 +530,7 @@ static void adc_msp_hsadc_isr(const struct device *dev)
 	for (int seq = 0; seq < 4; seq++) {
 		if ((data->active_sequencers & BIT(seq)) &&
 		    DL_HSADC_getInterruptStatus((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-						(DL_HSADC_InterruptNumber)seq)) {
+						(DL_HSADC_INT)seq)) {
 			interrupt_triggered = true;
 
 			/* Process all channels for this sequencer */
@@ -550,14 +550,14 @@ static void adc_msp_hsadc_isr(const struct device *dev)
 							result = DL_HSADC_getFinalSumResult(
 								(hsadc_ADC_LITE_RESULT_REGS_Regs *)
 									config->result_base,
-								(DL_HSADC_SEQNumber)seq);
+								(DL_HSADC_SEQ_NUMBER)seq);
 						} else {
 							/* Normal mode - read the direct ADC result
 							 */
 							result = DL_HSADC_getResult(
 								(hsadc_ADC_LITE_RESULT_REGS_Regs *)
 									config->result_base,
-								(DL_HSADC_SOCNumber)soc);
+								(DL_HSADC_SOC_NUMBER)soc);
 						}
 
 						*data->buffer++ = result;
@@ -571,11 +571,11 @@ static void adc_msp_hsadc_isr(const struct device *dev)
 			/* Clear the interrupt */
 			DL_HSADC_InterruptStatusClear(
 				(hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-				(DL_HSADC_InterruptNumber)seq);
+				(DL_HSADC_INT)seq);
 
 			/* Disable interrupt */
 			DL_HSADC_disableInterrupt((hsadc_ADC_LITE_REGS_Regs *)config->config_base,
-						  (DL_HSADC_InterruptNumber)seq);
+						  (DL_HSADC_INT)seq);
 		}
 	}
 
