@@ -18,3 +18,10 @@ config I2C_SCL_LOW_TIMEOUT
 	  cumulative low period in a transaction.
 	  0 means that the driver will use the K_FOREVER value,
 	  waiting as long as necessary.
+
+config I2C_TRANSFER_TIMEOUT_MSEC
+	int "I2C Transfer Timeout"
+	default 500
+	help
+	  Timeout in milliseconds to wait for an I2C
+	  transfer to complete before timing out.

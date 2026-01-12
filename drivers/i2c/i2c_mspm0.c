@@ -284,7 +284,9 @@ static int i2c_mspm0_receive(const struct device *dev, struct i2c_msg msg, uint1
 				DL_I2C_CONTROLLER_ACK_DISABLE);
 
 	/* Wait for the read to complete */
-	k_sem_take(data->device_sync_sem, K_FOREVER);
+	if (k_sem_take(data->device_sync_sem, K_MSEC(CONFIG_I2C_TRANSFER_TIMEOUT_MSEC))) {
+		return -ETIMEDOUT;
+	}
 
 	if (data->state == I2C_MSPM0_TIMEOUT) {
 		return -ETIMEDOUT;
@@ -339,7 +341,9 @@ static int i2c_mspm0_transmit(const struct device *dev, struct i2c_msg msg, uint
 				DL_I2C_CONTROLLER_ACK_ENABLE);
 
 	/* Wait for the transmit to complete */
-	k_sem_take(data->device_sync_sem, K_FOREVER);
+	if (k_sem_take(data->device_sync_sem, K_MSEC(CONFIG_I2C_TRANSFER_TIMEOUT_MSEC))) {
+		return -ETIMEDOUT;
+	}
 
 	if (data->state == I2C_MSPM0_TIMEOUT) {
 		return -ETIMEDOUT;
