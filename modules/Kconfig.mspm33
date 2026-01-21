@@ -21,3 +21,9 @@ config USE_MSP_DL_UNICOMM_SPI
 
 config USE_MSP_DL_DMA
 	bool
+
+config USE_MSP_DL_UNICOMM_I2CC
+	bool
+
+config USE_MSP_DL_UNICOMM_I2CT
+	bool
