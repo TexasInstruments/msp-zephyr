@@ -146,7 +146,7 @@
 	status = "okay";
 
 	current-speed = <115200>;
-	pinctrl-0 = <&uc0_tx_pa0 &uc0_rx_pa1>;
+	pinctrl-0 = <&uc1_0_tx_pa0 &uc1_0_rx_pa1>;
 	pinctrl-names = "default";
 };
 
@@ -155,6 +155,6 @@
 	status = "okay";
 
 	current-speed = <115200>;
-	pinctrl-0 = <&uc5_tx_pa10 &uc5_rx_pa11>;
+	pinctrl-0 = <&uc12_tx_pa10 &uc12_rx_pa11>;
 	pinctrl-names = "default";
 };
