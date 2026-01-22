@@ -68,13 +68,6 @@ jobs:
           source ~/zephyrproject/zephyr/zephyr-env.sh
           west build -p always -b lp_mspm33c321a samples/basic/blinky
 
-      - name: Build ADC Sequence example
-        run: |
-          source ~/zephyrproject/.venv/bin/activate
-          cd ~/zephyrproject/zephyr
-          source ~/zephyrproject/zephyr/zephyr-env.sh
-          west build -p always -b lp_mspm33c321a samples/drivers/adc/adc_sequence
-
       - name: Build Counter Alarm example
         run: |
           source ~/zephyrproject/.venv/bin/activate
