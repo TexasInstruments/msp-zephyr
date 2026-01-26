@@ -23,6 +23,7 @@ family:
     socs:
     - name: mspm0l1105
     - name: mspm0l1106
+    - name: mspm0l1116
     - name: mspm0l1117
     - name: mspm0l1227
     - name: mspm0l1228

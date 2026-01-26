@@ -22,3 +22,9 @@ config SOC_MSPM0L2227
 
 config SOC_MSPM0L2228
 	select CPU_HAS_ARM_MPU
+
+config SOC_MSPM0L1117
+	select CPU_HAS_ARM_MPU
+
+config SOC_MSPM0L1116
+	select CPU_HAS_ARM_MPU
