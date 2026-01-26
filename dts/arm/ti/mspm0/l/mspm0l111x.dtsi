@@ -7,6 +7,7 @@
 
 #include <mem.h>
 #include <ti/mspm0/l/mspm0l.dtsi>
+#include <zephyr/dt-bindings/i2c/i2c.h>
 
 / {
 	soc {
@@ -22,6 +23,16 @@
 			#size-cells = <0>;
 			reg = <0x400f0000 0x2000>;
 			interrupts = <24 0>;
+			status = "disabled";
+		};
+
+		uart1: uart@40100000 {
+			compatible = "ti,mspm0-uart";
+			reg = <0x40100000 0x2000>;
+			interrupts = <13 0>;
+			current-speed = <115200>;
+			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clk-div = <1>;
 			status = "disabled";
 		};
 	};

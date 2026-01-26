@@ -47,6 +47,27 @@
 			interrupts = <26 0>;
 			status = "disabled";
 		};
+
+		uart1: uart@40108000 {
+			compatible = "ti,mspm0-uart";
+			reg = <0x4010A000 0x2000>;
+			interrupts = <16 0>;
+			current-speed = <115200>;
+			clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+			clk-div = <1>;
+			status = "disabled";
+		};
+	};
+};
+
+&pinctrl {
+	gpioc: gpio@400a4000 {
+		compatible = "ti,mspm0-gpio";
+		reg = <0x400a4000 0x2000>;
+		interrupts = <1 0>;
+		status = "disabled";
+		gpio-controller;
+		#gpio-cells = <2>;
 	};
 };
 

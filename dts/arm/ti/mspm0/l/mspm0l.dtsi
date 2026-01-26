@@ -1,30 +1,11 @@
 /*
- * Copyright (c) 2025 Texas Instruments
+ * Copyright (c) 2026 Texas Instruments
  * Copyright (c) 2025 Linumiz GmbH
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <ti/mspm0/mspm0.dtsi>
-
-&pinctrl {
-	gpioc: gpio@400a4000 {
-		compatible = "ti,mspm0-gpio";
-		reg = <0x400a4000 0x2000>;
-		interrupts = <1 0>;
-		status = "disabled";
-		gpio-controller;
-		#gpio-cells = <2>;
-	};
-
-	adc0: adc@40004000 {
-		compatible = "ti,mspm0-adc12";
-		reg = <0x40004000 0x2000>;
-		interrupts = <4 0>;
-		status = "disabled";
-		#io-channel-cells = <1>;
-	};
-};
 
 &run0 {
 	exit-latency-us = <2>; /* 1.5us */
