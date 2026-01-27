@@ -47,7 +47,7 @@ Zephyr uses the ``lp_mspm0l2228`` board for building LP_MSPM0L2228
 Features:
 *********
 
-- Onboard XDS110 debug probe
+- Onboard XDS 110 debug probe
 - EnergyTrace technology available for ultra-low-power debugging
 - 2 buttons, 1 LED and 1 RGB LED for user interaction
 - Temperature sensor circuit
