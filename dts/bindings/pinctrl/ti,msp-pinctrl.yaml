@@ -29,7 +29,7 @@ description: |
     - bias-pull-up: Enable pull-up resistor.
     - drive-open-drain: Output driver is open-drain.
     - drive-open-drain: Output driver is open-source.
-    - drive-strength: Maximum current that can be sourced from the pin.
+    - ti,high-drive: Enable high-drive mode for increased current (HDIO pins only).
     - input-enable: enable input.
     - ti,invert: enable logical inversion of a digital input or output
     - ti,hysteresis: enable hysteresis control on open-drain pins
@@ -90,7 +90,6 @@ child-binding:
         - bias-high-impedance
         - drive-open-drain
         - drive-open-source
-        - drive-strength
         - input-enable
 
   properties:
@@ -100,16 +99,17 @@ child-binding:
       description: |
         MSP pin's configuration (IO pin, IO function).
 
-    drive-strength:
-      enum:
-        - 6
-        - 20
-      default: 6
+    ti,high-drive:
+      type: boolean
       description: |
-        The drive strength controls the maximum output drive strength sunk or
-        sourced by an I/O pin.
-          6: max 6 mA (SoC default)
-          20: max 20 mA on high-drive capable IOs only (HDIO).
+        Enable high-drive strength mode (HDIO) on capable pins.
+        When enabled, increases maximum drive current to approximately 20mA.
+        When disabled (default), pin uses standard drive strength of
+        approximately 6mA.
+
+        IMPORTANT: Not all pins support high-drive mode. Consult the device
+        datasheet IOMUX table to verify pin capabilities before enabling this
+        feature. Enabling high-drive on non-HDIO capable pins has no effect.
 
     ti,invert:
       type: boolean
