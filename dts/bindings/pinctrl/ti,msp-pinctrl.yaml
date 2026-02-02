@@ -28,11 +28,11 @@ description: |
     - bias-pull-down: Enable pull-down resistor.
     - bias-pull-up: Enable pull-up resistor.
     - drive-open-drain: Output driver is open-drain.
-    - drive-open-drain: Output driver is open-source.
+    - drive-open-source: Output driver is open-source.
+    - input-enable: Enable input buffer.
     - ti,high-drive: Enable high-drive mode for increased current (HDIO pins only).
-    - input-enable: enable input.
-    - ti,invert: enable logical inversion of a digital input or output
-    - ti,hysteresis: enable hysteresis control on open-drain pins
+    - ti,invert: Enable logical inversion of a digital input or output.
+    - ti,hysteresis: Enable hysteresis control on open-drain pins.
 
     An example for MSP family, include the chip level pinctrl
     DTSI file in the board level DTS:
