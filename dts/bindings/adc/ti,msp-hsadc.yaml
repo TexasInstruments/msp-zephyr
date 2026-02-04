@@ -63,21 +63,31 @@ properties:
   vref-mv:
     type: int
     default: 3300
-    description: Voltage reference in mV
+    description: |
+      Reference voltage in millivolts for ADC raw-to-voltage conversion.
+      This value must match the selected ti,vref-source:
+        - If ti,vref-source = 0 (VDDA): Set to board VDD voltage (typically 3300)
+        - If ti,vref-source = 1: Must be 2500 (internal 2.5V reference)
+        - If ti,vref-source = 2: Must be 1400 (internal 1.4V reference)
+
+      This property is used by adc_ref_internal() API and raw-to-millivolts
+      conversion functions.
 
   ti,vref-source:
-    type: string
-    default: "vdda"
+    type: int
+    default: 0
     enum:
-      - "vdda"     # Use VDDA as reference voltage (default)
-      - "internal-2.5v" # Use internal 2.5V reference
-      - "internal-1.4v" # Use internal 1.4V reference
+      - 0  # VDDA reference voltage (default)
+      - 1  # Internal 2.5V reference
+      - 2  # Internal 1.4V reference
     description: |
-      Selects the voltage reference source for the ADC.
-      - vdda: Use VDDA (3.3V) as reference
-      - internal-2.5v: Use internal 2.5V reference
-      - internal-1.4v: Use internal 1.4V reference
+      Selects the hardware reference voltage source for the ADC.
+        - 0: VDDA (board supply voltage, typically 3.3V)
+        - 1: Internal 2.5V reference (enables on-chip VREF peripheral)
+        - 2: Internal 1.4V reference (enables on-chip VREF peripheral)
 
+      Note: The vref-mv property must be set to match this selection.
+      For internal references, channels should use zephyr,reference = "ADC_REF_INTERNAL".
 
 io-channel-cells:
   - input
