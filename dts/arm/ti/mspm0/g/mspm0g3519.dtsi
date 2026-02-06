@@ -9,8 +9,9 @@
 		 * Sram Bank 0 (sram0) has ECC checking
 		 * Sram Bank 1 (sram1) is unchecked
 		 */
-		sram0: memory@20000000 {
-			reg = <0x20000000 DT_SIZE_K(64)>;
+		sram0: memory@20200000 {
+			compatible = "mmio-sram";
+			reg = <0x20200000 DT_SIZE_K(64)>;
 		};
 
 		sram1: memory@20210000 {
