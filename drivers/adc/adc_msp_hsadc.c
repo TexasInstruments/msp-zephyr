@@ -71,6 +71,9 @@ struct adc_msp_hsadc_cfg {
 	uint32_t sampleWindow;
 	void (*irq_cfg_func)(void);
 	uint8_t vref_source;
+	bool hw_trigger_enable;
+	uint8_t hw_trigger_source;
+	uint8_t hw_trigger_event_channel;
 };
 
 static void adc_msp_hsadc_isr(const struct device *dev);
@@ -83,13 +86,21 @@ static void adc_context_start_sampling(struct adc_context *ctx)
 
 	data->repeat_buffer = data->buffer;
 
-	/* Clear status, enable interrupt, and trigger each active sequencer */
+	/* Clear status and enable interrupt for each active sequencer */
 	for (int seq = 0; seq < 4; seq++) {
 		if (data->active_sequencers & BIT(seq)) {
 			DL_HSADC_InterruptStatusClear(ADC_REGS(config), (DL_HSADC_INT)seq);
 			DL_HSADC_enableInterrupt(ADC_REGS(config), (DL_HSADC_INT)seq);
-			DL_HSADC_triggerSequencerSoftwareForce(ADC_REGS(config),
-							       (DL_HSADC_SEQ_NUMBER)seq);
+
+			/* Trigger conversion:
+			 * - Hardware trigger mode: Conversion starts automatically when
+			 *   hardware event occurs. Just wait for completion interrupt.
+			 * - Software trigger mode: Manually trigger conversion now.
+			 */
+			if (!config->hw_trigger_enable) {
+				DL_HSADC_triggerSequencerSoftwareForce(ADC_REGS(config),
+								       (DL_HSADC_SEQ_NUMBER)seq);
+			}
 		}
 	}
 }
@@ -200,6 +211,30 @@ static int adc_msp_hsadc_init(const struct device *dev)
 				return -ETIMEDOUT;
 			}
 		}
+	}
+
+	/* Configure hardware triggering if enabled */
+	if (config->hw_trigger_enable) {
+		/* Validate event channel range (1-15, channel 0 reserved) */
+		if (config->hw_trigger_event_channel < 1 || config->hw_trigger_event_channel > 15) {
+			LOG_ERR("Invalid event channel %d (must be 1-15)",
+				config->hw_trigger_event_channel);
+			return -EINVAL;
+		}
+
+		/* Validate trigger source (0-3 for GEN_SUB_0 to GEN_SUB_3) */
+		if (config->hw_trigger_source > 3) {
+			LOG_ERR("Invalid trigger source %d (must be 0-3)",
+				config->hw_trigger_source);
+			return -EINVAL;
+		}
+
+		/* Configure HSADC to subscribe to the event channel */
+		DL_HSADC_setSubscriberChanID(ADC_REGS(config), config->hw_trigger_source,
+					     config->hw_trigger_event_channel);
+
+		LOG_INF("Hardware trigger enabled: source=GEN_SUB_%d, event_channel=%d",
+			config->hw_trigger_source, config->hw_trigger_event_channel);
 	}
 
 	/* Initialize all driver data to zero */
@@ -357,8 +392,17 @@ static int adc_msp_hsadc_configure_sequence(const struct device *dev)
 			uint8_t seq_end = seq_end_soc[seq];
 			last_seq_end_soc = seq_end;
 
+			/* Select trigger source: hardware or software */
+			DL_HSADC_TRIGGER trigger_source;
+			if (config->hw_trigger_enable) {
+				/* Map trigger source (0-3) to GEN_SUB_0 to GEN_SUB_3 (1-4) */
+				trigger_source = (DL_HSADC_TRIGGER)(config->hw_trigger_source + 1);
+			} else {
+				trigger_source = DL_HSADC_TRIGGER_TIELOW_SW;
+			}
+
 			DL_HSADC_setupSequencer(ADC_REGS(config), (DL_HSADC_SEQ_NUMBER)seq,
-						config->sampleWindow, DL_HSADC_TRIGGER_TIELOW_SW,
+						config->sampleWindow, trigger_source,
 						(DL_HSADC_SOC_NUMBER)seq_start);
 
 			DL_HSADC_InterruptSourceSelect(ADC_REGS(config), (DL_HSADC_INT)seq,
@@ -658,6 +702,12 @@ static DEVICE_API(adc, msp_hsadc_driver_api) = {
 /* Helper macro to get DT VREF source value directly as integer */
 #define ADC_MSP_HSADC_VREF_SOURCE(index) DT_INST_PROP(index, ti_vref_source)
 
+/* Helper macros for hardware trigger properties */
+#define ADC_MSP_HSADC_HW_TRIGGER_ENABLE(index) DT_INST_PROP_OR(index, ti_hw_trigger_enable, false)
+#define ADC_MSP_HSADC_HW_TRIGGER_SOURCE(index) DT_INST_PROP_OR(index, ti_hw_trigger_source, 0)
+#define ADC_MSP_HSADC_HW_TRIGGER_EVENT_CHANNEL(index)                                              \
+	DT_INST_PROP_OR(index, ti_hw_trigger_event_channel, 0)
+
 #define MSP_HSADC_ADC_INIT(index)                                                                  \
                                                                                                    \
 	static void adc_msp_hsadc_cfg_func_##index(void);                                          \
@@ -669,6 +719,9 @@ static DEVICE_API(adc, msp_hsadc_driver_api) = {
 		.clockDivider = ADC_DT_CLOCK_DIVIDER(index),                                       \
 		.sampleWindow = ADC_DT_SAMPLE_WINDOW(index),                                       \
 		.vref_source = ADC_MSP_HSADC_VREF_SOURCE(index),                                   \
+		.hw_trigger_enable = ADC_MSP_HSADC_HW_TRIGGER_ENABLE(index),                       \
+		.hw_trigger_source = ADC_MSP_HSADC_HW_TRIGGER_SOURCE(index),                       \
+		.hw_trigger_event_channel = ADC_MSP_HSADC_HW_TRIGGER_EVENT_CHANNEL(index),         \
 	};                                                                                         \
 	static struct adc_msp_hsadc_data adc_msp_hsadc_data_##index = {                            \
 		ADC_CONTEXT_INIT_TIMER(adc_msp_hsadc_data_##index, ctx),                           \

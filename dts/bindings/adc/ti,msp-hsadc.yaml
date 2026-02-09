@@ -89,5 +89,32 @@ properties:
       Note: The vref-mv property must be set to match this selection.
       For internal references, channels should use zephyr,reference = "ADC_REF_INTERNAL".
 
+  ti,hw-trigger-enable:
+    type: boolean
+    description: |
+      Enable hardware triggering for ADC conversions via the event fabric.
+      When enabled, conversions are triggered by hardware events (timer, GPIO, etc.)
+      instead of software. Requires ti,hw-trigger-source and ti,hw-trigger-event-channel.
+      Default: false
+
+  ti,hw-trigger-source:
+    type: int
+    enum:
+      - 0  # GEN_SUB_0
+      - 1  # GEN_SUB_1
+      - 2  # GEN_SUB_2
+      - 3  # GEN_SUB_3
+    description: |
+      Event subscriber index (0-3 for GEN_SUB_0 to GEN_SUB_3).
+      Each subscriber can trigger a different sequencer.
+      Used only when ti,hw-trigger-enable is true.
+
+  ti,hw-trigger-event-channel:
+    type: int
+    description: |
+      Event fabric channel number (1-15, channel 0 reserved) for subscribing
+      to hardware trigger events. Must match the channel used by the event
+      publisher (timer, GPIO, etc.). Used only when ti,hw-trigger-enable is true.
+
 io-channel-cells:
   - input

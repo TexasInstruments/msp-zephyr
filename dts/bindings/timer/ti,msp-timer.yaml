@@ -36,3 +36,22 @@ properties:
       - 8
     description: |
       Clock divider selction value.
+
+  ti,timer-event-type:
+    type: int
+    default: 0
+    enum:
+      - 0  # ZERO_EVENT
+      - 1  # LOAD_EVENT
+      - 2  # CC0_DN
+      - 3  # CC0_UP
+      - 4  # CC1_DN
+      - 5  # CC1_UP
+    description: |
+      Timer event type for event fabric publishing.
+      0 = ZERO_EVENT (counter reaches zero, most common)
+      1 = LOAD_EVENT (counter loaded with initial value)
+      2 = CC0_DN (Capture/Compare 0 match, down counting)
+      3 = CC0_UP (Capture/Compare 0 match, up counting)
+      4 = CC1_DN (Capture/Compare 1 match, down counting)
+      5 = CC1_UP (Capture/Compare 1 match, up counting)
