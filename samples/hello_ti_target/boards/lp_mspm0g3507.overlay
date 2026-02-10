@@ -1,0 +1,11 @@
+/ {
+    aliases {
+        i2c-0 = &i2c1;
+    };
+};
+
+&i2c1 {
+    pinctrl-0 = <&i2c1_scl_pb2 &i2c1_sda_pb3>;
+    pinctrl-names = "default";
+    status = "okay";
+};
