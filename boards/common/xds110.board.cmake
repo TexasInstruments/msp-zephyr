@@ -1,0 +1,2 @@
+board_set_flasher_ifnset(xds110)
+board_set_debugger_ifnset(xds110)
