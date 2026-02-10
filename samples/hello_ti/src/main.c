@@ -8,8 +8,8 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
 
-uint8_t txPacket[] = {0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5};
-uint8_t rxPacket[6];
+uint8_t txPacket[] = {0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB};
+uint8_t rxPacket[12];
 struct k_sem i2c_controller_sem;
 
 
@@ -23,11 +23,11 @@ struct k_sem i2c_controller_sem;
 #error "Unsupported board: sw0 devicetree alias is not defined"
 #endif
 static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios,
-							      {0});
+								  {0});
 static struct gpio_callback button_cb_data;
 
 void button_pressed(const struct device *dev, struct gpio_callback *cb,
-		    uint32_t pins)
+			uint32_t pins)
 {
 	printk("Button pressed at %" PRIu32 "\n", k_cycle_get_32());
 	k_sem_give(&i2c_controller_sem);
@@ -79,19 +79,19 @@ int main(void)
 
 	if (!gpio_is_ready_dt(&button)) {
 		printk("Error: button device %s is not ready\n",
-		       button.port->name);
+			   button.port->name);
 		return 0;
 	}
 
 	ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
 	if (ret != 0) {
 		printk("Error %d: failed to configure %s pin %d\n",
-		       ret, button.port->name, button.pin);
+			   ret, button.port->name, button.pin);
 		return 0;
 	}
 
 	ret = gpio_pin_interrupt_configure_dt(&button,
-					      GPIO_INT_EDGE_TO_ACTIVE);
+						  GPIO_INT_EDGE_TO_ACTIVE);
 	if (ret != 0) {
 		printk("Error %d: failed to configure interrupt on %s pin %d\n",
 			ret, button.port->name, button.pin);
@@ -146,6 +146,18 @@ int main(void)
 		} else {
 			printf("failed with %d\n", ret);
 		}
+
+		k_msleep(SLEEP_INTERVAL_MS);
+
+		printf("transmission of repeated-start write/read...");
+		gpio_pin_toggle_dt(&led);
+		ret = i2c_write_read_dt(&dev_1, &txPacket[0], 1, &rxPacket[6], 5);
+		if(ret == 0){
+			printf("success!!\n");
+		} else {
+			printf("failed with %d\n", ret);
+		}
+
 	}
 
 
