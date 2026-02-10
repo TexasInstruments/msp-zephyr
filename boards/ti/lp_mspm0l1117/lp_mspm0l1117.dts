@@ -11,6 +11,7 @@
 #include <ti/mspm0/l/mspm0l111x-pinctrl.dtsi>
 #include <zephyr/dt-bindings/clock/mspm0_clock.h>
 #include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
 
 / {
 	model = "TI LP_MSPM0L1117/MSPM0L1117";
@@ -19,6 +20,7 @@
 	aliases {
 		led0 = &led0;
 		led1 = &led1;
+		sw0 = &btn1;
 	};
 
 	chosen {
@@ -49,6 +51,23 @@
 		};
 
 	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		btn0: btn_0 {
+			gpios = <&gpioa 18 GPIO_ACTIVE_HIGH>;
+			label = "Switch 1";
+			zephyr,code = <INPUT_KEY_0>;
+		};
+
+		btn1: btn_1 {
+			gpios = <&gpioa 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			label = "Switch 2";
+			zephyr,code = <INPUT_KEY_1>;
+		};
+	};
+
 };
 
 &flash0 {
