@@ -384,7 +384,7 @@ static int i2c_mspm0_transfer(const struct device *dev, struct i2c_msg *msgs, ui
 		bool merge_next_msg =
 			(i + 1 < num_msgs) && !(msgs[i].flags & I2C_MSG_STOP) &&
 			!(msgs[i + 1].flags & I2C_MSG_RESTART) &&
-			((msgs[i].flags & I2C_MSG_WRITE) == (msgs[i + 1].flags & I2C_MSG_WRITE));
+			((msgs[i].flags & I2C_MSG_READ) == (msgs[i + 1].flags & I2C_MSG_READ));
 
 		if (merge_next_msg || current_internal_buf_size != 0) {
 			if ((current_internal_buf_size + msgs[i].len) > merge_buf_size) {
