@@ -13,4 +13,5 @@ supported:
   - pinctrl
   - uart
   - vref
+  - i2c
 vendor: ti

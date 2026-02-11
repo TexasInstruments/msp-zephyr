@@ -13,4 +13,5 @@ supported:
   - gpio
   - can
   - vref
+  - i2c
 vendor: ti
