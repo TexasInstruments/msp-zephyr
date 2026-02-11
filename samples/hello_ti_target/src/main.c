@@ -8,9 +8,6 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
 
-
-
-
 struct k_sem i2c_target_sem;
 
 #define DATA_BUF_SIZE 50
@@ -55,11 +52,11 @@ static int i2c_stop_callback(struct i2c_target_config * cfg){
 	/* used to control test flow and notify thread that transaction has
 	 * completed */
 	int retVal = 0;
-	if(cfg->flags & I2C_TARGET_FLAGS_ERROR_TIMEOUT){
-		/* force the peripheral to reset */
-		timeoutDetected = 1;
-		retVal = -1;
-	}
+	// if(cfg->flags & I2C_TARGET_FLAGS_ERROR_TIMEOUT){
+	// 	/* force the peripheral to reset */
+	// 	timeoutDetected = 1;
+	// 	retVal = -1;
+	// }
 	k_sem_give(&i2c_target_sem);
 	return retVal;
 }
@@ -82,7 +79,6 @@ struct i2c_target_config i2c_config = {
 	.address = 0x32,
 	.callbacks = &callbacks,
 };
-
 
 int main(void)
 {
