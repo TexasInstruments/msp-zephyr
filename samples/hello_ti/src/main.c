@@ -60,6 +60,7 @@ struct i2c_msg msg_3 = {
 
 #define LED0_NODE DT_ALIAS(led0)
 
+static const struct device *const i2c_dev = DEVICE_DT_GET(I2C_NODE);
 static const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(DEV_1_NODE);
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
@@ -105,6 +106,16 @@ int main(void)
 	while(true){
 		k_sem_take(&i2c_controller_sem, K_FOREVER);
 		k_msleep(SLEEP_INTERVAL_MS);
+
+		/* check for hang if the wrong address is given */
+		printf("transmission to wrong address...");
+		ret = i2c_write(i2c_dev, &txPacket[0], 1, 0x77);
+		if(ret == -EIO)
+		{
+			printf("address wasn't there! Success!\n");
+		} else {
+			printf("expected failure, and passed!\n");
+		}
 
 		printf("transmission of single write...");
 		gpio_pin_toggle_dt(&led);
@@ -159,7 +170,6 @@ int main(void)
 		}
 
 	}
-
 
 	while(1)
 
