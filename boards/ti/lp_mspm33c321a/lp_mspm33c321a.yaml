@@ -7,7 +7,7 @@ toolchain:
   - gnuarmemb
   - xtools
 ram: 256
-flash: 1000
+flash: 1024
 supported:
   - gpio
 vendor: ti
