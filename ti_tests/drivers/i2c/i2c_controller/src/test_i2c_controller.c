@@ -266,6 +266,81 @@ ZTEST(i2c_controller, test_i2c_fast_speed)
 	zassert_equal(ret, 0, "Failed to restore standard speed");
 }
 
+
+/**
+ * @brief Test I2C consecutive reads
+ *
+ * Verify that multiple consecutive read operations work correctly and that
+ * the controller state remains correct between operations.
+ */
+ZTEST(i2c_controller, test_i2c_consecutive_reads)
+{
+	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
+	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
+	uint8_t rxPacket1[4];
+	uint8_t rxPacket2[4];
+	int ret;
+
+	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
+
+	/* Configure I2C */
+	ret = i2c_configure(i2c_dev, i2c_cfg);
+	zassert_equal(ret, 0, "I2C configure failed");
+
+	/* First read operation - 4 bytes */
+	memset(rxPacket1, 0, sizeof(rxPacket1));
+	ret = i2c_read_dt(&dev_1, rxPacket1, 4);
+	zassert_equal(ret, 0, "First read failed with error %d", ret);
+
+	/* Second read operation - 4 bytes */
+	memset(rxPacket2, 0, sizeof(rxPacket2));
+	ret = i2c_read_dt(&dev_1, rxPacket2, 4);
+	zassert_equal(ret, 0, "Second read failed with error %d", ret);
+
+	/* Verify first read data matches expected pattern */
+	zassert_equal(rxPacket1[0], 0x51, "First read: Expected 0x51, got 0x%02X", rxPacket1[0]);
+	zassert_equal(rxPacket1[1], 0x52, "First read: Expected 0x52, got 0x%02X", rxPacket1[1]);
+	zassert_equal(rxPacket1[2], 0x53, "First read: Expected 0x53, got 0x%02X", rxPacket1[2]);
+	zassert_equal(rxPacket1[3], 0x54, "First read: Expected 0x54, got 0x%02X", rxPacket1[3]);
+
+	/* Verify second read data matches expected pattern */
+	zassert_equal(rxPacket2[0], 0x51, "Second read: Expected 0x51, got 0x%02X", rxPacket2[0]);
+	zassert_equal(rxPacket2[1], 0x52, "Second read: Expected 0x52, got 0x%02X", rxPacket2[1]);
+	zassert_equal(rxPacket2[2], 0x53, "Second read: Expected 0x53, got 0x%02X", rxPacket2[2]);
+	zassert_equal(rxPacket2[3], 0x54, "Second read: Expected 0x54, got 0x%02X", rxPacket2[3]);
+}
+
+/**
+ * @brief Test I2C consecutive writes
+ *
+ * Verify that multiple consecutive write operations work correctly and that
+ * the controller state remains correct between operations.
+ */
+ZTEST(i2c_controller, test_i2c_consecutive_writes)
+{
+	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
+	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
+	uint8_t txPacket1[4] = {0xA0, 0xA1, 0xA2, 0xA3};
+	uint8_t txPacket2[4] = {0xB0, 0xB1, 0xB2, 0xB3};
+	int ret1, ret2;
+
+	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
+
+	/* Configure I2C */
+	ret1 = i2c_configure(i2c_dev, i2c_cfg);
+	zassert_equal(ret1, 0, "I2C configure failed");
+
+	/* First write operation - 4 bytes */
+	ret1 = i2c_write_dt(&dev_1, txPacket1, 4);
+
+	/* Second write operation - 4 bytes */
+	ret2 = i2c_write_dt(&dev_1, txPacket2, 4);
+
+	/* Verify both write operations completed successfully */
+	zassert_equal(ret1, 0, "First write failed with error %d", ret1);
+	zassert_equal(ret2, 0, "Second write failed with error %d", ret2);
+}
+
 /**
  * @brief Test I2C complex message merging with mixed read/write operations
  *
@@ -361,7 +436,8 @@ ZTEST(i2c_controller, test_i2c_complex_merging)
 	msgs[8].len = 1;
 	msgs[8].flags = I2C_MSG_WRITE;
 
-	/* msg[9]: Write 1 byte, STOP (will merge with msg[8], then STOP) */
+	/* msg[9]: Write
+	 1 byte, STOP (will merge with msg[8], then STOP) */
 	msgs[9].buf = write_buf9;
 	msgs[9].len = 1;
 	msgs[9].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
