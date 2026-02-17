@@ -1,0 +1,19 @@
+tests:
+  drivers.i2c.mspm0.target_tester:
+    tags:
+      - drivers
+      - i2c
+    platform_allow:
+      - lp_mspm0g3507
+      - lp_mspm0l1117
+    harness: ztest
+    # harness_config:
+    #   fixture: i2c_target_0x32
+    # integration_platforms:
+    #   - lp_mspm0g3507
+    # # This test requires:
+    # # - I2C target device at address 0x32
+    # # - Target implements test protocol (commands 0x01-0x04)
+    # # - Physical I2C connections (SDA, SCL, GND)
+    # build_only: false
+    # filter: CONFIG_I2C and dt_alias_exists("i2c_0")

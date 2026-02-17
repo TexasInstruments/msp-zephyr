@@ -1,0 +1,34 @@
+/*
+ * I2C Target Test - Controller Board Overlay
+ */
+
+/ {
+	aliases {
+		i2c-controller = &i2c0;
+		ready-gpio = &button_ready;
+		trigger-gpio = &led_trigger;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		button_ready: button_ready {
+			gpios = <&gpioa 18 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* PA18 - READY input */
+			label = "READY";
+		};
+	};
+
+	gpio_leds {
+		compatible = "gpio-leds";
+		led_trigger: led_trigger {
+			gpios = <&gpioa 27 GPIO_ACTIVE_HIGH>; /* PA27 - TRIGGER output */
+			label = "TRIGGER";
+		};
+	};
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_scl_pa1 &i2c0_sda_pa0>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
