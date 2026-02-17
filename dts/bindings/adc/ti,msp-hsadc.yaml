@@ -2,7 +2,7 @@ description: TI MSP HSADC
 
 compatible: "ti,msp-hsadc"
 
-include: [adc-controller.yaml, pinctrl-device.yaml]
+include: [adc-controller.yaml]
 
 properties:
   reg:
@@ -21,12 +21,6 @@ properties:
 
   interrupts:
     required: true
-
-  pinctrl-0:
-    required: false
-
-  pinctrl-names:
-    required: false
 
   "#io-channel-cells":
     const: 1
@@ -55,29 +49,19 @@ properties:
       ADC clock divider:
       Applies to the internal ADC clock.
 
-  ti,sample-window:
-    type: int
-    default: 64
-    description: Sample window in ADC clock cycles
-
   vref-mv:
     type: int
     default: 3300
-    description: Voltage reference in mV
-
-  ti,vref-source:
-    type: string
-    default: "vdda"
-    enum:
-      - "vdda"     # Use VDDA as reference voltage (default)
-      - "internal-2.5v" # Use internal 2.5V reference
-      - "internal-1.4v" # Use internal 1.4V reference
     description: |
-      Selects the voltage reference source for the ADC.
-      - vdda: Use VDDA (3.3V) as reference
-      - internal-2.5v: Use internal 2.5V reference
-      - internal-1.4v: Use internal 1.4V reference
+      Reference voltage in millivolts. This property controls both the hardware
+      VREF source and the value used for raw-to-voltage conversion:
 
+        - 2500: Enables internal 2.5V reference (VREF peripheral)
+        - 1400: Enables internal 1.4V reference (VREF peripheral)
+        - Any other value: Uses VDDA as reference (set to board VDD voltage)
+
+      This property is used by adc_ref_internal() API and raw-to-millivolts
+      conversion functions.
 
 io-channel-cells:
   - input

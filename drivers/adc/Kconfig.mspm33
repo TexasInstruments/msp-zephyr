@@ -9,3 +9,21 @@ config ADC_MSP_HSADC
 	select USE_MSP_DL_VREF
 	help
 	  Enable support for HSADC on the TI MSPM33 series.
+
+config ADC_MSP_HSADC_SOC_MAX
+	int "Maximum number of Start of Conversion (SOC) entries"
+	depends on ADC_MSP_HSADC
+	default 16
+	range 1 16
+	help
+	  Maximum number of SOCs supported by the HSADC hardware.
+	  The MSPM33 HSADC supports up to 16 SOCs for sequence conversion.
+
+config ADC_MSP_HSADC_CHANNEL_MAX
+	int "Maximum number of ADC input channels"
+	depends on ADC_MSP_HSADC
+	default 32
+	range 1 32
+	help
+	  Maximum number of ADC input channels supported by the HSADC hardware.
+	  The MSPM33 HSADC supports up to 32 input channels.
