@@ -7,15 +7,15 @@
 #include <zephyr/dt-bindings/adc/adc.h>
 
 / {
-	aliases {
-		adc0 = &adc0;
+	zephyr,user {
+		io-channels = <&adc0 0>, <&adc0 5>;
 	};
 };
 
 &adc0 {
 	status = "okay";
 	ti,clk-divider = <2>;
-	vref-mv = <1400>;  /* Internal 1.4V reference (auto-detected from value) */
+	vref-mv = <1400>;  /* Internal 1.4V reference */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
