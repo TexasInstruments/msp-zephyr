@@ -1,0 +1,11 @@
+tests:
+  drivers.i2c.mspm0.target:
+    tags:
+      - i2c
+      - mspm0
+      - target
+    platform_allow:
+      - lp_mspm0g3507
+    harness: ztest
+    integration_platforms:
+      - lp_mspm0g3507
