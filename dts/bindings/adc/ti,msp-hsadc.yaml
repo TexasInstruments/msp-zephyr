@@ -2,7 +2,7 @@ description: TI MSP HSADC
 
 compatible: "ti,msp-hsadc"
 
-include: [adc-controller.yaml, pinctrl-device.yaml]
+include: [adc-controller.yaml]
 
 properties:
   reg:
@@ -21,12 +21,6 @@ properties:
 
   interrupts:
     required: true
-
-  pinctrl-0:
-    required: false
-
-  pinctrl-names:
-    required: false
 
   "#io-channel-cells":
     const: 1
@@ -55,66 +49,19 @@ properties:
       ADC clock divider:
       Applies to the internal ADC clock.
 
-  ti,sample-window:
-    type: int
-    default: 64
-    description: Sample window in ADC clock cycles
-
   vref-mv:
     type: int
     default: 3300
     description: |
-      Reference voltage in millivolts for ADC raw-to-voltage conversion.
-      This value must match the selected ti,vref-source:
-        - If ti,vref-source = 0 (VDDA): Set to board VDD voltage (typically 3300)
-        - If ti,vref-source = 1: Must be 2500 (internal 2.5V reference)
-        - If ti,vref-source = 2: Must be 1400 (internal 1.4V reference)
+      Reference voltage in millivolts. This property controls both the hardware
+      VREF source and the value used for raw-to-voltage conversion:
+
+        - 2500: Enables internal 2.5V reference (VREF peripheral)
+        - 1400: Enables internal 1.4V reference (VREF peripheral)
+        - Any other value: Uses VDDA as reference (set to board VDD voltage)
 
       This property is used by adc_ref_internal() API and raw-to-millivolts
       conversion functions.
-
-  ti,vref-source:
-    type: int
-    default: 0
-    enum:
-      - 0  # VDDA reference voltage (default)
-      - 1  # Internal 2.5V reference
-      - 2  # Internal 1.4V reference
-    description: |
-      Selects the hardware reference voltage source for the ADC.
-        - 0: VDDA (board supply voltage, typically 3.3V)
-        - 1: Internal 2.5V reference (enables on-chip VREF peripheral)
-        - 2: Internal 1.4V reference (enables on-chip VREF peripheral)
-
-      Note: The vref-mv property must be set to match this selection.
-      For internal references, channels should use zephyr,reference = "ADC_REF_INTERNAL".
-
-  ti,hw-trigger-enable:
-    type: boolean
-    description: |
-      Enable hardware triggering for ADC conversions via the event fabric.
-      When enabled, conversions are triggered by hardware events (timer, GPIO, etc.)
-      instead of software. Requires ti,hw-trigger-source and ti,hw-trigger-event-channel.
-      Default: false
-
-  ti,hw-trigger-source:
-    type: int
-    enum:
-      - 0  # GEN_SUB_0
-      - 1  # GEN_SUB_1
-      - 2  # GEN_SUB_2
-      - 3  # GEN_SUB_3
-    description: |
-      Event subscriber index (0-3 for GEN_SUB_0 to GEN_SUB_3).
-      Each subscriber can trigger a different sequencer.
-      Used only when ti,hw-trigger-enable is true.
-
-  ti,hw-trigger-event-channel:
-    type: int
-    description: |
-      Event fabric channel number (1-15, channel 0 reserved) for subscribing
-      to hardware trigger events. Must match the channel used by the event
-      publisher (timer, GPIO, etc.). Used only when ti,hw-trigger-enable is true.
 
 io-channel-cells:
   - input

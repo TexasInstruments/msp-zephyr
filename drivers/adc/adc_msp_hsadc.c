@@ -17,7 +17,6 @@ LOG_MODULE_REGISTER(adc_msp_hsadc);
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
 #include <zephyr/drivers/adc.h>
-#include <zephyr/pm/device.h>
 #include <soc.h>
 
 /* Driverlib includes */
@@ -30,50 +29,44 @@ LOG_MODULE_REGISTER(adc_msp_hsadc);
 #define ADC_CONTEXT_USES_KERNEL_TIMER
 #include "adc_context.h"
 
-#define ADC_MSP_HSADC_SOC_MAX (16)
+/* HSADC hardware limits - may vary across MSPM33 HSADC variants */
+#define ADC_MSP_HSADC_SOC_MAX          16 /* Max SOCs (Start of Conversion) */
+#define ADC_MSP_HSADC_CHANNEL_MAX      32 /* Max ADC input channels */
+#define ADC_MSP_HSADC_ACQ_TIME_DEFAULT 64 /* Default acquisition time in SYSCLK cycles */
+#define ADC_MSP_HSADC_ACQ_TIME_MIN     minSampleWindow /* From driverlib (1 SYSCLK) */
+#define ADC_MSP_HSADC_ACQ_TIME_MAX     maxSampleWindow /* From driverlib (1472 SYSCLK) */
 
 /* Helper macros to reduce repeated type casts */
 #define ADC_REGS(cfg)    ((hsadc_ADC_LITE_REGS_Regs *)(cfg)->config_base)
 #define RESULT_REGS(cfg) ((hsadc_ADC_LITE_RESULT_REGS_Regs *)(cfg)->result_base)
 
-/* VREF source options */
-#define ADC_MSP_HSADC_VREF_VDDA          0
-#define ADC_MSP_HSADC_VREF_INTERNAL_2_5V 1
-#define ADC_MSP_HSADC_VREF_INTERNAL_1_4V 2
+/* Internal reference voltage values (mV) - used to auto-detect VREF source */
+#define ADC_MSP_HSADC_VREF_INTERNAL_2_5V_MV 2500
+#define ADC_MSP_HSADC_VREF_INTERNAL_1_4V_MV 1400
 
-/* VDDA reference voltage in mV */
-#define ADC_MSP_HSADC_VDDA_MV 3300
-
-struct hsadc_channel_config {
-	uint8_t channel_id;
-	uint8_t soc;
-	uint8_t sequencer;
-	bool configured;
-};
+/* Helper to check if vref_mv indicates internal reference */
+static inline bool adc_msp_hsadc_uses_internal_vref(uint16_t vref_mv)
+{
+	return (vref_mv == ADC_MSP_HSADC_VREF_INTERNAL_2_5V_MV ||
+		vref_mv == ADC_MSP_HSADC_VREF_INTERNAL_1_4V_MV);
+}
 
 struct adc_msp_hsadc_data {
 	struct adc_context ctx;
 	const struct device *dev;
-	uint16_t *buffer;
 	uint16_t *repeat_buffer;
 
-	struct hsadc_channel_config channels[ADC_MSP_HSADC_SOC_MAX];
-	uint8_t num_configured;
-	uint32_t active_channels;
-	uint32_t active_sequencers;
-	uint8_t oversampling; /* Current oversampling ratio for all channels */
+	/* Per-channel acquisition time in SYSCLK cycles (indexed by channel_id) */
+	uint16_t ch_acq_time[ADC_MSP_HSADC_CHANNEL_MAX];
+	uint32_t ch_configured; /* Bitmask of configured channels */
 };
 
 struct adc_msp_hsadc_cfg {
 	uint32_t config_base;
 	uint32_t result_base;
-	uint32_t clockDivider;
-	uint32_t sampleWindow;
+	uint32_t clock_divider;
 	void (*irq_cfg_func)(void);
-	uint8_t vref_source;
-	bool hw_trigger_enable;
-	uint8_t hw_trigger_source;
-	uint8_t hw_trigger_event_channel;
+	uint16_t vref_mv;
 };
 
 static void adc_msp_hsadc_isr(const struct device *dev);
@@ -84,25 +77,14 @@ static void adc_context_start_sampling(struct adc_context *ctx)
 	const struct device *dev = data->dev;
 	const struct adc_msp_hsadc_cfg *config = dev->config;
 
-	data->repeat_buffer = data->buffer;
+	data->repeat_buffer = (uint16_t *)ctx->sequence.buffer;
 
-	/* Clear status and enable interrupt for each active sequencer */
-	for (int seq = 0; seq < 4; seq++) {
-		if (data->active_sequencers & BIT(seq)) {
-			DL_HSADC_InterruptStatusClear(ADC_REGS(config), (DL_HSADC_INT)seq);
-			DL_HSADC_enableInterrupt(ADC_REGS(config), (DL_HSADC_INT)seq);
+	/* Clear status and enable interrupt for sequencer 0 (DL_HSADC_INT_1 = seq 0) */
+	DL_HSADC_InterruptStatusClear(ADC_REGS(config), DL_HSADC_INT_1);
+	DL_HSADC_enableInterrupt(ADC_REGS(config), DL_HSADC_INT_1);
 
-			/* Trigger conversion:
-			 * - Hardware trigger mode: Conversion starts automatically when
-			 *   hardware event occurs. Just wait for completion interrupt.
-			 * - Software trigger mode: Manually trigger conversion now.
-			 */
-			if (!config->hw_trigger_enable) {
-				DL_HSADC_triggerSequencerSoftwareForce(ADC_REGS(config),
-								       (DL_HSADC_SEQ_NUMBER)seq);
-			}
-		}
-	}
+	/* Software trigger: start conversion now */
+	DL_HSADC_triggerSequencerSoftwareForce(ADC_REGS(config), DL_HSADC_SEQ_NUMBER1);
 }
 
 static void adc_context_update_buffer_pointer(struct adc_context *ctx, bool repeat)
@@ -110,32 +92,25 @@ static void adc_context_update_buffer_pointer(struct adc_context *ctx, bool repe
 	struct adc_msp_hsadc_data *data = CONTAINER_OF(ctx, struct adc_msp_hsadc_data, ctx);
 
 	if (repeat) {
-		data->buffer = data->repeat_buffer;
+		/* Reset to beginning for ADC_ACTION_REPEAT */
+		ctx->sequence.buffer = data->repeat_buffer;
+	} else {
+		/* Advance buffer by number of active channels for next sampling */
+		uint16_t *buffer = (uint16_t *)ctx->sequence.buffer;
+		buffer += POPCOUNT(ctx->sequence.channels);
+		ctx->sequence.buffer = buffer;
 	}
 }
 
-static int adc_msp_hsadc_config_vref(int ref_mv)
+static int adc_msp_hsadc_config_vref(uint16_t vref_mv)
 {
-	if (ref_mv == ADC_MSP_HSADC_VDDA_MV) {
-		return 0; /* Using external VDDA, no VREF needed */
-	}
-
-	/* Validate and determine which internal reference voltage */
-	bool use_2_5v;
-	if (ref_mv == 2500) {
-		use_2_5v = true;
-	} else if (ref_mv == 1400) {
-		use_2_5v = false;
-	} else {
-		LOG_ERR("Invalid VREF value: %d mV (expected 2500 or 1400)", ref_mv);
-		return -EINVAL;
-	}
+	bool is_2p5v = (vref_mv == ADC_MSP_HSADC_VREF_INTERNAL_2_5V_MV);
 
 	/* Check if VREF already enabled with correct voltage */
 	if (DL_VREF_isEnabled(VREF)) {
 		uint32_t current_config = VREF->CTL0 & VREF_CTL0_BUFCONFIG_MASK;
 		uint32_t expected_config =
-			use_2_5v ? VREF_CTL0_BUFCONFIG_OUTPUT2P5V : VREF_CTL0_BUFCONFIG_OUTPUT1P4V;
+			is_2p5v ? VREF_CTL0_BUFCONFIG_OUTPUT2P5V : VREF_CTL0_BUFCONFIG_OUTPUT1P4V;
 		if (current_config == expected_config) {
 			return 0; /* Already configured correctly */
 		}
@@ -153,23 +128,14 @@ static int adc_msp_hsadc_config_vref(int ref_mv)
 	DL_VREF_setClockConfig(VREF, &vref_clk_config);
 
 	DL_VREF_Config vref_config = {.vrefEnable = DL_VREF_ENABLE_ENABLE,
-				      .bufConfig = use_2_5v ? DL_VREF_BUFCONFIG_OUTPUT_2_5V
-							    : DL_VREF_BUFCONFIG_OUTPUT_1_4V,
+				      .bufConfig = is_2p5v ? DL_VREF_BUFCONFIG_OUTPUT_2_5V
+							   : DL_VREF_BUFCONFIG_OUTPUT_1_4V,
 				      .shModeEnable = DL_VREF_SHMODE_DISABLE,
 				      .holdCycleCount = DL_VREF_HOLD_MIN,
 				      .shCycleCount = DL_VREF_SH_MIN};
 	DL_VREF_configReference(VREF, &vref_config);
 
-	/* Wait for VREF to settle */
-	int timeout = 1000;
-	while (DL_VREF_getStatus(VREF) == DL_VREF_CTL1_READY_NOTRDY) {
-		if (--timeout == 0) {
-			LOG_ERR("VREF failed to settle within timeout");
-			return -ETIMEDOUT;
-		}
-		k_busy_wait(10);
-	}
-
+	/* VREF settling is verified in init() after ADC power-up */
 	return 0;
 }
 
@@ -184,25 +150,21 @@ static int adc_msp_hsadc_init(const struct device *dev)
 	DL_HSADC_enablePower(ADC_REGS(config));
 	delay_cycles(CONFIG_MSP_PERIPH_STARTUP_DELAY);
 
-	DL_HSADC_setClockDivideRatio(ADC_REGS(config), config->clockDivider);
+	DL_HSADC_setClockDivideRatio(ADC_REGS(config), config->clock_divider);
 
-	if (config->vref_source != ADC_MSP_HSADC_VREF_VDDA) {
-		int ref_internal =
-			(config->vref_source == ADC_MSP_HSADC_VREF_INTERNAL_2_5V) ? 2500 : 1400;
-		LOG_INF("Configuring VREF to %d mV (vref_source=%d, VDDA=%d, 2.5V=%d, 1.4V=%d)",
-			ref_internal, config->vref_source, ADC_MSP_HSADC_VREF_VDDA,
-			ADC_MSP_HSADC_VREF_INTERNAL_2_5V, ADC_MSP_HSADC_VREF_INTERNAL_1_4V);
-		int ret = adc_msp_hsadc_config_vref(ref_internal);
+	/* Configure internal VREF if vref_mv matches a known internal reference */
+	if (adc_msp_hsadc_uses_internal_vref(config->vref_mv)) {
+		LOG_INF("Configuring internal VREF to %d mV", config->vref_mv);
+		int ret = adc_msp_hsadc_config_vref(config->vref_mv);
 		if (ret < 0) {
 			LOG_ERR("Failed to configure VREF: %d", ret);
 			return ret;
 		}
-		LOG_INF("VREF configured successfully");
 	}
 
 	DL_HSADC_PowerUp(ADC_REGS(config));
 
-	if (config->vref_source != ADC_MSP_HSADC_VREF_VDDA) {
+	if (adc_msp_hsadc_uses_internal_vref(config->vref_mv)) {
 		int timeout = 1000;
 		while (DL_VREF_getStatus(VREF) == DL_VREF_CTL1_READY_NOTRDY) {
 			k_busy_wait(10);
@@ -213,36 +175,9 @@ static int adc_msp_hsadc_init(const struct device *dev)
 		}
 	}
 
-	/* Configure hardware triggering if enabled */
-	if (config->hw_trigger_enable) {
-		/* Validate event channel range (1-15, channel 0 reserved) */
-		if (config->hw_trigger_event_channel < 1 || config->hw_trigger_event_channel > 15) {
-			LOG_ERR("Invalid event channel %d (must be 1-15)",
-				config->hw_trigger_event_channel);
-			return -EINVAL;
-		}
-
-		/* Validate trigger source (0-3 for GEN_SUB_0 to GEN_SUB_3) */
-		if (config->hw_trigger_source > 3) {
-			LOG_ERR("Invalid trigger source %d (must be 0-3)",
-				config->hw_trigger_source);
-			return -EINVAL;
-		}
-
-		/* Configure HSADC to subscribe to the event channel */
-		DL_HSADC_setSubscriberChanID(ADC_REGS(config), config->hw_trigger_source,
-					     config->hw_trigger_event_channel);
-
-		LOG_INF("Hardware trigger enabled: source=GEN_SUB_%d, event_channel=%d",
-			config->hw_trigger_source, config->hw_trigger_event_channel);
-	}
-
-	/* Initialize all driver data to zero */
-	data->active_sequencers = 0;
-	data->active_channels = 0;
-	data->num_configured = 0;
-	data->oversampling = 0;
-	memset(data->channels, 0, sizeof(data->channels));
+	/* Initialize driver data */
+	data->ch_configured = 0;
+	memset(data->ch_acq_time, 0, sizeof(data->ch_acq_time));
 
 	config->irq_cfg_func();
 	adc_context_unlock_unconditionally(&data->ctx);
@@ -257,176 +192,132 @@ static int adc_msp_hsadc_channel_setup(const struct device *dev,
 	const struct adc_msp_hsadc_cfg *config = dev->config;
 	const uint8_t ch = channel_cfg->channel_id;
 
-	if (ch >= 32) {
-		LOG_ERR("Channel 0x%X is not supported, max 31", ch);
+	if (ch >= ADC_MSP_HSADC_CHANNEL_MAX) {
+		LOG_ERR("Channel %d not supported, max %d", ch, ADC_MSP_HSADC_CHANNEL_MAX - 1);
 		return -EINVAL;
 	}
 
 	if (channel_cfg->differential) {
-		LOG_ERR("Differential channels are not supported");
+		LOG_ERR("Differential channels not supported");
 		return -EINVAL;
 	}
 
 	if (channel_cfg->gain != ADC_GAIN_1) {
-		LOG_ERR("Gain is not valid");
+		LOG_ERR("Only ADC_GAIN_1 supported");
 		return -EINVAL;
 	}
 
 	if (channel_cfg->reference == ADC_REF_VDD_1) {
-		if (config->vref_source != ADC_MSP_HSADC_VREF_VDDA) {
-			LOG_WRN("Using VDDA reference despite internal reference being configured");
+		if (adc_msp_hsadc_uses_internal_vref(config->vref_mv)) {
+			LOG_WRN("Channel uses ADC_REF_VDD_1 but internal reference configured");
 		}
 	} else if (channel_cfg->reference == ADC_REF_INTERNAL) {
-		if (config->vref_source == ADC_MSP_HSADC_VREF_VDDA) {
-			LOG_ERR("Internal reference requested but not configured");
-			return -EINVAL;
+		if (!adc_msp_hsadc_uses_internal_vref(config->vref_mv)) {
+			LOG_WRN("Channel uses ADC_REF_INTERNAL but VDDA configured");
 		}
 	} else {
 		LOG_ERR("Unsupported reference voltage");
 		return -EINVAL;
 	}
 
-	int slot = -1;
-	for (int i = 0; i < ADC_MSP_HSADC_SOC_MAX; i++) {
-		if (data->channels[i].configured && data->channels[i].channel_id == ch) {
-			slot = i;
-			break;
+	/* Decode acquisition time from zephyr,acquisition-time DT property.
+	 * ACQPS valid range: 1-1472 SYSCLK cycles.
+	 * Only ADC_ACQ_TIME_TICKS unit is supported.
+	 */
+	uint16_t acq_time = channel_cfg->acquisition_time;
+	uint16_t acq_ticks;
+
+	if (acq_time == ADC_ACQ_TIME_DEFAULT) {
+		acq_ticks = ADC_MSP_HSADC_ACQ_TIME_DEFAULT;
+	} else if (ADC_ACQ_TIME_UNIT(acq_time) == ADC_ACQ_TIME_TICKS) {
+		acq_ticks = ADC_ACQ_TIME_VALUE(acq_time);
+		if (acq_ticks < ADC_MSP_HSADC_ACQ_TIME_MIN ||
+		    acq_ticks > ADC_MSP_HSADC_ACQ_TIME_MAX) {
+			LOG_ERR("Channel %d: acq_time %d out of range (%d-%d)", ch, acq_ticks,
+				ADC_MSP_HSADC_ACQ_TIME_MIN, ADC_MSP_HSADC_ACQ_TIME_MAX);
+			return -EINVAL;
 		}
-		if (!data->channels[i].configured && slot == -1) {
-			slot = i;
-		}
+	} else {
+		LOG_ERR("Channel %d: only ADC_ACQ_TIME_TICKS supported", ch);
+		return -ENOTSUP;
 	}
 
-	if (slot == -1) {
-		LOG_ERR("No free slots for channel configuration");
-		return -ENOMEM;
-	}
+	/* Store channel configuration */
+	data->ch_acq_time[ch] = acq_ticks;
+	data->ch_configured |= BIT(ch);
 
-	data->channels[slot].channel_id = ch;
-	data->channels[slot].configured = true;
-
-	if (slot == data->num_configured) {
-		data->num_configured++;
-	}
+	LOG_DBG("Channel %d: acq_time=%d SYSCLK cycles", ch, acq_ticks);
 
 	return 0;
 }
 
-static int adc_msp_hsadc_configure_sequence(const struct device *dev)
+static int adc_msp_hsadc_configure_sequence(const struct device *dev,
+					    const struct adc_sequence *sequence)
 {
-	struct adc_msp_hsadc_data *data = dev->data;
 	const struct adc_msp_hsadc_cfg *config = dev->config;
-	uint32_t active_channels = data->active_channels;
-	uint8_t ch_id;
-	uint8_t next_soc = 0;
-	uint8_t current_seq = 0;
-	uint8_t socs_in_current_seq = 0;
+	struct adc_msp_hsadc_data *data = dev->data;
+	uint32_t channels = sequence->channels;
+	uint32_t temp_channels;
+	uint16_t acq_time = 0;
+	uint8_t soc = 0;
+	uint8_t end_soc = 0;
 
-	/* Reset active sequencers */
-	data->active_sequencers = 0;
-
-	/* Track start and end SOC for each sequencer */
-	uint8_t seq_start_soc[4];
-	uint8_t seq_end_soc[4];
-
-	/* Allocate sequencers and SOCs dynamically based on enabled channels */
-	uint32_t temp_channels = active_channels;
+	/* Validate: all channels configured and have same acquisition time */
+	temp_channels = channels;
 	while (temp_channels) {
-		ch_id = find_lsb_set(temp_channels) - 1;
+		uint8_t ch = find_lsb_set(temp_channels) - 1;
 
-		/* Find this channel in our configuration */
-		struct hsadc_channel_config *ch_cfg = NULL;
-		for (int i = 0; i < data->num_configured; i++) {
-			if (data->channels[i].configured && data->channels[i].channel_id == ch_id) {
-				ch_cfg = &data->channels[i];
-				break;
-			}
-		}
-
-		if (!ch_cfg) {
-			LOG_ERR("Channel %d requested but not configured", ch_id);
+		if (!(data->ch_configured & BIT(ch))) {
+			LOG_ERR("Channel %d not configured", ch);
 			return -EINVAL;
 		}
 
-		/* Check if we've reached the SOC limit */
-		if (next_soc >= ADC_MSP_HSADC_SOC_MAX) {
-			LOG_ERR("Too many channels, max SOCs: %d", ADC_MSP_HSADC_SOC_MAX);
+		if (acq_time == 0) {
+			acq_time = data->ch_acq_time[ch];
+		} else if (data->ch_acq_time[ch] != acq_time) {
+			LOG_ERR("Channel %d acq_time=%d differs from %d", ch, data->ch_acq_time[ch],
+				acq_time);
 			return -EINVAL;
 		}
-
-		/* Allocate new sequencer if current is full (4 SOCs per sequencer) */
-		if (socs_in_current_seq >= 4) {
-			current_seq++;
-			socs_in_current_seq = 0;
-
-			if (current_seq >= 4) {
-				LOG_ERR("Too many channels (max 16 SOCs across 4 sequencers)");
-				return -EINVAL;
-			}
-		}
-
-		/* Track sequencer start/end SOCs */
-		if (socs_in_current_seq == 0) {
-			seq_start_soc[current_seq] = next_soc;
-		}
-		seq_end_soc[current_seq] = next_soc;
-
-		ch_cfg->soc = next_soc;
-		ch_cfg->sequencer = current_seq;
-		data->active_sequencers |= BIT(current_seq);
-
-		DL_HSADC_SOCChannelSelect(ADC_REGS(config), (DL_HSADC_SOC_NUMBER)next_soc,
-					  (DL_HSADC_ADCIN)ch_id);
-
-		socs_in_current_seq++;
-		next_soc++;
-		temp_channels &= ~BIT(ch_id);
+		temp_channels &= ~BIT(ch);
 	}
 
-	uint8_t last_seq_end_soc = 0;
-	for (int seq = 0; seq < 4; seq++) {
-		if (data->active_sequencers & BIT(seq)) {
-			DL_HSADC_disableSequencer(ADC_REGS(config), (DL_HSADC_SEQ_NUMBER)seq);
+	/* Assign SOCs to channels (lowest channel first) */
+	temp_channels = channels;
+	while (temp_channels) {
+		uint8_t ch = find_lsb_set(temp_channels) - 1;
 
-			uint8_t seq_start = seq_start_soc[seq];
-			uint8_t seq_end = seq_end_soc[seq];
-			last_seq_end_soc = seq_end;
-
-			/* Select trigger source: hardware or software */
-			DL_HSADC_TRIGGER trigger_source;
-			if (config->hw_trigger_enable) {
-				/* Map trigger source (0-3) to GEN_SUB_0 to GEN_SUB_3 (1-4) */
-				trigger_source = (DL_HSADC_TRIGGER)(config->hw_trigger_source + 1);
-			} else {
-				trigger_source = DL_HSADC_TRIGGER_TIELOW_SW;
-			}
-
-			DL_HSADC_setupSequencer(ADC_REGS(config), (DL_HSADC_SEQ_NUMBER)seq,
-						config->sampleWindow, trigger_source,
-						(DL_HSADC_SOC_NUMBER)seq_start);
-
-			DL_HSADC_InterruptSourceSelect(ADC_REGS(config), (DL_HSADC_INT)seq,
-						       (DL_HSADC_SOC_NUMBER)seq_end);
-
-			DL_HSADC_setSampleCapReset(ADC_REGS(config), (DL_HSADC_SEQ_NUMBER)seq,
-						   DL_HSADC_SAMPCAPRESET_HALF_VREFHI);
-
-			/* Configure oversampling if enabled (same for all sequencers) */
-			if (data->oversampling > 0) {
-				DL_HSADC_setPPBOversamplingLimit(
-					ADC_REGS(config), (DL_HSADC_SEQ_NUMBER)seq,
-					(DL_HSADC_OVERSAMPLING_LIMIT)data->oversampling);
-
-				DL_HSADC_setPPBRightShift(
-					ADC_REGS(config), (DL_HSADC_SEQ_NUMBER)seq,
-					(DL_HSADC_PPB_RIGHTSHIFT)data->oversampling);
-			}
-
-			DL_HSADC_enableSequencer(ADC_REGS(config), (DL_HSADC_SEQ_NUMBER)seq);
-		}
+		DL_HSADC_SOCChannelSelect(ADC_REGS(config), (DL_HSADC_SOC_NUMBER)soc,
+					  (DL_HSADC_ADCIN)ch);
+		end_soc = soc;
+		soc++;
+		temp_channels &= ~BIT(ch);
 	}
 
-	DL_HSADC_setEndOfSequencer(ADC_REGS(config), (DL_HSADC_SOC_NUMBER)last_seq_end_soc);
+	/* Configure sequencer 0 (DL_HSADC_SEQ_NUMBER1 = seq 0) */
+	DL_HSADC_disableSequencer(ADC_REGS(config), DL_HSADC_SEQ_NUMBER1);
+
+	DL_HSADC_setupSequencer(ADC_REGS(config), DL_HSADC_SEQ_NUMBER1, acq_time,
+				DL_HSADC_TRIGGER_TIELOW_SW, DL_HSADC_SOC_NUMBER0);
+
+	DL_HSADC_InterruptSourceSelect(ADC_REGS(config), DL_HSADC_INT_1,
+				       (DL_HSADC_SOC_NUMBER)end_soc);
+
+	DL_HSADC_setSampleCapReset(ADC_REGS(config), DL_HSADC_SEQ_NUMBER1,
+				   DL_HSADC_SAMPCAPRESET_HALF_VREFHI);
+
+	/* Always configure PPB oversampling registers to ensure clean state.
+	 * A previous read with oversampling leaves LIMIT set in hardware,
+	 * causing SOCs to repeat even when oversampling is now disabled.
+	 * When oversampling=0: LIMIT=NULL (no accumulation), SHIFT=0.
+	 */
+	DL_HSADC_setPPBOversamplingLimit(ADC_REGS(config), DL_HSADC_SEQ_NUMBER1,
+					 (DL_HSADC_OVERSAMPLING_LIMIT)sequence->oversampling);
+	DL_HSADC_setPPBRightShift(ADC_REGS(config), DL_HSADC_SEQ_NUMBER1,
+				  (DL_HSADC_PPB_RIGHTSHIFT)sequence->oversampling);
+
+	DL_HSADC_enableSequencer(ADC_REGS(config), DL_HSADC_SEQ_NUMBER1);
+	DL_HSADC_setEndOfSequencer(ADC_REGS(config), (DL_HSADC_SOC_NUMBER)end_soc);
 
 	return 0;
 }
@@ -437,7 +328,7 @@ static int adc_msp_hsadc_read_internal(const struct device *dev,
 	struct adc_msp_hsadc_data *data = dev->data;
 	const struct adc_msp_hsadc_cfg *config = dev->config;
 	size_t exp_size;
-	int sequence_ret;
+	int ret;
 	int ch_count;
 
 	if (DL_HSADC_isBusy(ADC_REGS(config))) {
@@ -445,8 +336,7 @@ static int adc_msp_hsadc_read_internal(const struct device *dev,
 		return -EBUSY;
 	}
 
-	data->active_channels = sequence->channels;
-	ch_count = POPCOUNT(data->active_channels);
+	ch_count = POPCOUNT(sequence->channels);
 	if (ch_count == 0) {
 		LOG_ERR("No ADC channels selected");
 		return -EINVAL;
@@ -462,7 +352,8 @@ static int adc_msp_hsadc_read_internal(const struct device *dev,
 	}
 
 	if (sequence->buffer_size < exp_size) {
-		LOG_ERR("Required buffer size is %u, but %u got", exp_size, sequence->buffer_size);
+		LOG_ERR("Buffer too small: need %u bytes, have %u", exp_size,
+			sequence->buffer_size);
 		return -ENOMEM;
 	}
 
@@ -471,28 +362,35 @@ static int adc_msp_hsadc_read_internal(const struct device *dev,
 		return -EINVAL;
 	}
 
-	data->buffer = sequence->buffer;
-
-	/* Validate and store oversampling ratio (same for all channels in sequence) */
+	/* Validate oversampling ratio */
 	if (sequence->oversampling > 3) {
 		LOG_ERR("Oversampling value %d not supported. Max is 3 (8x oversampling)",
 			sequence->oversampling);
 		return -EINVAL;
 	}
-	data->oversampling = sequence->oversampling;
+
+	/* The HSADC PPB (Post Processing Block) that performs hardware oversampling
+	 * is per-sequencer with a single SUM register. With multiple SOCs in one
+	 * sequencer, each SOC's averaged result overwrites the previous one in SUM,
+	 * so only the last channel's result survives. Reject this combination.
+	 */
+	if (sequence->oversampling > 0 && ch_count > 1) {
+		LOG_ERR("Oversampling is supported for single channel only");
+		return -EINVAL;
+	}
 
 	if (sequence->calibrate) {
 		LOG_ERR("Calibration not supported");
 		return -ENOTSUP;
 	}
 
-	/* Configure the ADC sequencers and SOCs */
-	sequence_ret = adc_msp_hsadc_configure_sequence(dev);
-	if (sequence_ret < 0) {
-		LOG_ERR("Error in ADC sequence configuration");
-		return sequence_ret;
+	/* Configure the ADC sequencers and SOCs BEFORE starting sampling */
+	ret = adc_msp_hsadc_configure_sequence(dev, sequence);
+	if (ret < 0) {
+		return ret;
 	}
 
+	/* Now start the read operation (this will call adc_context_start_sampling) */
 	adc_context_start_read(&data->ctx, sequence);
 	return adc_context_wait_for_completion(&data->ctx);
 }
@@ -502,20 +400,9 @@ static int adc_msp_hsadc_read(const struct device *dev, const struct adc_sequenc
 	struct adc_msp_hsadc_data *data = dev->data;
 	int error;
 
-#ifdef CONFIG_PM_DEVICE
-	error = pm_device_runtime_get(dev);
-	if (error < 0) {
-		return error;
-	}
-#endif
-
 	adc_context_lock(&data->ctx, false, NULL);
 	error = adc_msp_hsadc_read_internal(dev, sequence);
 	adc_context_release(&data->ctx, error);
-
-#ifdef CONFIG_PM_DEVICE
-	pm_device_runtime_put(dev);
-#endif
 
 	return error;
 }
@@ -527,20 +414,9 @@ static int adc_msp_hsadc_read_async(const struct device *dev, const struct adc_s
 	struct adc_msp_hsadc_data *data = dev->data;
 	int error;
 
-#ifdef CONFIG_PM_DEVICE
-	error = pm_device_runtime_get(dev);
-	if (error < 0) {
-		return error;
-	}
-#endif
-
 	adc_context_lock(&data->ctx, true, async);
 	error = adc_msp_hsadc_read_internal(dev, sequence);
 	adc_context_release(&data->ctx, error);
-
-#ifdef CONFIG_PM_DEVICE
-	pm_device_runtime_put(dev);
-#endif
 
 	return error;
 }
@@ -550,163 +426,56 @@ static void adc_msp_hsadc_isr(const struct device *dev)
 {
 	struct adc_msp_hsadc_data *data = dev->data;
 	const struct adc_msp_hsadc_cfg *config = dev->config;
-	uint32_t active_channels = data->active_channels;
-	uint16_t result;
-	bool interrupt_triggered = false;
-	uint32_t processed_channels = 0;
-	bool error_detected = false;
+	uint32_t channels = data->ctx.sequence.channels;
+	uint16_t *buffer = (uint16_t *)data->ctx.sequence.buffer;
 
-	/* Check for overflow errors on active sequencers */
-	for (int seq = 0; seq < 4; seq++) {
-		if (!(data->active_sequencers & BIT(seq))) {
-			continue;
-		}
-
-		/* Check sequencer interrupt overflow */
-		if (DL_HSADC_InterruptOverflowStatus(ADC_REGS(config), (DL_HSADC_INT)seq)) {
-			DL_HSADC_InterruptOverflowStatusClear(ADC_REGS(config), (DL_HSADC_INT)seq);
-			LOG_ERR("Sequencer %d overflow - data loss", seq);
-			error_detected = true;
-			break;
-		}
-	}
-
-	/* Check SOC overflows only if no sequencer overflow detected */
-	if (!error_detected) {
-		for (uint8_t soc = 0; soc < ADC_MSP_HSADC_SOC_MAX; soc++) {
-			if (DL_HSADC_getStartOfConversationOverflowStatus(
-				    ADC_REGS(config), (DL_HSADC_SOC_NUMBER)soc)) {
-				DL_HSADC_clearStartOfConversationOverflowStatus(
-					ADC_REGS(config), (DL_HSADC_SOC_NUMBER)soc);
-				LOG_ERR("SOC %d overflow - data loss", soc);
-				error_detected = true;
-				break;
-			}
-		}
-	}
-
-	/* If overflow detected, abort sequence and report error */
-	if (error_detected) {
-		for (int seq = 0; seq < 4; seq++) {
-			if (data->active_sequencers & BIT(seq)) {
-				DL_HSADC_disableInterrupt(ADC_REGS(config), (DL_HSADC_INT)seq);
-				DL_HSADC_InterruptStatusClear(ADC_REGS(config), (DL_HSADC_INT)seq);
-			}
-		}
+	/* Check for sequencer 0 overflow (DL_HSADC_INT_1 = seq 0) */
+	if (DL_HSADC_InterruptOverflowStatus(ADC_REGS(config), DL_HSADC_INT_1)) {
+		DL_HSADC_InterruptOverflowStatusClear(ADC_REGS(config), DL_HSADC_INT_1);
+		DL_HSADC_disableInterrupt(ADC_REGS(config), DL_HSADC_INT_1);
+		DL_HSADC_InterruptStatusClear(ADC_REGS(config), DL_HSADC_INT_1);
+		LOG_ERR("Sequencer overflow - data loss");
 		adc_context_complete(&data->ctx, -EIO);
 		return;
 	}
 
-	for (int seq = 0; seq < 4; seq++) {
-		if ((data->active_sequencers & BIT(seq)) &&
-		    DL_HSADC_getInterruptStatus(ADC_REGS(config), (DL_HSADC_INT)seq)) {
-			interrupt_triggered = true;
+	/* Check if sequencer 0 interrupt triggered */
+	if (!DL_HSADC_getInterruptStatus(ADC_REGS(config), DL_HSADC_INT_1)) {
+		return;
+	}
 
-			for (int i = 0; i < data->num_configured; i++) {
-				struct hsadc_channel_config *ch_cfg = &data->channels[i];
+	/* Read results from SOCs in channel order (lowest channel first).
+	 * SOC N contains result for the Nth channel in the bitmask.
+	 *
+	 * When oversampling is active, read from the PPB FinalSumResult which
+	 * contains the hardware-averaged value (PSUM >> SHIFT). Only single-channel
+	 * sequences are allowed with oversampling (validated in read_internal),
+	 * so the PPB SUM register holds the correct averaged result.
+	 */
+	uint8_t soc = 0;
+	uint32_t temp_channels = channels;
 
-				if (!ch_cfg->configured ||
-				    !(active_channels & BIT(ch_cfg->channel_id))) {
-					continue;
-				}
+	while (temp_channels) {
+		uint8_t ch = find_lsb_set(temp_channels) - 1;
 
-				if (ch_cfg->sequencer != seq) {
-					continue;
-				}
-
-				if (data->oversampling > 0) {
-					/* Oversampling enabled: read sum of all samples
-					 * Oversampling values: 0=1x (none), 1=2x, 2=4x, 3=8x (max)
-					 * Formula: num_samples = 2^oversampling (for values 1-3)
-					 */
-					result = DL_HSADC_getFinalSumResult(
-						RESULT_REGS(config), (DL_HSADC_SEQ_NUMBER)seq);
-					uint8_t num_samples = 1 << (data->oversampling + 1);
-					result = result / num_samples;
-				} else {
-					/* No oversampling: read single conversion result */
-					result = DL_HSADC_getResult(
-						RESULT_REGS(config),
-						(DL_HSADC_SOC_NUMBER)ch_cfg->soc);
-				}
-
-				*data->buffer++ = result;
-				processed_channels |= BIT(ch_cfg->channel_id);
-			}
-
-			DL_HSADC_InterruptStatusClear(ADC_REGS(config), (DL_HSADC_INT)seq);
-			DL_HSADC_disableInterrupt(ADC_REGS(config), (DL_HSADC_INT)seq);
+		if (data->ctx.sequence.oversampling > 0) {
+			*buffer++ = DL_HSADC_getFinalSumResult(RESULT_REGS(config),
+							       DL_HSADC_SEQ_NUMBER1);
+		} else {
+			*buffer++ =
+				DL_HSADC_getResult(RESULT_REGS(config), (DL_HSADC_SOC_NUMBER)soc);
 		}
+		soc++;
+		temp_channels &= ~BIT(ch);
 	}
 
-	if (interrupt_triggered && processed_channels == active_channels) {
-		adc_context_on_sampling_done(&data->ctx, dev);
-	}
+	DL_HSADC_InterruptStatusClear(ADC_REGS(config), DL_HSADC_INT_1);
+	DL_HSADC_disableInterrupt(ADC_REGS(config), DL_HSADC_INT_1);
+
+	adc_context_on_sampling_done(&data->ctx, dev);
 }
-
-#ifdef CONFIG_PM_DEVICE
-static int adc_msp_hsadc_pm_action(const struct device *dev, enum pm_device_action action)
-{
-	const struct adc_msp_hsadc_cfg *config = dev->config;
-	struct adc_msp_hsadc_data *data = dev->data;
-
-	switch (action) {
-	case PM_DEVICE_ACTION_SUSPEND:
-	case PM_DEVICE_ACTION_TURN_OFF:
-		/* Check if ADC is busy before suspending */
-		if (DL_HSADC_isBusy(ADC_REGS(config))) {
-			LOG_WRN("Cannot suspend ADC while conversion in progress");
-			return -EBUSY;
-		}
-		DL_HSADC_PowerDown(ADC_REGS(config));
-		DL_HSADC_disablePower(ADC_REGS(config));
-		break;
-
-	case PM_DEVICE_ACTION_RESUME:
-	case PM_DEVICE_ACTION_TURN_ON:
-		DL_HSADC_enablePower(ADC_REGS(config));
-		delay_cycles(CONFIG_MSP_PERIPH_STARTUP_DELAY);
-		DL_HSADC_PowerUp(ADC_REGS(config));
-
-		if (config->vref_source != ADC_MSP_HSADC_VREF_VDDA) {
-			int timeout = 1000;
-			while (DL_VREF_getStatus(VREF) == DL_VREF_CTL1_READY_NOTRDY) {
-				k_busy_wait(10);
-				if (--timeout == 0) {
-					LOG_ERR("VREF failed to settle on resume");
-					return -ETIMEDOUT;
-				}
-			}
-		}
-		break;
-
-	default:
-		return -ENOTSUP;
-	}
-
-	return 0;
-}
-#endif
-
-static DEVICE_API(adc, msp_hsadc_driver_api) = {
-	.channel_setup = adc_msp_hsadc_channel_setup,
-	.read = adc_msp_hsadc_read,
-#ifdef CONFIG_ADC_ASYNC
-	.read_async = adc_msp_hsadc_read_async,
-#endif /* CONFIG_ADC_ASYNC */
-};
 
 #define ADC_DT_CLOCK_DIVIDER(x) DT_INST_PROP(x, ti_clk_divider)
-#define ADC_DT_SAMPLE_WINDOW(x) DT_INST_PROP(x, ti_sample_window)
-
-/* Helper macro to get DT VREF source value directly as integer */
-#define ADC_MSP_HSADC_VREF_SOURCE(index) DT_INST_PROP(index, ti_vref_source)
-
-/* Helper macros for hardware trigger properties */
-#define ADC_MSP_HSADC_HW_TRIGGER_ENABLE(index) DT_INST_PROP_OR(index, ti_hw_trigger_enable, false)
-#define ADC_MSP_HSADC_HW_TRIGGER_SOURCE(index) DT_INST_PROP_OR(index, ti_hw_trigger_source, 0)
-#define ADC_MSP_HSADC_HW_TRIGGER_EVENT_CHANNEL(index)                                              \
-	DT_INST_PROP_OR(index, ti_hw_trigger_event_channel, 0)
 
 #define MSP_HSADC_ADC_INIT(index)                                                                  \
                                                                                                    \
@@ -716,22 +485,22 @@ static DEVICE_API(adc, msp_hsadc_driver_api) = {
 		.config_base = DT_INST_REG_ADDR_BY_NAME(index, config),                            \
 		.result_base = DT_INST_REG_ADDR_BY_NAME(index, result),                            \
 		.irq_cfg_func = adc_msp_hsadc_cfg_func_##index,                                    \
-		.clockDivider = ADC_DT_CLOCK_DIVIDER(index),                                       \
-		.sampleWindow = ADC_DT_SAMPLE_WINDOW(index),                                       \
-		.vref_source = ADC_MSP_HSADC_VREF_SOURCE(index),                                   \
-		.hw_trigger_enable = ADC_MSP_HSADC_HW_TRIGGER_ENABLE(index),                       \
-		.hw_trigger_source = ADC_MSP_HSADC_HW_TRIGGER_SOURCE(index),                       \
-		.hw_trigger_event_channel = ADC_MSP_HSADC_HW_TRIGGER_EVENT_CHANNEL(index),         \
+		.clock_divider = ADC_DT_CLOCK_DIVIDER(index),                                      \
+		.vref_mv = DT_INST_PROP(index, vref_mv),                                           \
 	};                                                                                         \
 	static struct adc_msp_hsadc_data adc_msp_hsadc_data_##index = {                            \
 		ADC_CONTEXT_INIT_TIMER(adc_msp_hsadc_data_##index, ctx),                           \
 		ADC_CONTEXT_INIT_LOCK(adc_msp_hsadc_data_##index, ctx),                            \
 		ADC_CONTEXT_INIT_SYNC(adc_msp_hsadc_data_##index, ctx),                            \
 	};                                                                                         \
-	IF_ENABLED(CONFIG_PM_DEVICE, (PM_DEVICE_DT_INST_DEFINE(index, adc_msp_hsadc_pm_action);))                                                                                 \
-	DEVICE_DT_INST_DEFINE(index, &adc_msp_hsadc_init, PM_DEVICE_DT_INST_GET_OR_NULL(index),    \
-			      &adc_msp_hsadc_data_##index, &adc_msp_hsadc_cfg_##index,             \
-			      POST_KERNEL, CONFIG_ADC_INIT_PRIORITY, &msp_hsadc_driver_api);       \
+	static DEVICE_API(adc, msp_hsadc_driver_api_##index) = {                                   \
+		.channel_setup = adc_msp_hsadc_channel_setup,                                      \
+		.read = adc_msp_hsadc_read,                                                        \
+		.ref_internal = DT_INST_PROP(index, vref_mv),                                      \
+		IF_ENABLED(CONFIG_ADC_ASYNC, (.read_async = adc_msp_hsadc_read_async,)) };            \
+	DEVICE_DT_INST_DEFINE(index, &adc_msp_hsadc_init, NULL, &adc_msp_hsadc_data_##index,       \
+			      &adc_msp_hsadc_cfg_##index, POST_KERNEL, CONFIG_ADC_INIT_PRIORITY,   \
+			      &msp_hsadc_driver_api_##index);                                      \
                                                                                                    \
 	static void adc_msp_hsadc_cfg_func_##index(void)                                           \
 	{                                                                                          \

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <zephyr/dt-bindings/adc/adc.h>
+
 / {
 	zephyr,user {
 		io-channels = <&adc0 0>, <&adc0 5>;
@@ -12,10 +14,7 @@
 
 &adc0 {
 	ti,clk-divider = <2>;
-	ti,vref-source = <0>;
-	vref-mv = <3300>;
-	pinctrl-0 = <&analog_pa27 &analog_pb24>;
-	pinctrl-names = "default";
+	vref-mv = <3300>;  /* VDDA reference (auto-detected) */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -25,8 +24,6 @@
 		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 200)>;
 		zephyr,resolution = <12>;
-		zephyr,vref-mv = <3300>;
-		zephyr,oversampling = <2>;  /* 2 = 4x oversampling */
 	};
 
 	channel@5 {
@@ -35,7 +32,5 @@
 		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 200)>;
 		zephyr,resolution = <12>;
-		zephyr,vref-mv = <3300>;
-		zephyr,oversampling = <2>;  /* 2 = 4x oversampling */
 	};
 };
