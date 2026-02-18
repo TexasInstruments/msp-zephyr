@@ -27,3 +27,11 @@ config ADC_MSP_HSADC_CHANNEL_MAX
 	help
 	  Maximum number of ADC input channels supported by the HSADC hardware.
 	  The MSPM33 HSADC supports up to 32 input channels.
+
+config ADC_MSP_HSADC_DMA
+	bool "DMA support for TI MSPM33 HSADC"
+	depends on ADC_MSP_HSADC
+	select DMA
+	help
+	  DMA driven mode offloads ADC result transfer from the CPU.
+	  Requires dmas property in the ADC device tree node.
