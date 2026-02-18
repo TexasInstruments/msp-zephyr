@@ -39,6 +39,7 @@ struct dma_ti_msp_channel_data {
 	void *user_data;
 	uint8_t direction;
 	bool busy;
+	bool external_trigger;
 };
 
 struct dma_ti_msp_data {
@@ -193,10 +194,29 @@ static int dma_ti_msp_configure(const struct device *dev, uint32_t channel,
 	chan_data->direction = config->channel_direction;
 	chan_data->dma_callback = config->dma_callback;
 	chan_data->user_data = config->user_data;
-	dma_cfg.transferMode = DL_DMA_SINGLE_BLOCK_TRANSFER_MODE,
-	dma_cfg.extendedMode = DL_DMA_NORMAL_MODE,
-	dma_cfg.triggerType = DL_DMA_TRIGGER_TYPE_EXTERNAL;
+	dma_cfg.extendedMode = DL_DMA_NORMAL_MODE;
 	dma_cfg.trigger = config->dma_slot;
+	/* All triggers (software and peripheral hardware) are routed
+	 * through the external trigger mux. INTERNAL type is only for
+	 * inter-channel DMA chaining.
+	 */
+	dma_cfg.triggerType = DL_DMA_TRIGGER_TYPE_EXTERNAL;
+
+	switch (config->dma_slot) {
+	case 0:
+		/* Software trigger (DMAREQ): single block transfer */
+		dma_cfg.transferMode = DL_DMA_SINGLE_BLOCK_TRANSFER_MODE;
+		chan_data->external_trigger = false;
+		break;
+	default:
+		/* Peripheral hardware trigger: use repeat-single mode where
+		 * each trigger transfers one element. Channel stays armed
+		 * until all transfers complete.
+		 */
+		dma_cfg.transferMode = DL_DMA_FULL_CH_REPEAT_SINGLE_TRANSFER_MODE;
+		chan_data->external_trigger = true;
+		break;
+	}
 
 	/* Configure burst size based on source_burst_length */
 	DL_DMA_BURST_SIZE burstSize;
@@ -218,12 +238,12 @@ static int dma_ti_msp_configure(const struct device *dev, uint32_t channel,
 
 	key = irq_lock();
 	DL_DMA_setBurstSize(cfg->regs, burstSize);
-	DL_DMA_clearInterruptStatus(cfg->regs, (channel + DMA_TI_MSP_BASE_CHANNEL_NUM));
+	DL_DMA_clearInterruptStatus(cfg->regs, BIT(channel));
 	DL_DMA_setTransferSize(cfg->regs, channel, blk_cfg->block_size);
 	DL_DMA_initChannel(cfg->regs, channel, &dma_cfg);
 	DL_DMA_setSrcAddr(cfg->regs, channel, blk_cfg->source_address);
 	DL_DMA_setDestAddr(cfg->regs, channel, blk_cfg->dest_address);
-	DL_DMA_enableInterrupt(cfg->regs, (channel + DMA_TI_MSP_BASE_CHANNEL_NUM));
+	DL_DMA_enableInterrupt(cfg->regs, BIT(channel));
 	chan_data->busy = true;
 	irq_unlock(key);
 
@@ -242,16 +262,19 @@ static int dma_ti_msp_start(const struct device *dev, const uint32_t channel)
 		return -EINVAL;
 	}
 
-	/* Software trigger to start the DMA transfer */
 	DL_DMA_enableChannel(cfg->regs, channel);
 
-	/* Verify channel was enabled successfully */
 	if (!DL_DMA_isChannelEnabled(cfg->regs, channel)) {
 		LOG_ERR("Failed to enable DMA channel %u", channel);
 		return -EINVAL;
 	}
 
-	DL_DMA_startTransfer(cfg->regs, channel);
+	/* Only issue software trigger for non-external channels.
+	 * External trigger channels wait for the peripheral hardware pulse.
+	 */
+	if (!dma_data->ch_data[channel].external_trigger) {
+		DL_DMA_startTransfer(cfg->regs, channel);
+	}
 
 	return 0;
 }
@@ -346,7 +369,7 @@ static inline void dma_ti_msp_isr(const struct device *dev)
 	DL_DMA_disableChannel(cfg->regs, channel);
 
 	/* Clear interrupt status */
-	DL_DMA_clearInterruptStatus(cfg->regs, channel + DMA_TI_MSP_BASE_CHANNEL_NUM);
+	DL_DMA_clearInterruptStatus(cfg->regs, BIT(channel));
 
 	/* Mark channel as not busy before callback, as callback might want to reuse it */
 	chan_data->busy = false;
