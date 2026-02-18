@@ -19,6 +19,10 @@ LOG_MODULE_REGISTER(adc_msp_hsadc);
 #include <zephyr/drivers/adc.h>
 #include <soc.h>
 
+#ifdef CONFIG_ADC_MSP_HSADC_DMA
+#include <zephyr/drivers/dma.h>
+#endif
+
 /* Driverlib includes */
 #include <ti/driverlib/dl_hsadc.h>
 #include <ti/driverlib/dl_vref.h>
@@ -59,6 +63,11 @@ struct adc_msp_hsadc_data {
 	/* Per-channel acquisition time in SYSCLK cycles (indexed by channel_id) */
 	uint16_t ch_acq_time[ADC_MSP_HSADC_CHANNEL_MAX];
 	uint32_t ch_configured; /* Bitmask of configured channels */
+
+#ifdef CONFIG_ADC_MSP_HSADC_DMA
+	/* Temp buffer for 32-bit packed FIFO results (2 x 16-bit per word) */
+	uint32_t dma_fifo_result[(ADC_MSP_HSADC_SOC_MAX + 1) / 2];
+#endif
 };
 
 struct adc_msp_hsadc_cfg {
@@ -67,9 +76,92 @@ struct adc_msp_hsadc_cfg {
 	uint32_t clock_divider;
 	void (*irq_cfg_func)(void);
 	uint16_t vref_mv;
+#ifdef CONFIG_ADC_MSP_HSADC_DMA
+	const struct device *dma_dev;
+	uint8_t dma_channel;
+	uint8_t dma_trigsrc;
+#endif
 };
 
 static void adc_msp_hsadc_isr(const struct device *dev);
+
+#ifdef CONFIG_ADC_MSP_HSADC_DMA
+static void adc_msp_hsadc_dma_callback(const struct device *dma_dev, void *user_data,
+				       uint32_t channel, int status)
+{
+	const struct device *dev = user_data;
+	struct adc_msp_hsadc_data *data = dev->data;
+	const struct adc_msp_hsadc_cfg *config = dev->config;
+	uint16_t *buffer = (uint16_t *)data->ctx.sequence.buffer;
+	int ch_count = POPCOUNT(data->ctx.sequence.channels);
+	int fifo_reads = (ch_count + 1) / 2;
+
+	DL_HSADC_DMAInterruptStatusClear(ADC_REGS(config), DL_HSADC_DMA_INT_1);
+	DL_HSADC_disableDMAInterrupt(ADC_REGS(config), DL_HSADC_DMA_INT_1);
+
+	if (status != DMA_STATUS_COMPLETE) {
+		LOG_ERR("DMA transfer error: %d", status);
+		adc_context_complete(&data->ctx, -EIO);
+		return;
+	}
+
+	/* Unpack 32-bit FIFO words into uint16_t user buffer.
+	 * FIFO packing: each 32-bit read returns 2 consecutive SOC results.
+	 * LSB[15:0] = first result, MSB[31:16] = second result.
+	 */
+	for (int i = 0; i < fifo_reads; i++) {
+		uint32_t packed = data->dma_fifo_result[i];
+
+		buffer[2 * i] = (uint16_t)(packed & 0xFFFF);
+		if ((2 * i + 1) < ch_count) {
+			buffer[2 * i + 1] = (uint16_t)((packed >> 16) & 0xFFFF);
+		}
+	}
+
+	adc_context_on_sampling_done(&data->ctx, dev);
+}
+
+static int adc_msp_hsadc_dma_start(const struct device *dev, int ch_count)
+{
+	const struct adc_msp_hsadc_cfg *config = dev->config;
+	struct adc_msp_hsadc_data *data = dev->data;
+	int fifo_reads = (ch_count + 1) / 2;
+	int ret;
+
+	struct dma_block_config blk_cfg = {
+		.source_address = (uint32_t)&RESULT_REGS(config)->
+			ADC_LITE_RESULT_REGS.ADCSEQ1FIFORESULT,
+		.dest_address = (uint32_t)data->dma_fifo_result,
+		.source_addr_adj = DMA_ADDR_ADJ_NO_CHANGE,
+		.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+		.block_size = fifo_reads,
+	};
+	struct dma_config dma_cfg = {
+		.dma_slot = config->dma_trigsrc,
+		.channel_direction = PERIPHERAL_TO_MEMORY,
+		.block_count = 1,
+		.head_block = &blk_cfg,
+		.source_data_size = 4,
+		.dest_data_size = 4,
+		.dma_callback = adc_msp_hsadc_dma_callback,
+		.user_data = (void *)dev,
+	};
+
+	ret = dma_config(config->dma_dev, config->dma_channel, &dma_cfg);
+	if (ret < 0) {
+		LOG_ERR("DMA config failed: %d", ret);
+		return ret;
+	}
+
+	ret = dma_start(config->dma_dev, config->dma_channel);
+	if (ret < 0) {
+		LOG_ERR("DMA start failed: %d", ret);
+		return ret;
+	}
+
+	return 0;
+}
+#endif /* CONFIG_ADC_MSP_HSADC_DMA */
 
 static void adc_context_start_sampling(struct adc_context *ctx)
 {
@@ -79,7 +171,33 @@ static void adc_context_start_sampling(struct adc_context *ctx)
 
 	data->repeat_buffer = (uint16_t *)ctx->sequence.buffer;
 
-	/* Clear status and enable interrupt for sequencer 0 (DL_HSADC_INT_1 = seq 0) */
+#ifdef CONFIG_ADC_MSP_HSADC_DMA
+	if (config->dma_dev != NULL) {
+		int ch_count = POPCOUNT(ctx->sequence.channels);
+
+		/* Re-enable HSADC DMA trigger for this sampling round.
+		 * The DMA callback disables DMA_INT_1 after each transfer.
+		 * For repeated samplings (extra_samplings > 0), we must
+		 * re-enable it before each round.
+		 */
+		DL_HSADC_DMAInterruptStatusClear(ADC_REGS(config), DL_HSADC_DMA_INT_1);
+		DL_HSADC_enableDMAInterrupt(ADC_REGS(config), DL_HSADC_DMA_INT_1);
+
+		/* Start DMA transfer before triggering ADC */
+		int ret = adc_msp_hsadc_dma_start(dev, ch_count);
+
+		if (ret < 0) {
+			adc_context_complete(ctx, ret);
+			return;
+		}
+
+		/* Software trigger: DMA handles result collection */
+		DL_HSADC_triggerSequencerSoftwareForce(ADC_REGS(config), DL_HSADC_SEQ_NUMBER1);
+		return;
+	}
+#endif
+
+	/* Non-DMA path: interrupt-driven result collection */
 	DL_HSADC_InterruptStatusClear(ADC_REGS(config), DL_HSADC_INT_1);
 	DL_HSADC_enableInterrupt(ADC_REGS(config), DL_HSADC_INT_1);
 
@@ -182,6 +300,13 @@ static int adc_msp_hsadc_init(const struct device *dev)
 	/* Initialize driver data */
 	data->ch_configured = 0;
 	memset(data->ch_acq_time, 0, sizeof(data->ch_acq_time));
+
+#ifdef CONFIG_ADC_MSP_HSADC_DMA
+	if (config->dma_dev != NULL && !device_is_ready(config->dma_dev)) {
+		LOG_ERR("DMA device not ready");
+		return -ENODEV;
+	}
+#endif
 
 	config->irq_cfg_func();
 	adc_context_unlock_unconditionally(&data->ctx);
@@ -328,6 +453,16 @@ static int adc_msp_hsadc_configure_sequence(const struct device *dev,
 	DL_HSADC_enableSequencer(ADC_REGS(config), DL_HSADC_SEQ_NUMBER1);
 	DL_HSADC_setEndOfSequencer(ADC_REGS(config), (DL_HSADC_SOC_NUMBER)end_soc);
 
+#ifdef CONFIG_ADC_MSP_HSADC_DMA
+	if (config->dma_dev != NULL) {
+		/* Configure HSADC to generate DMA trigger at end-of-sequence */
+		DL_HSADC_DMAInterruptStatusClear(ADC_REGS(config), DL_HSADC_DMA_INT_1);
+		DL_HSADC_DMAInterruptSourceSelect(ADC_REGS(config), DL_HSADC_DMA_INT_1,
+						  (DL_HSADC_SOC_NUMBER)end_soc);
+		DL_HSADC_enableDMAInterrupt(ADC_REGS(config), DL_HSADC_DMA_INT_1);
+	}
+#endif
+
 	return 0;
 }
 
@@ -386,6 +521,17 @@ static int adc_msp_hsadc_read_internal(const struct device *dev,
 		LOG_ERR("Oversampling is supported for single channel only");
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_ADC_MSP_HSADC_DMA
+	/* DMA and oversampling use different data paths.
+	 * DMA reads FIFO (packed 2x16-bit), oversampling reads PPB FinalSumResult.
+	 * Cannot mix both in single read.
+	 */
+	if (config->dma_dev != NULL && sequence->oversampling > 0) {
+		LOG_ERR("DMA mode does not support oversampling");
+		return -EINVAL;
+	}
+#endif
 
 	if (sequence->calibrate) {
 		LOG_ERR("Calibration not supported");
@@ -480,6 +626,15 @@ static void adc_msp_hsadc_isr(const struct device *dev)
 
 #define ADC_DT_CLOCK_DIVIDER(x) DT_INST_PROP(x, ti_clk_divider)
 
+#ifdef CONFIG_ADC_MSP_HSADC_DMA
+#define ADC_MSP_HSADC_DMA_INIT(index)                                                              \
+	.dma_dev = DEVICE_DT_GET_OR_NULL(DT_INST_DMAS_CTLR_BY_IDX(index, 0)),                      \
+	.dma_channel = DT_INST_DMAS_CELL_BY_IDX(index, 0, channel),                                \
+	.dma_trigsrc = DT_INST_DMAS_CELL_BY_IDX(index, 0, trigger),
+#else
+#define ADC_MSP_HSADC_DMA_INIT(index)
+#endif
+
 #define MSP_HSADC_ADC_INIT(index)                                                                  \
                                                                                                    \
 	static void adc_msp_hsadc_cfg_func_##index(void);                                          \
@@ -490,7 +645,7 @@ static void adc_msp_hsadc_isr(const struct device *dev)
 		.irq_cfg_func = adc_msp_hsadc_cfg_func_##index,                                    \
 		.clock_divider = ADC_DT_CLOCK_DIVIDER(index),                                      \
 		.vref_mv = DT_INST_PROP(index, vref_mv),                                           \
-	};                                                                                         \
+		ADC_MSP_HSADC_DMA_INIT(index)};                                                    \
 	static struct adc_msp_hsadc_data adc_msp_hsadc_data_##index = {                            \
 		ADC_CONTEXT_INIT_TIMER(adc_msp_hsadc_data_##index, ctx),                           \
 		ADC_CONTEXT_INIT_LOCK(adc_msp_hsadc_data_##index, ctx),                            \
