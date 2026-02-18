@@ -12,6 +12,10 @@
 	};
 };
 
+&dma0 {
+	status = "okay";
+};
+
 &adc0 {
 	status = "okay";
 	ti,clk-divider = <2>;
