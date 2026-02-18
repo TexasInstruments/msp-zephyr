@@ -173,6 +173,7 @@
 			reg-names = "config", "result";
 			interrupts = <9 0>;
 			ti,clk-divider = <2>;
+			dmas = <&dma0 0 5>;
 			status = "disabled";
 			#io-channel-cells = <1>;
 		};
@@ -184,6 +185,7 @@
 			reg-names = "config", "result";
 			interrupts = <14 0>;
 			ti,clk-divider = <2>;
+			dmas = <&dma0 1 9>;
 			status = "disabled";
 			#io-channel-cells = <1>;
 		};
