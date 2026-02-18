@@ -63,5 +63,12 @@ properties:
       This property is used by adc_ref_internal() API and raw-to-millivolts
       conversion functions.
 
+  dmas:
+    description: |
+      DMA specifier for ADC result transfer. References a DMA controller
+      with channel and trigger cells.
+      Example: dmas = <&dma0 0 5>;  /* DMA0 ch0, ADC0 DMA trigger 1 */
+
+
 io-channel-cells:
   - input
