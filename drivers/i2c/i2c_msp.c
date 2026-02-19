@@ -22,12 +22,12 @@ LOG_MODULE_REGISTER(i2c_msp, CONFIG_I2C_LOG_LEVEL);
 /* Driverlib includes */
 #include <ti/driverlib/dl_i2c.h>
 
-#define TI_MSP_CONTROLLER_INTERRUPTS                                                             \
+#define TI_MSP_CONTROLLER_INTERRUPTS                                                               \
 	(DL_I2C_INTERRUPT_CONTROLLER_ARBITRATION_LOST | DL_I2C_INTERRUPT_CONTROLLER_NACK |         \
-	 DL_I2C_INTERRUPT_CONTROLLER_RXFIFO_TRIGGER | DL_I2C_INTERRUPT_CONTROLLER_STOP |        \
+	 DL_I2C_INTERRUPT_CONTROLLER_RXFIFO_TRIGGER | DL_I2C_INTERRUPT_CONTROLLER_STOP |           \
 	 DL_I2C_INTERRUPT_CONTROLLER_TX_DONE | DL_I2C_INTERRUPT_TIMEOUT_A)
 
-#define TI_MSP_TARGET_INTERRUPTS                                                                 \
+#define TI_MSP_TARGET_INTERRUPTS                                                                   \
 	(DL_I2C_INTERRUPT_TARGET_RX_DONE | DL_I2C_INTERRUPT_TARGET_TXFIFO_EMPTY |                  \
 	 DL_I2C_INTERRUPT_TARGET_START | DL_I2C_INTERRUPT_TARGET_STOP |                            \
 	 DL_I2C_INTERRUPT_TIMEOUT_A)
@@ -75,8 +75,7 @@ struct i2c_msp_data {
 };
 
 #if (CONFIG_I2C_SCL_LOW_TIMEOUT != 0)
-static int i2c_msp_configure_timeout(const struct device *dev, uint32_t period,
-				       uint32_t timeout_ms)
+static int i2c_msp_configure_timeout(const struct device *dev, uint32_t period, uint32_t timeout_ms)
 {
 	const struct i2c_msp_config *config = dev->config;
 	const struct device *clk_dev = DEVICE_DT_GET(DT_NODELABEL(ckm));
@@ -272,16 +271,15 @@ static int i2c_msp_receive(const struct device *dev, struct i2c_msg msg, uint16_
 	data->transfer_len = msg.len;
 	data->state = I2C_MSP_RX_STARTED;
 
-	if(msg.flags & I2C_MSG_STOP) {
+	if (msg.flags & I2C_MSG_STOP) {
 		stop = DL_I2C_CONTROLLER_STOP_ENABLE;
-	}
-	else {
+	} else {
 		stop = DL_I2C_CONTROLLER_STOP_DISABLE;
 	}
 
 	DL_I2C_startControllerTransferAdvanced(config->base, addr, DL_I2C_CONTROLLER_DIRECTION_RX,
-				data->transfer_len, DL_I2C_CONTROLLER_START_ENABLE, stop,
-				DL_I2C_CONTROLLER_ACK_DISABLE);
+					       data->transfer_len, DL_I2C_CONTROLLER_START_ENABLE,
+					       stop, DL_I2C_CONTROLLER_ACK_DISABLE);
 
 	/* Wait for the read to complete */
 	k_sem_take(data->device_sync_sem, K_FOREVER);
@@ -326,17 +324,16 @@ static int i2c_msp_transmit(const struct device *dev, struct i2c_msg msg, uint16
 		DL_I2C_disableInterrupt(config->base, DL_I2C_INTERRUPT_CONTROLLER_TXFIFO_TRIGGER);
 	}
 
-	if(msg.flags & I2C_MSG_STOP) {
+	if (msg.flags & I2C_MSG_STOP) {
 		stop = DL_I2C_CONTROLLER_STOP_ENABLE;
-	}
-	else {
+	} else {
 		stop = DL_I2C_CONTROLLER_STOP_DISABLE;
 	}
 
 	data->state = I2C_MSP_TX_STARTED;
 	DL_I2C_startControllerTransferAdvanced(config->base, addr, DL_I2C_CONTROLLER_DIRECTION_TX,
-				data->transfer_len, DL_I2C_CONTROLLER_START_ENABLE, stop,
-				DL_I2C_CONTROLLER_ACK_ENABLE);
+					       data->transfer_len, DL_I2C_CONTROLLER_START_ENABLE,
+					       stop, DL_I2C_CONTROLLER_ACK_ENABLE);
 
 	/* Wait for the transmit to complete */
 	k_sem_take(data->device_sync_sem, K_FOREVER);
@@ -354,7 +351,7 @@ static int i2c_msp_transmit(const struct device *dev, struct i2c_msg msg, uint16
 }
 
 static int i2c_msp_transfer(const struct device *dev, struct i2c_msg *msgs, uint8_t num_msgs,
-			      uint16_t addr)
+			    uint16_t addr)
 {
 	const struct i2c_msp_config *config = dev->config;
 	struct i2c_msp_data *data = dev->data;
@@ -680,7 +677,7 @@ static inline void i2c_msp_isr_controller(const struct device *dev)
 
 	switch (DL_I2C_getPendingInterrupt(config->base)) {
 	case DL_I2C_IIDX_CONTROLLER_STOP:
-		if(data->state == I2C_MSP_RX_INPROGRESS) {
+		if (data->state == I2C_MSP_RX_INPROGRESS) {
 			data->state = I2C_MSP_RX_COMPLETE;
 			k_sem_give(data->device_sync_sem);
 		}
@@ -713,8 +710,7 @@ static inline void i2c_msp_isr_controller(const struct device *dev)
 		}
 		break;
 	case DL_I2C_IIDX_CONTROLLER_NACK:
-		if ((data->state == I2C_MSP_RX_STARTED) ||
-		    (data->state == I2C_MSP_TX_STARTED)) {
+		if ((data->state == I2C_MSP_RX_STARTED) || (data->state == I2C_MSP_TX_STARTED)) {
 			/* NACK interrupt if I2C Target is disconnected */
 			data->state = I2C_MSP_ERROR;
 			k_sem_give(data->device_sync_sem);
@@ -764,13 +760,13 @@ static DEVICE_API(i2c, i2c_msp_driver_api) = {
 			(DT_PROP(DT_NODELABEL(i2c##index), merge_buf_size)), (0))
 #define USES_MERGE_BUF(index) COND_CODE_0(MERGE_BUF_SIZE(index), (0), (1))
 
-#define I2C_MSP_CONFIG_IRQ_FUNC_DECLARE(index)                                                   \
+#define I2C_MSP_CONFIG_IRQ_FUNC_DECLARE(index)                                                     \
 	static void i2c_msp_irq_config_func_##index(const struct device *dev)
 
-#define I2C_MSP_CONFIG_IRQ_FUNC(index)                                                           \
-	static void i2c_msp_irq_config_func_##index(const struct device *dev)                    \
+#define I2C_MSP_CONFIG_IRQ_FUNC(index)                                                             \
+	static void i2c_msp_irq_config_func_##index(const struct device *dev)                      \
 	{                                                                                          \
-		IRQ_CONNECT(DT_INST_IRQN(index), DT_INST_IRQ(index, priority), i2c_msp_isr,      \
+		IRQ_CONNECT(DT_INST_IRQN(index), DT_INST_IRQ(index, priority), i2c_msp_isr,        \
 			    DEVICE_DT_INST_GET(index), 0);                                         \
 		irq_enable(DT_INST_IRQN(index));                                                   \
 	}
@@ -779,21 +775,21 @@ static DEVICE_API(i2c, i2c_msp_driver_api) = {
                                                                                                    \
 	PINCTRL_DT_INST_DEFINE(index);                                                             \
                                                                                                    \
-	static const struct msp_sys_clock msp_i2c_clockSys##index = MSP_CLOCK_SUBSYS_FN(index);  \
+	static const struct msp_sys_clock msp_i2c_clockSys##index = MSP_CLOCK_SUBSYS_FN(index);    \
                                                                                                    \
-	I2C_MSP_CONFIG_IRQ_FUNC_DECLARE(index);                                                  \
+	I2C_MSP_CONFIG_IRQ_FUNC_DECLARE(index);                                                    \
                                                                                                    \
 	IF_ENABLED(USES_MERGE_BUF(index),                                                          \
-		(static uint8_t msp_i2c_##index_msg_buf[MERGE_BUF_SIZE(index)];));                                       \
-	static const struct i2c_msp_config i2c_msp_cfg_##index = {                             \
+		(static uint8_t msp_i2c_##index_msg_buf[MERGE_BUF_SIZE(index)];)); \
+	static const struct i2c_msp_config i2c_msp_cfg_##index = {                                 \
 		.base = (I2C_Regs *)DT_INST_REG_ADDR(index),                                       \
-		.clock_subsys = &msp_i2c_clockSys##index,                                        \
+		.clock_subsys = &msp_i2c_clockSys##index,                                          \
 		.bitrate = DT_INST_PROP(index, clock_frequency),                                   \
 		.merge_buf_size = MERGE_BUF_SIZE(index),                                           \
 		IF_ENABLED(USES_MERGE_BUF(index),                                                  \
-			(.merge_buf = msp_i2c_##index_msg_buf,)) .pinctrl =      \
-						   PINCTRL_DT_INST_DEV_CONFIG_GET(index),          \
-					  .irq_config_func = i2c_msp_irq_config_func_##index,    \
+			(.merge_buf = msp_i2c_##index_msg_buf,)) .pinctrl = \
+							  PINCTRL_DT_INST_DEV_CONFIG_GET(index),   \
+					  .irq_config_func = i2c_msp_irq_config_func_##index,      \
 					  .gI2CClockConfig = {                                     \
 						  .clockSel = MSP_CLOCK_PERIPH_REG_MASK(           \
 							  DT_INST_CLOCKS_CELL(index, clk)),        \
@@ -802,14 +798,14 @@ static DEVICE_API(i2c, i2c_msp_driver_api) = {
                                                                                                    \
 	static K_SEM_DEFINE(i2c_busy_sem##index, 1, 1);                                            \
 	static K_SEM_DEFINE(device_sync_sem##index, 0, 1);                                         \
-	static struct i2c_msp_data i2c_msp_data_##index = {                                    \
+	static struct i2c_msp_data i2c_msp_data_##index = {                                        \
 		.i2c_busy_sem = &i2c_busy_sem##index,                                              \
 		.device_sync_sem = &device_sync_sem##index,                                        \
 	};                                                                                         \
                                                                                                    \
-	I2C_DEVICE_DT_INST_DEFINE(index, i2c_msp_init, NULL, &i2c_msp_data_##index,            \
-				  &i2c_msp_cfg_##index, POST_KERNEL, CONFIG_I2C_INIT_PRIORITY,   \
-				  &i2c_msp_driver_api);                                          \
+	I2C_DEVICE_DT_INST_DEFINE(index, i2c_msp_init, NULL, &i2c_msp_data_##index,                \
+				  &i2c_msp_cfg_##index, POST_KERNEL, CONFIG_I2C_INIT_PRIORITY,     \
+				  &i2c_msp_driver_api);                                            \
                                                                                                    \
 	I2C_MSP_CONFIG_IRQ_FUNC(index)
 
