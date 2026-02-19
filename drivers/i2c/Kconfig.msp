@@ -5,7 +5,9 @@ config I2C_MSP
 	bool "MSP I2C driver"
 	default y
 	depends on DT_HAS_TI_MSP_I2C_ENABLED
-	select USE_MSP_DL_I2C
+	select USE_MSP_DL_UNICOMM_I2CC if HAS_MSP_UNICOMM
+	select USE_MSP_DL_UNICOMM_I2CT if HAS_MSP_UNICOMM
+	select USE_MSP_DL_I2C if !(HAS_MSP_UNICOMM)
 	select PINCTRL
 	help
 	  This option enables the TI MSP I2C driver.
