@@ -30,10 +30,15 @@
 #define DEV_1_NODE	DT_NODELABEL(dev1)
 #define LED0_NODE	DT_ALIAS(led0)
 
-#define SLEEP_INTERVAL_MS 100
+#define SLEEP_INTERVAL_MS 20
 #define I2C_READ_TIMEOUT_MS 100
 
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+static const struct gpio_dt_spec test_pin = {
+	.port = DEVICE_DT_GET(DT_NODELABEL(gpiob)),
+	.pin = 7,
+	.dt_flags = GPIO_ACTIVE_HIGH,
+};
 static const struct i2c_dt_spec target_dev = I2C_DT_SPEC_GET(DEV_1_NODE);
 
 static uint8_t tx_buffer[32];
@@ -61,6 +66,7 @@ void i2c_read_thread_entry(void *p1, void *p2, void *p3)
 {
 	struct i2c_read_ctx *ctx = (struct i2c_read_ctx *)p1;
 
+	gpio_pin_set_dt(&test_pin, 1);
 	ctx->result = i2c_read_dt(ctx->spec, ctx->buf, ctx->num_bytes);
 	ctx->completed = true;
 }
@@ -95,6 +101,7 @@ int i2c_read_with_timeout(const struct i2c_dt_spec *spec, uint8_t *buf,
 		k_msleep(1);
 		if ((k_uptime_get_32() - start_time) > timeout_ms) {
 			/* Timeout occurred */
+			gpio_pin_set_dt(&test_pin, 0);
 			TC_PRINT("Application timeout after %u ms\n", timeout_ms);
 			k_thread_abort(tid);
 			k_mutex_unlock(&i2c_read_mutex);
@@ -102,6 +109,7 @@ int i2c_read_with_timeout(const struct i2c_dt_spec *spec, uint8_t *buf,
 		}
 	}
 
+	gpio_pin_set_dt(&test_pin, 0);
 	ret = ctx.result;
 	k_mutex_unlock(&i2c_read_mutex);
 
@@ -131,6 +139,11 @@ static void *i2c_target_setup(void)
 		ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_INACTIVE);
 		zassert_equal(ret, 0, "Failed to configure LED: %d", ret);
 	}
+
+	/* Configure test pin (GPIOB 7) */
+	zassert_true(gpio_is_ready_dt(&test_pin), "Test pin GPIO not ready");
+	ret = gpio_pin_configure_dt(&test_pin, GPIO_OUTPUT_INACTIVE);
+	zassert_equal(ret, 0, "Failed to configure test pin: %d", ret);
 
 	/* Check I2C device */
 	zassert_true(device_is_ready(target_dev.bus), "I2C device not ready");
@@ -201,8 +214,6 @@ ZTEST(i2c_mspm0_target, test_1_write_mode)
 	ret = i2c_write_dt(&target_dev, tx_buffer, 8);
 	zassert_equal(ret, 0, "Failed to write 8 bytes: %d", ret);
 	TC_PRINT("8 byte write successful\n");
-
-	TC_PRINT("TEST 1 PASSED: All write operations completed\n");
 }
 
 /* TEST 2: Read Mode */
@@ -222,16 +233,17 @@ ZTEST(i2c_mspm0_target, test_2_read_mode)
 	k_msleep(SLEEP_INTERVAL_MS);
 
 	/* Step 2: Read 4 bytes */
-	TC_PRINT("Reading 4 bytes (expected: 0x00, 0x01, 0x02, 0x03)...\n");
+	TC_PRINT("Reading 4 bytes (expected: 0xA0, 0xA1, 0xA2, 0xA3)...\n");
 	memset(rx_buffer, 0xFF, sizeof(rx_buffer));
 	ret = i2c_read_dt(&target_dev, rx_buffer, 4);
 	zassert_equal(ret, 0, "Failed to read 4 bytes: %d", ret);
 
 	/* Verify data */
 	for (int i = 0; i < 4; i++) {
-		zassert_equal(rx_buffer[i], i,
+		uint8_t expectedValue = 0xA0 + i;
+		zassert_equal(rx_buffer[i], expectedValue,
 		              "Byte %d mismatch - expected 0x%02X, got 0x%02X",
-		              i, i, rx_buffer[i]);
+		              i, expectedValue, rx_buffer[i]);
 	}
 	TC_PRINT("4 byte read verified successfully\n");
 
@@ -246,16 +258,17 @@ ZTEST(i2c_mspm0_target, test_2_read_mode)
 	k_msleep(SLEEP_INTERVAL_MS);
 
 	/* Step 4: Read 8 bytes */
-	TC_PRINT("Reading 8 bytes (expected: 0x00-0x07)...\n");
+	TC_PRINT("Reading 8 bytes (expected: 0xA0-0xA7)...\n");
 	memset(rx_buffer, 0xFF, sizeof(rx_buffer));
 	ret = i2c_read_dt(&target_dev, rx_buffer, 8);
 	zassert_equal(ret, 0, "Failed to read 8 bytes: %d", ret);
 
 	/* Verify data */
 	for (int i = 0; i < 8; i++) {
-		zassert_equal(rx_buffer[i], i,
+		uint8_t expectedValue = 0xA0 + i;
+		zassert_equal(rx_buffer[i], expectedValue,
 		              "Byte %d mismatch - expected 0x%02X, got 0x%02X",
-		              i, i, rx_buffer[i]);
+		              i, expectedValue, rx_buffer[i]);
 	}
 	TC_PRINT("8 byte read verified successfully\n");
 
@@ -279,7 +292,7 @@ ZTEST(i2c_mspm0_target, test_3_repeated_start_mode)
 	k_msleep(SLEEP_INTERVAL_MS);
 
 	/* Step 2: Write base value 0x50, then read 4 bytes */
-	TC_PRINT("Test 1: Write 0x50, read 4 bytes (expected: 0x51-0x54)...\n");
+	TC_PRINT("Test 1: Write 0x50, read 4 bytes (expected: 0xF1-0xF4)...\n");
 	tx_buffer[0] = 0x50;
 	memset(rx_buffer, 0xFF, sizeof(rx_buffer));
 	ret = i2c_write_read_dt(&target_dev, tx_buffer, 1, rx_buffer, 4);
@@ -287,7 +300,7 @@ ZTEST(i2c_mspm0_target, test_3_repeated_start_mode)
 
 	/* Verify data */
 	for (int i = 0; i < 4; i++) {
-		uint8_t expected = 0x50 + i + 1;
+		uint8_t expected = 0x50 + 0xA0 + i + 1;
 		zassert_equal(rx_buffer[i], expected,
 		              "Byte %d mismatch - expected 0x%02X, got 0x%02X",
 		              i, expected, rx_buffer[i]);
@@ -305,7 +318,7 @@ ZTEST(i2c_mspm0_target, test_3_repeated_start_mode)
 	k_msleep(SLEEP_INTERVAL_MS);
 
 	/* Step 4: Write base value 0x10, then read 3 bytes */
-	TC_PRINT("Test 2: Write 0x10, read 3 bytes (expected: 0x11-0x13)...\n");
+	TC_PRINT("Test 2: Write 0x10, read 3 bytes (expected: 0xB1-0xB3)...\n");
 	tx_buffer[0] = 0x10;
 	memset(rx_buffer, 0xFF, sizeof(rx_buffer));
 	ret = i2c_write_read_dt(&target_dev, tx_buffer, 1, rx_buffer, 3);
@@ -313,7 +326,7 @@ ZTEST(i2c_mspm0_target, test_3_repeated_start_mode)
 
 	/* Verify data */
 	for (int i = 0; i < 3; i++) {
-		uint8_t expected = 0x10 + i + 1;
+		uint8_t expected = 0x10 + 0xA0 + i + 1;
 		zassert_equal(rx_buffer[i], expected,
 		              "Byte %d mismatch - expected 0x%02X, got 0x%02X",
 		              i, expected, rx_buffer[i]);
@@ -331,7 +344,7 @@ ZTEST(i2c_mspm0_target, test_3_repeated_start_mode)
 	k_msleep(SLEEP_INTERVAL_MS);
 
 	/* Step 6: Write base value 0x00, then read 5 bytes */
-	TC_PRINT("Test 3: Write 0x00, read 5 bytes (expected: 0x01-0x05)...\n");
+	TC_PRINT("Test 3: Write 0x00, read 5 bytes (expected: 0xA1-0xA5)...\n");
 	tx_buffer[0] = 0x00;
 	memset(rx_buffer, 0xFF, sizeof(rx_buffer));
 	ret = i2c_write_read_dt(&target_dev, tx_buffer, 1, rx_buffer, 5);
@@ -339,7 +352,7 @@ ZTEST(i2c_mspm0_target, test_3_repeated_start_mode)
 
 	/* Verify data */
 	for (int i = 0; i < 5; i++) {
-		uint8_t expected = 0x00 + i + 1;
+		uint8_t expected = 0x00 + 0xA0 + i + 1;
 		zassert_equal(rx_buffer[i], expected,
 		              "Byte %d mismatch - expected 0x%02X, got 0x%02X",
 		              i, expected, rx_buffer[i]);
@@ -364,6 +377,32 @@ ZTEST(i2c_mspm0_target, test_4_clock_stretch_mode)
 	TC_PRINT("Clock stretch mode command sent successfully\n");
 
 	k_msleep(SLEEP_INTERVAL_MS);
+
+	// Step 2: Write 8 bytes to trigger clock stretching
+	TC_PRINT("Writing 8 bytes to trigger clock stretching...\n");
+	TC_PRINT("(Target will stretch clock after 4 bytes + add 500us delay)\n");
+	for (int i = 0; i < 8; i++) {
+		tx_buffer[i] = 0x30 + i;
+	}
+
+	ret = i2c_write_dt(&target_dev, tx_buffer, 8);
+
+	zassert_equal(ret, 0, "Failed to write 8 bytes: %d", ret);
+	TC_PRINT("Write completed successfully\n");
+
+	// Step 3: Perform a read when returned from the same thread
+	TC_PRINT("Performing immediate 4-byte read on same thread...");
+	memset(rx_buffer, 0xFF, sizeof(rx_buffer));
+	ret = i2c_read_dt(&target_dev, rx_buffer, 4);
+	zassert_equal(ret, 0, "Failed to read 4 bytes after clock stretch: %d", ret);
+	TC_PRINT("Read operation successful - bus operational after clock stretch\n");
+
+
+	// Step 1: Send command to set clock stretching mode
+	tx_buffer[0] = CMD_CLOCK_STRETCH_MODE;
+	ret = i2c_write_dt(&target_dev, tx_buffer, 1);
+	zassert_equal(ret, 0, "Failed to send clock stretch mode command: %d", ret);
+	TC_PRINT("Clock stretch mode command sent successfully\n");
 
 	// Step 2: Write 8 bytes to trigger clock stretching
 	TC_PRINT("Writing 8 bytes to trigger clock stretching...\n");
