@@ -14,12 +14,26 @@ properties:
   interrupts:
     required: true
 
+  clocks:
+    required: true
+    description: |
+      Clock source for the timer. Timer instances in different power domains
+      require specific clock sources:
+      - PD0 timers: Use LFCLK (low-frequency clock)
+      - PD1 TIMG timers: Use MCLKBY2 (derived from main clock)
+      - PD1 TIMA timers: Use MCLK (main clock)
+
+      Ensure the clock source matches the timer's power domain to avoid runtime
+      failures or incorrect timer operation.
+
   ti,clk-prescaler:
     type: int
-    required: true
     description: |
       TIMCLK clock source prescaler value.
       Valid range [0 ... 255].
+
+      NOTE: Not supported on 32-bit timers without prescaler hardware.
+      Omit this property for timers without prescaler support.
 
   ti,clk-div:
     type: int
