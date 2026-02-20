@@ -296,7 +296,6 @@
 			reg = <0x40188000 0x2000>;
 			clocks = <&ckm MSP_CLOCK_MCLKBY2>;
 			interrupts = <24 0>;
-			// ti,clk-prescaler = <255>;
 			ti,clk-div = <1>;
 			status = "disabled";
 
