@@ -20,7 +20,7 @@ The LP_MSPM33C321A LaunchPad is a development platform for the MSPM33C321A micro
 Zephyr uses the ``lp_mspm33c321a`` board configuration for building applications for this platform.
 
 Board Features
-=============
+==============
 
 * MSPM33C321A microcontroller with Arm® Cortex®-M33 core running at up to 160 MHz
 * 1MB Flash memory with ECC
@@ -31,7 +31,7 @@ Board Features
 
 
 Development Environment
-**********************
+=======================
 
 The following development environment was used while developing and testing:
 
@@ -80,7 +80,7 @@ Future updates to the Zephyr support for this board will include flash-based pro
 and support for the west flash command.
 
 Serial Console
-=============
+==============
 
 The MSPM33C321A LaunchPad includes an on-board XDS110 debugger that also provides a
 virtual COM port over USB. This can be used for serial console output.
