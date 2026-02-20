@@ -25,7 +25,7 @@ LOG_MODULE_REGISTER(i2c_mspm0, CONFIG_I2C_LOG_LEVEL);
 #define TI_MSPM0_CONTROLLER_INTERRUPTS                                                             \
 	(DL_I2C_INTERRUPT_CONTROLLER_ARBITRATION_LOST | DL_I2C_INTERRUPT_CONTROLLER_NACK |         \
 	 DL_I2C_INTERRUPT_CONTROLLER_RXFIFO_TRIGGER | DL_I2C_INTERRUPT_CONTROLLER_RX_DONE |        \
-	 DL_I2C_INTERRUPT_CONTROLLER_TX_DONE | DL_I2C_INTERRUPT_TIMEOUT_A)
+	 DL_I2C_INTERRUPT_CONTROLLER_TX_DONE | DL_I2C_INTERRUPT_TIMEOUT_A | DL_I2C_INTERRUPT_CONTROLLER_STOP )
 
 #define TI_MSPM0_TARGET_INTERRUPTS                                                                 \
 	(DL_I2C_INTERRUPT_TARGET_RX_DONE | DL_I2C_INTERRUPT_TARGET_TXFIFO_EMPTY |                  \
@@ -448,11 +448,6 @@ static int i2c_mspm0_transfer(const struct device *dev, struct i2c_msg *msgs, ui
 	if (ret == -ETIMEDOUT) {
 		i2c_mspm0_get_config(dev, &dev_config);
 		i2c_mspm0_reset_peripheral_controller(dev);
-	}
-
-	k_sem_give(data->i2c_busy_sem);
-
-	if (ret == -ETIMEDOUT) {
 		i2c_mspm0_configure(dev, dev_config);
 	}
 
@@ -732,6 +727,7 @@ static inline void i2c_mspm0_isr_controller(const struct device *dev)
 		DL_I2C_clearInterruptStatus(config->base, TI_MSPM0_CONTROLLER_INTERRUPTS);
 		DL_I2C_flushControllerTXFIFO(config->base);
 	case DL_I2C_IIDX_CONTROLLER_STOP:
+		k_sem_give(data->i2c_busy_sem);
 	default:
 		break;
 	}
