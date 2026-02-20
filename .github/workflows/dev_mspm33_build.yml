@@ -137,3 +137,31 @@ jobs:
           cd ~/zephyrproject/zephyr
           source ~/zephyrproject/zephyr/zephyr-env.sh
           west build -p always -b lp_mspm33c321a tests/drivers/dma/loop_transfer
+
+      - name: Build ADC DT Sample
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a samples/drivers/adc/adc_dt
+
+      - name: Build ADC Sequence Sample
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a samples/drivers/adc/adc_sequence
+
+      - name: Build ADC API Test
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a tests/drivers/adc/adc_api
+
+      - name: Build ADC Error Cases Test
+        run: |
+          source ~/zephyrproject/.venv/bin/activate
+          cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/zephyr/zephyr-env.sh
+          west build -p always -b lp_mspm33c321a tests/drivers/adc/adc_error_cases
