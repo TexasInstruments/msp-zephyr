@@ -1,13 +1,35 @@
 tests:
-  ti.drivers.i2c.controller:
-    depends_on: i2c
+  drivers.i2c.mspm0.loopback.controller.100k:
     tags:
-      - drivers
       - i2c
-      - ti
+      - mspm0
+      - loopback
     platform_allow:
       - lp_mspm0g3507
-      - lp_mspm0g3519
-      - lp_mspm0l1117
-      - lp_mspm0l2228
     harness: ztest
+    integration_platforms:
+      - lp_mspm0g3507
+
+  drivers.i2c.mspm0.loopback.controller.400k:
+    tags:
+      - i2c
+      - mspm0
+      - loopback
+    platform_allow:
+      - lp_mspm0g3507
+    harness: ztest
+    integration_platforms:
+      - lp_mspm0g3507
+    extra_args: EXTRA_DTC_OVERLAY_FILE=boards/freq_400k.overlay
+
+  drivers.i2c.mspm0.loopback.controller.1mhz:
+    tags:
+      - i2c
+      - mspm0
+      - loopback
+    platform_allow:
+      - lp_mspm0g3507
+    harness: ztest
+    integration_platforms:
+      - lp_mspm0g3507
+    extra_args: EXTRA_DTC_OVERLAY_FILE=boards/freq_1mhz.overlay

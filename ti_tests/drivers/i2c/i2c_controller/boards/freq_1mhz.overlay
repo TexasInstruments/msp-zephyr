@@ -1,0 +1,8 @@
+/*
+ * I2C frequency override — 1 MHz
+ * Applied on top of lp_mspm0g3507.overlay via EXTRA_DTC_OVERLAY_FILE.
+ */
+
+&i2c0 {
+	clock-frequency = <1000000>;
+};
