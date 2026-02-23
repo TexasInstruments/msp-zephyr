@@ -4,461 +4,365 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/*
- * @addtogroup t_i2c_controller
- * @{
- * @defgroup t_i2c_controller_operations test_i2c_controller_operations
- * @brief TestPurpose: verify I2C controller read/write operations
- * @}
+/**
+ * @file
+ * @brief I2C Loopback Test - Controller Side
+ *
+ * Drives loopback tests against a target board running test_i2c_target.c.
+ *
+ * Synchronization:
+ *   - PA8  (TRIGGER, active-low output) is wired to the target's nRST pin.
+ *     The controller asserts this once during suite_setup to reset the target
+ *     and synchronize the start of the test run.
+ *   - PA13 (READY, input) receives a pulse from the target to signal that it
+ *     has finished booting / is ready for the next I2C transaction.
+ *
+ * Each test uses a two-phase handshake driven entirely by READY pulses:
+ *
+ *   Phase 1 — data exchange:
+ *     1. Target signals READY.
+ *     2. Controller performs the I2C transaction (write / write_read).
+ *     3. Target's stop_cb fires, target prepares echo + STATUS byte.
+ *
+ *   Phase 2 — echo / status read:
+ *     4. Target signals READY again.
+ *     5. Controller reads echo bytes + STATUS byte (0x00 = pass, 0xFF = fail).
+ *     6. Target's stop_cb fires; both sides run their zasserts.
+ *
+ * Tests 05 and 06 (NAK) are controller-only and require no target coordination.
  */
 
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/kernel.h>
+#include <string.h>
 
-#if DT_NODE_HAS_STATUS_OKAY(DT_ALIAS(i2c_0))
-#define I2C_DEV_NODE DT_ALIAS(i2c_0)
-#else
-#error "Please set the correct I2C device using i2c-0 alias"
-#endif
+/* ---- Target address ---- */
+#define TARGET_ADDR         0x54
 
-#if DT_NODE_HAS_STATUS_OKAY(DT_ALIAS(dev_1))
-#define I2C_TARGET_NODE DT_ALIAS(dev_1)
-#else
-#error "Please set the I2C target device using dev-1 alias"
-#endif
-
-/* Test data buffers */
-static uint8_t txPacket[] = {0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB};
-static uint8_t rxPacket[6];
-
-/* I2C configuration */
-static uint32_t i2c_cfg = I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_CONTROLLER;
-
-/* Invalid I2C address for negative testing */
-#define INVALID_I2C_ADDR 0x77
-
-/**
- * @brief Test I2C write to invalid address
- *
- * Verify that writing to an invalid I2C address returns an error.
+/*
+ * An address with no device on the bus.  0x77 is chosen because it does not
+ * conflict with the loopback target (0x54) and is unlikely to be occupied by
+ * any other peripheral present during testing.
  */
-ZTEST(i2c_controller, test_i2c_write_invalid_address)
+#define INVALID_ADDR        0x77
+
+/* ---- Status byte values ---- */
+#define TEST_STATUS_PASS    0x00
+#define TEST_STATUS_FAIL    0xFF
+
+/* ---- Burst lengths ---- */
+#define BURST_8_LEN         8
+#define BURST_32_LEN        32
+
+/* ---- Test data (must match target side) ---- */
+#define SINGLE_BYTE_VAL     0xAB
+
+static const uint8_t burst_8_data[BURST_8_LEN] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+};
+
+static const uint8_t burst_32_data[BURST_32_LEN] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+	0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+	0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+	0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20
+};
+
+/* Repeated-start: controller writes these two bytes, then reads rs_read_expected */
+static const uint8_t rs_write_data[2]    = {0xDE, 0xAD};
+static const uint8_t rs_read_expected[4] = {0x11, 0x22, 0x33, 0x44};
+
+/* Merged transaction A: write1 + RS + write2 + RS + read */
+static const uint8_t merged_write1[2]        = {0xA1, 0xA2};
+static const uint8_t merged_write2[2]        = {0xB1, 0xB2};
+static const uint8_t merged_read_expected[4] = {0xC1, 0xC2, 0xC3, 0xC4};
+
+/*
+ * Merged transaction B: read1 + RS + read2 + RS + write
+ *
+ * The target's read_requested_cb resets read_idx to 0 on every new read
+ * address, so both read segments are served from read_buffer[0].  The two
+ * segments are distinguished by length: read1 is 2 bytes, read2 is 3 bytes.
+ */
+static const uint8_t rr_w_read1_expected[2] = {0xD1, 0xD2};
+static const uint8_t rr_w_read2_expected[3] = {0xD1, 0xD2, 0xD3};
+static const uint8_t rr_w_write_data[2]     = {0xF1, 0xF2};
+
+/* ---- Device / GPIO bindings ---- */
+#define READY_GPIO_NODE     DT_ALIAS(ready_gpio)
+#define TRIGGER_GPIO_NODE   DT_ALIAS(trigger_gpio)
+#define I2C_CONTROLLER_NODE DT_ALIAS(i2c_controller)
+
+static const struct gpio_dt_spec ready_gpio =
+	GPIO_DT_SPEC_GET(READY_GPIO_NODE, gpios);
+static const struct gpio_dt_spec trigger_gpio =
+	GPIO_DT_SPEC_GET(TRIGGER_GPIO_NODE, gpios);
+static const struct device *i2c_dev = DEVICE_DT_GET(I2C_CONTROLLER_NODE);
+
+/* ---- Synchronization ---- */
+static K_SEM_DEFINE(ready_sem, 0, 1);
+static struct gpio_callback ready_cb_data;
+
+static void ready_gpio_handler(const struct device *dev,
+				struct gpio_callback *cb, uint32_t pins)
 {
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	int ret;
-
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
-
-	/* Configure I2C */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "I2C configure failed");
-
-	/* Attempt to write to invalid address - should fail */
-	ret = i2c_write(i2c_dev, &txPacket[0], 1, INVALID_I2C_ADDR);
-	zassert_equal(ret, -EIO, "Expected -EIO when writing to invalid address, got %d", ret);
+	k_sem_give(&ready_sem);
 }
 
-/**
- * @brief Test I2C single byte write
- *
- * Verify that a single byte can be written to the I2C target device.
- */
-ZTEST(i2c_controller, test_i2c_single_write)
+static int wait_for_ready(k_timeout_t timeout)
 {
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
-	int ret;
-
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
-
-	/* Configure I2C */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "I2C configure failed");
-
-	/* Single byte write */
-	ret = i2c_write_dt(&dev_1, &txPacket[0], 1);
-	zassert_equal(ret, 0, "Single byte write failed with error %d", ret);
+	return k_sem_take(&ready_sem, timeout);
 }
 
-/**
- * @brief Test I2C single byte read
- *
- * Verify that a single byte can be read from the I2C target device.
+/*
+ * Assert nRST on the target for 10 ms then release.
+ * PA8 is configured active-low so gpio_pin_set_dt(1) drives the pin low.
  */
-ZTEST(i2c_controller, test_i2c_single_read)
+static void reset_target(void)
 {
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
-	int ret;
-
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
-
-	/* Configure I2C */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "I2C configure failed");
-
-	/* Clear receive buffer */
-	memset(rxPacket, 0, sizeof(rxPacket));
-
-	/* Single byte read */
-	ret = i2c_read_dt(&dev_1, &rxPacket[0], 1);
-	zassert_equal(ret, 0, "Single byte read failed with error %d", ret);
-
-	/* Verify received data matches expected pattern */
-	zassert_equal(rxPacket[0], 0x51, "Expected 0x51, got 0x%02X", rxPacket[0]);
+	gpio_pin_set_dt(&trigger_gpio, 1); /* assert reset (PA8 low) */
+	k_msleep(10);
+	gpio_pin_set_dt(&trigger_gpio, 0); /* release reset (PA8 high) */
 }
 
-/**
- * @brief Test I2C burst read
- *
- * Verify that multiple bytes can be read from the I2C target device.
- */
-ZTEST(i2c_controller, test_i2c_burst_read)
+/* ---- Suite setup ---- */
+static void *suite_setup(void)
 {
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
 	int ret;
 
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
+	zassert_true(device_is_ready(i2c_dev), "I2C device not ready");
 
-	/* Configure I2C */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "I2C configure failed");
+	/*
+	 * Configure READY GPIO first so the interrupt is armed before we
+	 * release the target from reset — we must not miss the first pulse.
+	 */
+	zassert_true(gpio_is_ready_dt(&ready_gpio), "READY GPIO not ready");
+	ret = gpio_pin_configure_dt(&ready_gpio, GPIO_INPUT);
+	zassert_equal(ret, 0, "READY GPIO configure failed: %d", ret);
 
-	/* Clear receive buffer */
-	memset(rxPacket, 0, sizeof(rxPacket));
+	ret = gpio_pin_interrupt_configure_dt(&ready_gpio, GPIO_INT_EDGE_RISING);
+	zassert_equal(ret, 0, "READY interrupt configure failed: %d", ret);
 
-	/* Burst read (5 bytes) */
-	ret = i2c_read_dt(&dev_1, &rxPacket[0], 5);
-	zassert_equal(ret, 0, "Burst read failed with error %d", ret);
+	gpio_init_callback(&ready_cb_data, ready_gpio_handler,
+			   BIT(ready_gpio.pin));
+	ret = gpio_add_callback(ready_gpio.port, &ready_cb_data);
+	zassert_equal(ret, 0, "GPIO add callback failed: %d", ret);
 
-	/* Verify received data matches expected pattern */
-	zassert_equal(rxPacket[0], 0x51, "Expected 0x51, got 0x%02X", rxPacket[0]);
-	zassert_equal(rxPacket[1], 0x52, "Expected 0x52, got 0x%02X", rxPacket[1]);
-	zassert_equal(rxPacket[2], 0x53, "Expected 0x53, got 0x%02X", rxPacket[2]);
-	zassert_equal(rxPacket[3], 0x54, "Expected 0x54, got 0x%02X", rxPacket[3]);
-	zassert_equal(rxPacket[4], 0x55, "Expected 0x55, got 0x%02X", rxPacket[4]);
+	/* Configure TRIGGER (nRST) as output, inactive = PA8 high = not in reset */
+	zassert_true(gpio_is_ready_dt(&trigger_gpio), "TRIGGER GPIO not ready");
+	ret = gpio_pin_configure_dt(&trigger_gpio, GPIO_OUTPUT_INACTIVE);
+	zassert_equal(ret, 0, "TRIGGER GPIO configure failed: %d", ret);
+
+	/* Reset the target to synchronize the start of the test run */
+	reset_target();
+
+	return NULL;
 }
 
-/**
- * @brief Test I2C burst write
- *
- * Verify that multiple bytes can be written to the I2C target device.
- */
-ZTEST(i2c_controller, test_i2c_burst_write)
+/* ---- TEST 1: Single byte echo ------------------------------------------- */
+ZTEST(i2c_mspm0_loopback, test_01_single_byte_echo)
 {
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
-	int ret;
+	uint8_t tx = SINGLE_BYTE_VAL;
+	uint8_t rx[2] = {0}; /* [0] = echo byte, [1] = status */
 
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
+	/* Phase 1: write one byte */
+	zassert_equal(wait_for_ready(K_SECONDS(30)), 0,
+		      "Timeout waiting for target READY (phase 1)");
+	zassert_equal(i2c_write(i2c_dev, &tx, 1, TARGET_ADDR), 0,
+		      "i2c_write failed");
 
-	/* Configure I2C */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "I2C configure failed");
+	/* Phase 2: read echo + status */
+	zassert_equal(wait_for_ready(K_SECONDS(5)), 0,
+		      "Timeout waiting for target READY (phase 2)");
+	zassert_equal(i2c_read(i2c_dev, rx, 2, TARGET_ADDR), 0,
+		      "i2c_read (echo+status) failed");
 
-	/* Burst write (5 bytes) */
-	ret = i2c_write_dt(&dev_1, &txPacket[1], 5);
-	zassert_equal(ret, 0, "Burst write failed with error %d", ret);
+	zassert_equal(rx[0], SINGLE_BYTE_VAL,
+		      "Echo mismatch: expected 0x%02X, got 0x%02X",
+		      SINGLE_BYTE_VAL, rx[0]);
+	zassert_equal(rx[1], TEST_STATUS_PASS,
+		      "Target reported test failure (status 0x%02X)", rx[1]);
 }
 
-/**
- * @brief Test I2C repeated-start write/read
- *
- * Verify that a write followed by a read with repeated-start works correctly.
- */
-ZTEST(i2c_controller, test_i2c_write_read)
+/* ---- TEST 2: Burst echo - 8 bytes --------------------------------------- */
+ZTEST(i2c_mspm0_loopback, test_02_burst_echo_8)
 {
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
-	int ret;
+	uint8_t rx[BURST_8_LEN + 1] = {0}; /* [0..7] = echo, [8] = status */
 
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
+	zassert_equal(wait_for_ready(K_SECONDS(30)), 0,
+		      "Timeout waiting for target READY (phase 1)");
+	zassert_equal(i2c_write(i2c_dev, burst_8_data, BURST_8_LEN, TARGET_ADDR),
+		      0, "i2c_write failed");
 
-	/* Configure I2C */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "I2C configure failed");
+	zassert_equal(wait_for_ready(K_SECONDS(5)), 0,
+		      "Timeout waiting for target READY (phase 2)");
+	zassert_equal(i2c_read(i2c_dev, rx, BURST_8_LEN + 1, TARGET_ADDR), 0,
+		      "i2c_read (echo+status) failed");
 
-	/* Clear receive buffer */
-	memset(rxPacket, 0, sizeof(rxPacket));
-
-	/* Write/Read with repeated-start (write 1 byte, read 5 bytes) */
-	ret = i2c_write_read_dt(&dev_1, &txPacket[0], 1, &rxPacket[0], 5);
-	zassert_equal(ret, 0, "Write/Read with repeated-start failed with error %d", ret);
-
-	/* Verify received data matches expected pattern */
-	zassert_equal(rxPacket[0], 0x51, "Expected 0x51, got 0x%02X", rxPacket[0]);
-	zassert_equal(rxPacket[1], 0x52, "Expected 0x52, got 0x%02X", rxPacket[1]);
-	zassert_equal(rxPacket[2], 0x53, "Expected 0x53, got 0x%02X", rxPacket[2]);
-	zassert_equal(rxPacket[3], 0x54, "Expected 0x54, got 0x%02X", rxPacket[3]);
-	zassert_equal(rxPacket[4], 0x55, "Expected 0x55, got 0x%02X", rxPacket[4]);
+	zassert_equal(rx[BURST_8_LEN], TEST_STATUS_PASS,
+		      "Target reported test failure (status 0x%02X)",
+		      rx[BURST_8_LEN]);
+	for (size_t i = 0; i < BURST_8_LEN; i++) {
+		zassert_equal(rx[i], burst_8_data[i],
+			      "Echo byte %zu: expected 0x%02X, got 0x%02X",
+			      i, burst_8_data[i], rx[i]);
+	}
 }
 
-/**
- * @brief Test I2C get configuration
- *
- * Verify that i2c_get_config returns the correct configuration.
- */
-ZTEST(i2c_controller, test_i2c_get_config)
+/* ---- TEST 3: Burst echo - 32 bytes -------------------------------------- */
+ZTEST(i2c_mspm0_loopback, test_03_burst_echo_32)
 {
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	uint32_t i2c_cfg_tmp;
-	int ret;
+	uint8_t rx[BURST_32_LEN + 1] = {0}; /* [0..31] = echo, [32] = status */
 
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
+	zassert_equal(wait_for_ready(K_SECONDS(30)), 0,
+		      "Timeout waiting for target READY (phase 1)");
+	zassert_equal(i2c_write(i2c_dev, burst_32_data, BURST_32_LEN, TARGET_ADDR),
+		      0, "i2c_write failed");
 
-	/* Configure I2C */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "I2C configure failed");
+	zassert_equal(wait_for_ready(K_SECONDS(5)), 0,
+		      "Timeout waiting for target READY (phase 2)");
+	zassert_equal(i2c_read(i2c_dev, rx, BURST_32_LEN + 1, TARGET_ADDR), 0,
+		      "i2c_read (echo+status) failed");
 
-	/* Get configuration */
-	ret = i2c_get_config(i2c_dev, &i2c_cfg_tmp);
-	zassert_equal(ret, 0, "I2C get_config failed");
-
-	/* Verify configuration matches */
-	zassert_equal(i2c_cfg, i2c_cfg_tmp, "I2C get_config returned invalid config");
+	zassert_equal(rx[BURST_32_LEN], TEST_STATUS_PASS,
+		      "Target reported test failure (status 0x%02X)",
+		      rx[BURST_32_LEN]);
+	for (size_t i = 0; i < BURST_32_LEN; i++) {
+		zassert_equal(rx[i], burst_32_data[i],
+			      "Echo byte %zu: expected 0x%02X, got 0x%02X",
+			      i, burst_32_data[i], rx[i]);
+	}
 }
 
-/**
- * @brief Test I2C fast speed (400kHz) configuration and operation
- *
- * Verify that the I2C controller can be configured to fast speed (400kHz),
- * and that read/write operations work correctly at this speed.
- */
-ZTEST(i2c_controller, test_i2c_fast_speed)
+/* ---- TEST 4: Repeated start (write_read) --------------------------------- */
+ZTEST(i2c_mspm0_loopback, test_04_repeated_start)
 {
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
-	uint32_t fast_cfg = I2C_SPEED_SET(I2C_SPEED_FAST) | I2C_MODE_CONTROLLER;
-	uint32_t i2c_cfg_tmp;
-	int ret;
+	uint8_t rx[sizeof(rs_read_expected)] = {0};
+	uint8_t status;
 
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
+	zassert_equal(wait_for_ready(K_SECONDS(30)), 0,
+		      "Timeout waiting for target READY (phase 1)");
+	zassert_equal(
+		i2c_write_read(i2c_dev, TARGET_ADDR,
+			       rs_write_data, sizeof(rs_write_data),
+			       rx, sizeof(rx)),
+		0, "i2c_write_read failed");
 
-	/* Configure I2C to fast speed (400kHz) */
-	ret = i2c_configure(i2c_dev, fast_cfg);
-	zassert_equal(ret, 0, "Failed to configure I2C to fast speed (400kHz)");
+	zassert_equal(wait_for_ready(K_SECONDS(5)), 0,
+		      "Timeout waiting for target READY (phase 2)");
+	zassert_equal(i2c_read(i2c_dev, &status, 1, TARGET_ADDR), 0,
+		      "i2c_read (status) failed");
 
-	/* Verify configuration was updated */
-	ret = i2c_get_config(i2c_dev, &i2c_cfg_tmp);
-	zassert_equal(ret, 0, "I2C get_config failed");
-	zassert_equal(fast_cfg, i2c_cfg_tmp, "I2C config mismatch after setting fast speed");
-
-	/* Perform write operation at fast speed */
-	ret = i2c_write_dt(&dev_1, &txPacket[0], 3);
-	zassert_equal(ret, 0, "Write at fast speed failed with error %d", ret);
-
-	/* Clear receive buffer */
-	memset(rxPacket, 0, sizeof(rxPacket));
-
-	/* Perform read operation at fast speed */
-	ret = i2c_read_dt(&dev_1, &rxPacket[0], 3);
-	zassert_equal(ret, 0, "Read at fast speed failed with error %d", ret);
-
-	/* Verify received data matches expected pattern */
-	zassert_equal(rxPacket[0], 0x51, "Expected 0x51, got 0x%02X", rxPacket[0]);
-	zassert_equal(rxPacket[1], 0x52, "Expected 0x52, got 0x%02X", rxPacket[1]);
-	zassert_equal(rxPacket[2], 0x53, "Expected 0x53, got 0x%02X", rxPacket[2]);
-
-	/* Restore to standard speed for other tests */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "Failed to restore standard speed");
+	zassert_equal(status, TEST_STATUS_PASS,
+		      "Target reported test failure (status 0x%02X)", status);
+	for (size_t i = 0; i < sizeof(rs_read_expected); i++) {
+		zassert_equal(rx[i], rs_read_expected[i],
+			      "Read byte %zu: expected 0x%02X, got 0x%02X",
+			      i, rs_read_expected[i], rx[i]);
+	}
 }
 
-
-/**
- * @brief Test I2C consecutive reads
- *
- * Verify that multiple consecutive read operations work correctly and that
- * the controller state remains correct between operations.
- */
-ZTEST(i2c_controller, test_i2c_consecutive_reads)
+/* ---- TEST 5: Merged transactions ----------------------------------------- */
+ZTEST(i2c_mspm0_loopback, test_05_merged_transactions)
 {
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
-	uint8_t rxPacket1[4];
-	uint8_t rxPacket2[4];
-	int ret;
+	uint8_t rx_a[sizeof(merged_read_expected)] = {0};
+	uint8_t rx1_b[sizeof(rr_w_read1_expected)] = {0};
+	uint8_t rx2_b[sizeof(rr_w_read2_expected)] = {0};
+	uint8_t status;
+	struct i2c_msg msgs[3];
 
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
+	/* ---- Sequence A: WRITE + RS + WRITE + RS + READ ---- */
+	zassert_equal(wait_for_ready(K_SECONDS(30)), 0,
+		      "A: Timeout waiting for target READY (phase 1)");
 
-	/* Configure I2C */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "I2C configure failed");
-
-	/* First read operation - 4 bytes */
-	memset(rxPacket1, 0, sizeof(rxPacket1));
-	ret = i2c_read_dt(&dev_1, rxPacket1, 4);
-	zassert_equal(ret, 0, "First read failed with error %d", ret);
-
-	/* Second read operation - 4 bytes */
-	memset(rxPacket2, 0, sizeof(rxPacket2));
-	ret = i2c_read_dt(&dev_1, rxPacket2, 4);
-	zassert_equal(ret, 0, "Second read failed with error %d", ret);
-
-	/* Verify first read data matches expected pattern */
-	zassert_equal(rxPacket1[0], 0x51, "First read: Expected 0x51, got 0x%02X", rxPacket1[0]);
-	zassert_equal(rxPacket1[1], 0x52, "First read: Expected 0x52, got 0x%02X", rxPacket1[1]);
-	zassert_equal(rxPacket1[2], 0x53, "First read: Expected 0x53, got 0x%02X", rxPacket1[2]);
-	zassert_equal(rxPacket1[3], 0x54, "First read: Expected 0x54, got 0x%02X", rxPacket1[3]);
-
-	/* Verify second read data matches expected pattern */
-	zassert_equal(rxPacket2[0], 0x51, "Second read: Expected 0x51, got 0x%02X", rxPacket2[0]);
-	zassert_equal(rxPacket2[1], 0x52, "Second read: Expected 0x52, got 0x%02X", rxPacket2[1]);
-	zassert_equal(rxPacket2[2], 0x53, "Second read: Expected 0x53, got 0x%02X", rxPacket2[2]);
-	zassert_equal(rxPacket2[3], 0x54, "Second read: Expected 0x54, got 0x%02X", rxPacket2[3]);
-}
-
-/**
- * @brief Test I2C consecutive writes
- *
- * Verify that multiple consecutive write operations work correctly and that
- * the controller state remains correct between operations.
- */
-ZTEST(i2c_controller, test_i2c_consecutive_writes)
-{
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
-	uint8_t txPacket1[4] = {0xA0, 0xA1, 0xA2, 0xA3};
-	uint8_t txPacket2[4] = {0xB0, 0xB1, 0xB2, 0xB3};
-	int ret1, ret2;
-
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
-
-	/* Configure I2C */
-	ret1 = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret1, 0, "I2C configure failed");
-
-	/* First write operation - 4 bytes */
-	ret1 = i2c_write_dt(&dev_1, txPacket1, 4);
-
-	/* Second write operation - 4 bytes */
-	ret2 = i2c_write_dt(&dev_1, txPacket2, 4);
-
-	/* Verify both write operations completed successfully */
-	zassert_equal(ret1, 0, "First write failed with error %d", ret1);
-	zassert_equal(ret2, 0, "Second write failed with error %d", ret2);
-}
-
-/**
- * @brief Test I2C complex message merging with mixed read/write operations
- *
- * Tests the driver's ability to intelligently merge messages based on direction
- * changes, RESTART flags, and STOP flags. This comprehensive test exercises:
- * - Merging consecutive writes
- * - RESTART flag preventing merge
- * - Direction changes (WRITE→READ, READ→WRITE) preventing merge
- * - Merging consecutive reads
- * - RESTART flag splitting read sequences
- * - STOP flag ending a merge sequence
- * - Multiple independent merge sequences in one transfer
- *
- * Expected bus transactions:
- * 1. Merged write: msgs[0-2] (3 bytes) - no STOP
- * 2. Merged write: msgs[3-4] (2 bytes with RESTART) - no STOP
- * 3. Merged read: msgs[5-6] (3 bytes: 2+1) - no STOP
- * 4. Standalone read: msg[7] (1 byte with RESTART) - no STOP
- * 5. Merged write: msgs[8-9] (2 bytes) - STOP after msg[9]
- * 6. Standalone write: msg[10] (1 byte) - STOP
- */
-ZTEST(i2c_controller, test_i2c_complex_merging)
-{
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
-	const struct i2c_dt_spec dev_1 = I2C_DT_SPEC_GET(I2C_TARGET_NODE);
-	struct i2c_msg msgs[11];
-	uint8_t write_buf0[1] = {0xA0};
-	uint8_t write_buf1[1] = {0xA1};
-	uint8_t write_buf2[1] = {0xA2};
-	uint8_t write_buf3[1] = {0xB0};
-	uint8_t write_buf4[1] = {0xB1};
-	uint8_t read_buf5[2] = {0};
-	uint8_t read_buf6[1] = {0};
-	uint8_t read_buf7[1] = {0};
-	uint8_t write_buf8[1] = {0xC0};
-	uint8_t write_buf9[1] = {0xC1};
-	uint8_t write_buf10[1] = {0xD0};
-	int ret;
-
-	zassert_true(device_is_ready(i2c_dev), "I2C device is not ready");
-
-	/* Configure I2C */
-	ret = i2c_configure(i2c_dev, i2c_cfg);
-	zassert_equal(ret, 0, "I2C configure failed");
-
-	/* --- Transaction 1: Merged writes [0-2] --- */
-	/* msg[0]: Write 1 byte, no flags (will merge with msg[1]) */
-	msgs[0].buf = write_buf0;
-	msgs[0].len = 1;
+	msgs[0].buf   = (uint8_t *)merged_write1;
+	msgs[0].len   = sizeof(merged_write1);
 	msgs[0].flags = I2C_MSG_WRITE;
 
-	/* msg[1]: Write 1 byte, no flags (will merge with msg[0] and msg[2]) */
-	msgs[1].buf = write_buf1;
-	msgs[1].len = 1;
-	msgs[1].flags = I2C_MSG_WRITE;
+	msgs[1].buf   = (uint8_t *)merged_write2;
+	msgs[1].len   = sizeof(merged_write2);
+	msgs[1].flags = I2C_MSG_WRITE | I2C_MSG_RESTART;
 
-	/* msg[2]: Write 1 byte, no flags (merged, but msg[3] has RESTART) */
-	msgs[2].buf = write_buf2;
-	msgs[2].len = 1;
-	msgs[2].flags = I2C_MSG_WRITE;
+	msgs[2].buf   = rx_a;
+	msgs[2].len   = sizeof(rx_a);
+	msgs[2].flags = I2C_MSG_READ | I2C_MSG_RESTART | I2C_MSG_STOP;
 
-	/* --- Transaction 2: Merged writes [3-4] with RESTART --- */
-	/* msg[3]: Write 1 byte, RESTART (prevents merge with msg[2]) */
-	msgs[3].buf = write_buf3;
-	msgs[3].len = 1;
-	msgs[3].flags = I2C_MSG_WRITE | I2C_MSG_RESTART;
+	zassert_equal(i2c_transfer(i2c_dev, msgs, 3, TARGET_ADDR), 0,
+		      "A: i2c_transfer (write+RS+write+RS+read) failed");
 
-	/* msg[4]: Write 1 byte, no flags (will merge with msg[3]) */
-	msgs[4].buf = write_buf4;
-	msgs[4].len = 1;
-	msgs[4].flags = I2C_MSG_WRITE;
+	zassert_equal(wait_for_ready(K_SECONDS(5)), 0,
+		      "A: Timeout waiting for target READY (phase 2)");
+	zassert_equal(i2c_read(i2c_dev, &status, 1, TARGET_ADDR), 0,
+		      "A: i2c_read (status) failed");
 
-	/* --- Transaction 3: Merged reads [5-6] --- */
-	/* msg[5]: Read 2 bytes, no flags (direction change stops write merge) */
-	msgs[5].buf = read_buf5;
-	msgs[5].len = 2;
-	msgs[5].flags = I2C_MSG_READ;
+	zassert_equal(status, TEST_STATUS_PASS,
+		      "A: Target reported failure (status 0x%02X)", status);
+	for (size_t i = 0; i < sizeof(merged_read_expected); i++) {
+		zassert_equal(rx_a[i], merged_read_expected[i],
+			      "A: Read byte %zu: expected 0x%02X, got 0x%02X",
+			      i, merged_read_expected[i], rx_a[i]);
+	}
 
-	/* msg[6]: Read 1 byte, no flags (will merge with msg[5], but msg[7] has RESTART) */
-	msgs[6].buf = read_buf6;
-	msgs[6].len = 1;
-	msgs[6].flags = I2C_MSG_READ;
+	/* ---- Sequence B: READ + RS + READ + RS + WRITE ---- */
+	zassert_equal(wait_for_ready(K_SECONDS(30)), 0,
+		      "B: Timeout waiting for target READY (phase 1)");
 
-	/* --- Transaction 4: Standalone read [7] with RESTART --- */
-	/* msg[7]: Read 1 byte, RESTART (prevents merge with msg[6]) */
-	msgs[7].buf = read_buf7;
-	msgs[7].len = 1;
-	msgs[7].flags = I2C_MSG_READ | I2C_MSG_RESTART;
+	msgs[0].buf   = rx1_b;
+	msgs[0].len   = sizeof(rx1_b);
+	msgs[0].flags = I2C_MSG_READ;
 
-	/* --- Transaction 5: Merged writes [8-9] --- */
-	/* msg[8]: Write 1 byte, no flags (direction change stops read merge) */
-	msgs[8].buf = write_buf8;
-	msgs[8].len = 1;
-	msgs[8].flags = I2C_MSG_WRITE;
+	msgs[1].buf   = rx2_b;
+	msgs[1].len   = sizeof(rx2_b);
+	msgs[1].flags = I2C_MSG_READ | I2C_MSG_RESTART;
 
-	/* msg[9]: Write
-	 1 byte, STOP (will merge with msg[8], then STOP) */
-	msgs[9].buf = write_buf9;
-	msgs[9].len = 1;
-	msgs[9].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
+	msgs[2].buf   = (uint8_t *)rr_w_write_data;
+	msgs[2].len   = sizeof(rr_w_write_data);
+	msgs[2].flags = I2C_MSG_WRITE | I2C_MSG_RESTART | I2C_MSG_STOP;
 
-	/* --- Transaction 6: Standalone write [10] --- */
-	/* msg[10]: Write 1 byte (standalone, msg[9] had STOP) */
-	msgs[10].buf = write_buf10;
-	msgs[10].len = 1;
-	msgs[10].flags = I2C_MSG_WRITE;
+	zassert_equal(i2c_transfer(i2c_dev, msgs, 3, TARGET_ADDR), 0,
+		      "B: i2c_transfer (read+RS+read+RS+write) failed");
 
-	/* Execute complex transfer with multiple merge points */
-	ret = i2c_transfer_dt(&dev_1, msgs, 11);
-	zassert_equal(ret, 0, "Complex merged transaction failed with error %d", ret);
+	zassert_equal(wait_for_ready(K_SECONDS(5)), 0,
+		      "B: Timeout waiting for target READY (phase 2)");
+	zassert_equal(i2c_read(i2c_dev, &status, 1, TARGET_ADDR), 0,
+		      "B: i2c_read (status) failed");
 
-	/* Verify read data was correctly distributed across different transactions */
-	/* Transaction 3: msgs[5-6] merged read gets first 3 bytes (2+1) */
-	zassert_equal(read_buf5[0], 0x51, "Expected 0x51, got 0x%02X", read_buf5[0]);
-	zassert_equal(read_buf5[1], 0x52, "Expected 0x52, got 0x%02X", read_buf5[1]);
-	zassert_equal(read_buf6[0], 0x53, "Expected 0x53, got 0x%02X", read_buf6[0]);
-	/* Transaction 4: msg[7] standalone read with RESTART gets 1 byte */
-	zassert_equal(read_buf7[0], 0x51, "Expected 0x51, got 0x%02X", read_buf7[0]);
+	zassert_equal(status, TEST_STATUS_PASS,
+		      "B: Target reported failure (status 0x%02X)", status);
+	for (size_t i = 0; i < sizeof(rr_w_read1_expected); i++) {
+		zassert_equal(rx1_b[i], rr_w_read1_expected[i],
+			      "B: Read1 byte %zu: expected 0x%02X, got 0x%02X",
+			      i, rr_w_read1_expected[i], rx1_b[i]);
+	}
+	for (size_t i = 0; i < sizeof(rr_w_read2_expected); i++) {
+		zassert_equal(rx2_b[i], rr_w_read2_expected[i],
+			      "B: Read2 byte %zu: expected 0x%02X, got 0x%02X",
+			      i, rr_w_read2_expected[i], rx2_b[i]);
+	}
 }
 
-ZTEST_SUITE(i2c_controller, NULL, NULL, NULL, NULL, NULL);
+/* ---- TEST 6: NAK on write to invalid address ----------------------------- */
+ZTEST(i2c_mspm0_loopback, test_06_nak_invalid_write)
+{
+	uint8_t tx = 0xAB;
+	int ret;
+
+	ret = i2c_write(i2c_dev, &tx, 1, INVALID_ADDR);
+	zassert_equal(ret, -EIO,
+		      "Expected -EIO from write to invalid address, got %d", ret);
+}
+
+/* ---- TEST 7: NAK on read from invalid address ---------------------------- */
+ZTEST(i2c_mspm0_loopback, test_07_nak_invalid_read)
+{
+	uint8_t rx;
+	int ret;
+
+	ret = i2c_read(i2c_dev, &rx, 1, INVALID_ADDR);
+	zassert_equal(ret, -EIO,
+		      "Expected -EIO from read from invalid address, got %d", ret);
+}
+
+ZTEST_SUITE(i2c_mspm0_loopback, NULL, suite_setup, NULL, NULL, NULL);

@@ -1,9 +1,9 @@
 tests:
-  drivers.i2c.mspm0.loopback.target:
+  drivers.i2c.mspm0.target:
     tags:
       - i2c
       - mspm0
-      - loopback
+      - target
     platform_allow:
       - lp_mspm0g3507
     harness: ztest
