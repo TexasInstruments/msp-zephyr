@@ -18,7 +18,7 @@ config USE_MSP_DL_UNICOMM_UART
 config USE_MSP_DL_TIMER
 	bool
 
-config USE_MSPM0_DL_I2C
+config USE_MSP_DL_I2C
 	bool
 
 config USE_MSPM0_DL_FLASHCTL
