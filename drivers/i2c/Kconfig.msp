@@ -4,7 +4,7 @@
 config I2C_MSP
 	bool "MSP I2C driver"
 	default y
-	depends on DT_HAS_TI_MSPM0_I2C_ENABLED
+	depends on DT_HAS_TI_MSP_I2C_ENABLED
 	select USE_MSP_DL_I2C
 	select PINCTRL
 	help
