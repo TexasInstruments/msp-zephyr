@@ -28,8 +28,16 @@
 				status = "disabled";
 			};
 
-			unicomm0_i2c: unicomm0_i2c@40a80000 {
-				compatible = "ti,mspm0-i2c";
+			unicomm0_i2cc: unicomm0_i2c@40a80000 {
+				compatible = "ti,msp-i2c";
+				interrupts = <9 0>;
+				reg = <0x40a80000 0x00002000>;
+				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+				status = "disabled";
+			};
+
+			unicomm0_i2ct: unicomm0_i2c@40a80000 {
+				compatible = "ti,msp-i2c";
 				interrupts = <9 0>;
 				reg = <0x40a80000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
@@ -45,6 +53,22 @@
 
 			unicomm1_uart: unicomm1_uart@40a82000 {
 				compatible = "ti,mspm0-uart";
+				interrupts = <10 0>;
+				reg = <0x40a82000 0x00002000>;
+				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+				status = "disabled";
+			};
+
+			unicomm1_i2cc: unicomm1_i2c@40a82000 {
+				compatible = "ti,msp-i2c";
+				interrupts = <10 0>;
+				reg = <0x40a82000 0x00002000>;
+				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+				status = "disabled";
+			};
+
+			unicomm1_i2ct: unicomm1_i2c@40a82000 {
+				compatible = "ti,msp-i2c";
 				interrupts = <10 0>;
 				reg = <0x40a82000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
