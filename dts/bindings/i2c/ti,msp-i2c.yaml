@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
-description: TI MSPM0 I2C
+description: TI MSP I2C
 
-compatible: "ti,mspm0-i2c"
+compatible: "ti,msp-i2c"
 
 include: [i2c-controller.yaml, pinctrl-device.yaml]
 
