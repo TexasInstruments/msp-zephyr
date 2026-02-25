@@ -85,9 +85,7 @@ static int i2c_mspm0_configure_timeout(const struct device *dev, uint32_t period
 	const struct i2c_mspm0_config *config = dev->config;
 	const struct device *clk_dev = DEVICE_DT_GET(DT_NODELABEL(ckm));
 	uint32_t clock_rate;
-	uint32_t tick_cycles;
 	uint64_t timeout_cycles;
-	uint32_t ticks_needed;
 	uint16_t counter_value;
 	int ret;
 
@@ -97,19 +95,34 @@ static int i2c_mspm0_configure_timeout(const struct device *dev, uint32_t period
 		return ret;
 	}
 
-	/* Each count is equal to (1 + TPR) * 12 functional clocks */
-	tick_cycles = (period + 1) * 12;
-	timeout_cycles = (uint64_t)timeout_ms * (clock_rate / 1000);
-	ticks_needed = (timeout_cycles + tick_cycles - 1) / tick_cycles;
-	/* Lower 4-bits of counter are automatically set to 0x0 */
-	counter_value = ticks_needed >> 4;
+	/* If no timeout is needed, disable TIMEOUT A and set the count to 0 */
+	if (timeout_ms == 0) {
+		DL_I2C_disableTimeoutA(config->base);
+		DL_I2C_setTimeoutACount(config->base, 0);
+	} else {
+		/* Each count has a pre-multiplier of 520, and is based on the functional clock
+		 * We scale down by 1000 due to timeout value being given in miliseconds.
+		 */
+		timeout_cycles = ((uint64_t)timeout_ms * (clock_rate / (1000))/520);
 
-	if (counter_value > 0xFF) {
-		return -EINVAL;
+		/* Timeout counter is 12-bits, but lower 4-bits of counter are automatically set to 0x0,
+		 * and what we write should be just the upper 8-bits.
+		 */
+		counter_value = timeout_cycles >> 4;
+
+		/* Device TRM states minimum value for this setting to take effect is 2,
+		 * set this to value of 2 at a minimum to have some timeout if it is enabled.
+		 */
+		counter_value = counter_value > 2 ? counter_value : 2;
+
+		if (counter_value > 0xFF) {
+			return -EINVAL;
+		}
+
+		DL_I2C_enableTimeoutA(config->base);
+		DL_I2C_setTimeoutACount(config->base, counter_value);
 	}
 
-	DL_I2C_enableTimeoutA(config->base);
-	DL_I2C_setTimeoutACount(config->base, counter_value);
 	return 0;
 }
 #endif /* CONFIG_I2C_SCL_LOW_TIMEOUT != 0 */
