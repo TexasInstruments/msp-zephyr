@@ -268,7 +268,7 @@ manifest:
         - hal
     - name: msp-hal_ti
       remote: downstream
-      revision: dev_mspm33
+      revision: 1.02.00.00_ea
       path: modules/hal/ti
       groups:
         - hal
