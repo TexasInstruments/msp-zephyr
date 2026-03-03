@@ -1,0 +1,7 @@
+sample:
+  name: MSP Thread Example
+  description: MSP thread example application
+tests:
+  sample.basic.msp_thread_example:
+    tags: msp
+    platform_allow: lp_mspm33c321a
