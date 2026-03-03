@@ -215,6 +215,145 @@ ZTEST(adc_error_cases, test_adc_setup_invalid_gain)
 	);
 }
 
+/**
+ * @brief test adc_channel_setup() with differential mode
+ *
+ * function should return -EINVAL (differential not supported on HSADC)
+ */
+
+ZTEST(adc_error_cases, test_adc_setup_differential)
+{
+	int ret;
+
+	struct adc_channel_cfg invalid_channel_cfg = valid_channel_cfg;
+	/* set differential mode which is not supported */
+	invalid_channel_cfg.differential = true;
+
+	ret = adc_channel_setup(dev_adc, &invalid_channel_cfg);
+
+	zassert_true(
+		ret == -EINVAL,
+		"adc_channel_setup() should return -EINVAL,"
+		" got unexpected value of %d",
+		ret
+	);
+}
+
+/**
+ * @brief test adc_channel_setup() with acquisition time out of valid range
+ *
+ * function should return -EINVAL
+ */
+
+ZTEST(adc_error_cases, test_adc_setup_acq_time_out_of_range)
+{
+	int ret;
+
+	struct adc_channel_cfg invalid_channel_cfg = valid_channel_cfg;
+	/* set acquisition time to value exceeding hardware maximum (1472 SYSCLK) */
+	invalid_channel_cfg.acquisition_time = ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 9999);
+
+	ret = adc_channel_setup(dev_adc, &invalid_channel_cfg);
+
+	zassert_true(
+		ret == -EINVAL,
+		"adc_channel_setup() should return -EINVAL,"
+		" got unexpected value of %d",
+		ret
+	);
+}
+
+/**
+ * @brief test adc_channel_setup() with unsupported acquisition time unit
+ *
+ * function should return -ENOTSUP (only ADC_ACQ_TIME_TICKS supported)
+ */
+
+ZTEST(adc_error_cases, test_adc_setup_acq_time_wrong_unit)
+{
+	int ret;
+
+	struct adc_channel_cfg invalid_channel_cfg = valid_channel_cfg;
+	/* set acquisition time with microseconds unit (only TICKS supported) */
+	invalid_channel_cfg.acquisition_time = ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 100);
+
+	ret = adc_channel_setup(dev_adc, &invalid_channel_cfg);
+
+	zassert_true(
+		ret == -ENOTSUP,
+		"adc_channel_setup() should return -ENOTSUP,"
+		" got unexpected value of %d",
+		ret
+	);
+}
+
+/**
+ * @brief test adc_read() with oversampling on multi-channel sequence
+ *
+ * function should return -EINVAL (oversampling only supported for single channel)
+ */
+
+ZTEST(adc_error_cases, test_adc_read_oversampling_multi_channel)
+{
+	int ret;
+
+	/* Configure two channels (0 and 5) */
+	struct adc_channel_cfg ch0_cfg = valid_channel_cfg;
+
+	ch0_cfg.channel_id = 0;
+	ret = adc_channel_setup(dev_adc, &ch0_cfg);
+	zassert_equal(ret, 0, "adc_channel_setup(ch0) failed: %d", ret);
+
+	struct adc_channel_cfg ch5_cfg = valid_channel_cfg;
+
+	ch5_cfg.channel_id = 5;
+	ret = adc_channel_setup(dev_adc, &ch5_cfg);
+	zassert_equal(ret, 0, "adc_channel_setup(ch5) failed: %d", ret);
+
+	struct adc_sequence invalid_seq = valid_seq;
+
+	/* Select both channels and enable oversampling */
+	invalid_seq.channels = BIT(0) | BIT(5);
+	invalid_seq.oversampling = 1;
+	invalid_seq.resolution = 12;
+
+	ret = adc_read(dev_adc, &invalid_seq);
+
+	zassert_true(
+		ret == -EINVAL,
+		"adc_read() should return -EINVAL,"
+		" got unexpected value of %d",
+		ret
+	);
+}
+
+/**
+ * @brief test adc_read() with calibrate flag set
+ *
+ * function should return -ENOTSUP (calibration not supported)
+ */
+
+ZTEST(adc_error_cases, test_adc_read_calibrate_not_supported)
+{
+	int ret;
+
+	adc_channel_setup(dev_adc, &valid_channel_cfg);
+
+	struct adc_sequence invalid_seq = valid_seq;
+
+	invalid_seq.calibrate = true;
+	invalid_seq.resolution = 12;
+
+	ret = adc_read(dev_adc, &invalid_seq);
+
+	zassert_true(
+		ret == -ENOTSUP,
+		"adc_read() should return -ENOTSUP,"
+		" got unexpected value of %d",
+		ret
+	);
+}
+
 static void *suite_setup(void)
 {
 	TC_PRINT("Test executed on %s\n", CONFIG_BOARD_TARGET);

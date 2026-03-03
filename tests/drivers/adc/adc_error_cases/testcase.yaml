@@ -7,6 +7,7 @@ tests:
   drivers.adc_error_cases:
     depends_on: adc
     platform_allow:
+      - lp_mspm33c321a
       - nrf52840dk/nrf52840
       - nrf54l15dk/nrf54l15/cpuapp
       - nrf54lm20dk/nrf54lm20a/cpuapp
