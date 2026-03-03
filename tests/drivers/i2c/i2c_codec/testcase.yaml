@@ -1,0 +1,10 @@
+common:
+  tags:
+    - i2c
+    - drivers
+  depends_on: i2c
+
+tests:
+  drivers.i2c.codec:
+    platform_allow:
+      - lp_mspm33c321a

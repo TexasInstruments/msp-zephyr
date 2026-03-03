@@ -1,0 +1,32 @@
+/*
+ * Copyright (c) 2024 Texas Instruments
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	aliases {
+		i2c-0 = &unicomm1_0_i2cc;
+	};
+};
+
+&uc1_0_sda_pa0 {
+	bias-pull-up;
+	input-enable;
+	drive-open-drain;
+};
+
+&uc1_0_scl_pa1 {
+	bias-pull-up;
+	input-enable;
+	drive-open-drain;
+};
+
+i2c0: &unicomm1_0_i2cc {
+	status = "okay";
+	clock-frequency = <400000>;
+	merge-buf-size = <64>;
+	pinctrl-0 = <&uc1_0_sda_pa0 &uc1_0_scl_pa1>;
+	pinctrl-names = "default";
+	#address-cells = <1>;
+	#size-cells = <0>;
+};
