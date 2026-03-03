@@ -13,6 +13,7 @@ supported:
   - counter
   - dma
   - gpio
+  - i2c
   - spi
   - uart
 vendor: ti
