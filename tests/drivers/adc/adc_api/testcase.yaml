@@ -21,6 +21,11 @@ tests:
       - rpi_pico/rp2040/w/mcuboot
       - rpi_pico2/rp2350a/m33/mcuboot
       - rpi_pico2/rp2350a/m33/w/mcuboot
+  drivers.adc.lp_mspm33c321a_vref:
+    extra_args:
+      - DTC_OVERLAY_FILE="boards/lp_mspm33c321a_vref.overlay"
+    platform_allow:
+      - lp_mspm33c321a
   drivers.adc.b_u585i_iot02a_adc4:
     extra_args:
       - DTC_OVERLAY_FILE="boards/b_u585i_iot02a_adc4.overlay"

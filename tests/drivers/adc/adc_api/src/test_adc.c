@@ -155,6 +155,44 @@ ZTEST_USER(adc_basic, test_adc_sample_one_channel)
 }
 
 /*
+ * test_adc_sample_with_oversampling
+ *
+ * Read a single channel with hardware oversampling enabled (2x averaging).
+ * This exercises the PPB FinalSumResult path in the ISR.
+ */
+static int test_task_oversampling(void)
+{
+	int ret;
+	struct adc_sequence sequence = {
+		.buffer = m_sample_buffer,
+		.buffer_size = sizeof(m_sample_buffer),
+	};
+
+	init_adc();
+	(void)adc_sequence_init_dt(&adc_channels[0], &sequence);
+
+	/* Enable 2x oversampling (oversampling value 1 = 2^1 = 2x) */
+	sequence.oversampling = 1;
+
+	ret = adc_read_dt(&adc_channels[0], &sequence);
+	if (ret == -ENOTSUP) {
+		TC_PRINT("Oversampling not supported, skipping\n");
+		ztest_test_skip();
+		return TC_PASS;
+	}
+	zassert_equal(ret, 0, "adc_read() with oversampling failed with code %d", ret);
+
+	check_samples(1);
+
+	return TC_PASS;
+}
+
+ZTEST_USER(adc_basic, test_adc_sample_with_oversampling)
+{
+	zassert_true(test_task_oversampling() == TC_PASS);
+}
+
+/*
  * test_adc_sample_multiple_channels
  */
 static int test_task_multiple_channels(void)
