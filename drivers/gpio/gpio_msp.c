@@ -241,6 +241,7 @@ static int gpio_msp_pin_configure(const struct device *port, gpio_pin_t pin, gpi
 		break;
 	case GPIO_DISCONNECTED:
 		DL_GPIO_disableOutput(config->base, BIT(pin));
+		DL_GPIO_initPeripheralAnalogFunction(pincm);
 		break;
 	default:
 		return -ENOTSUP;
@@ -423,8 +424,25 @@ static int gpio_msp_port_get_direction(const struct device *port, gpio_port_pins
 	const struct gpio_msp_config *config = port->config;
 
 	map &= config->common.port_pin_mask;
-	*inputs = map & ~config->base->DOE31_0;
-	*outputs = map & config->base->DOE31_0;
+
+	if (outputs != NULL) {
+		*outputs = map & config->base->DOE31_0;
+	}
+
+	if (inputs != NULL) {
+		*inputs = 0;
+		gpio_port_pins_t remaining = map;
+
+		while (remaining) {
+			uint32_t pin = find_lsb_set(remaining) - 1;
+			uint32_t pincm = gpio_msp_get_pincm(config, pin);
+
+			if (IOMUX->SECCFG.PINCM[pincm] & IOMUX_PINCM_INENA_MASK) {
+				*inputs |= BIT(pin);
+			}
+			remaining &= ~BIT(pin);
+		}
+	}
 
 	return 0;
 }
