@@ -526,10 +526,11 @@ ZTEST(spi_loopback, test_spi_rx_bigger_than_tx)
 	}
 
 	struct spi_dt_spec *spec = loopback_specs[spec_idx];
-	const uint32_t tx_buf_size = 8;
 
-	BUILD_ASSERT(tx_buf_size < BUF_SIZE,
+#define SPI_TEST_TX_BUF_SIZE 8
+	BUILD_ASSERT(SPI_TEST_TX_BUF_SIZE < BUF_SIZE,
 		"Transmit buffer is expected to be smaller than the receive buffer");
+	const uint32_t tx_buf_size = SPI_TEST_TX_BUF_SIZE;
 
 	const struct spi_buf_set tx = spi_loopback_setup_xfer(tx_bufs_pool, 1,
 							      buffer_tx, tx_buf_size);
