@@ -208,9 +208,7 @@ static int uart_msp_irq_rx_ready(const struct device *dev)
 
 static int uart_msp_irq_is_pending(const struct device *dev)
 {
-	struct uart_msp_data *data = dev->data;
-
-	return data->pending_interrupt != DL_UART_MAIN_IIDX_NO_INTERRUPT;
+	return uart_msp_irq_tx_ready(dev) || uart_msp_irq_rx_ready(dev);
 }
 
 static int uart_msp_irq_update(const struct device *dev)
