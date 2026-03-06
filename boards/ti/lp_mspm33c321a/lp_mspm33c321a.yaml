@@ -10,4 +10,11 @@ ram: 256
 flash: 1024
 supported:
   - gpio
+  - uart
+  - spi
+  - i2c
+  - adc
+  - counter
+  - dma
+  - pinctrl
 vendor: ti
