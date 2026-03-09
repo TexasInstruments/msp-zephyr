@@ -27,7 +27,7 @@ BUILD_ASSERT((RTC_TI_MAX_ALARM != 0),
 	     "CONFIG_RTC_ALARM is enabled, without setting alarms-count property");
 #endif
 
-struct rtc_ti_mspm0_config {
+struct rtc_ti_msp_config {
 	RTC_Regs *regs;
 #if defined(CONFIG_RTC_ALARM)
 	void (*irq_config_func)(void);
@@ -36,7 +36,7 @@ struct rtc_ti_mspm0_config {
 };
 
 #if defined(CONFIG_RTC_ALARM)
-struct rtc_ti_mspm0_alarm {
+struct rtc_ti_msp_alarm {
 	rtc_alarm_callback callback;
 	void *user_data;
 	uint16_t mask;
@@ -44,18 +44,18 @@ struct rtc_ti_mspm0_alarm {
 };
 #endif
 
-struct rtc_ti_mspm0_data {
+struct rtc_ti_msp_data {
 	struct k_spinlock lock;
 #if defined(CONFIG_RTC_ALARM)
-	struct rtc_ti_mspm0_alarm rtc_alarm[RTC_TI_MAX_ALARM];
+	struct rtc_ti_msp_alarm rtc_alarm[RTC_TI_MAX_ALARM];
 #endif
 };
 
-static int rtc_ti_mspm0_set_time(const struct device *dev,
+static int rtc_ti_msp_set_time(const struct device *dev,
 				 const struct rtc_time *timeptr)
 {
-	const struct rtc_ti_mspm0_config *cfg = dev->config;
-	struct rtc_ti_mspm0_data *data = dev->data;
+	const struct rtc_ti_msp_config *cfg = dev->config;
+	struct rtc_ti_msp_data *data = dev->data;
 
 	if ((timeptr == NULL) || !rtc_utils_validate_rtc_time(timeptr, 0)) {
 		return -EINVAL;
@@ -74,11 +74,11 @@ static int rtc_ti_mspm0_set_time(const struct device *dev,
 	return 0;
 }
 
-static int rtc_ti_mspm0_get_time(const struct device *dev,
+static int rtc_ti_msp_get_time(const struct device *dev,
 				 struct rtc_time *timeptr)
 {
-	const struct rtc_ti_mspm0_config *cfg = dev->config;
-	struct rtc_ti_mspm0_data *data = dev->data;
+	const struct rtc_ti_msp_config *cfg = dev->config;
+	struct rtc_ti_msp_data *data = dev->data;
 
 	if (timeptr == NULL) {
 		return -EINVAL;
@@ -100,7 +100,7 @@ static int rtc_ti_mspm0_get_time(const struct device *dev,
 }
 
 #if defined(CONFIG_RTC_ALARM)
-static int rtc_ti_mspm0_alarm_get_supported_fields(const struct device *dev,
+static int rtc_ti_msp_alarm_get_supported_fields(const struct device *dev,
 						   uint16_t id, uint16_t *mask)
 {
 	ARG_UNUSED(dev);
@@ -116,11 +116,11 @@ static int rtc_ti_mspm0_alarm_get_supported_fields(const struct device *dev,
 	return 0;
 }
 
-static inline void rtc_ti_mspm0_set_alarm1(const struct device *dev,
+static inline void rtc_ti_msp_set_alarm1(const struct device *dev,
 					   uint16_t mask,
 					   const struct rtc_time *timeptr)
 {
-	const struct rtc_ti_mspm0_config *cfg = dev->config;
+	const struct rtc_ti_msp_config *cfg = dev->config;
 
 	DL_RTC_Common_disableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1);
 
@@ -148,11 +148,11 @@ static inline void rtc_ti_mspm0_set_alarm1(const struct device *dev,
 	DL_RTC_Common_enableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1);
 }
 
-static inline void rtc_ti_mspm0_set_alarm2(const struct device *dev,
+static inline void rtc_ti_msp_set_alarm2(const struct device *dev,
 					   uint16_t mask,
 					   const struct rtc_time *timeptr)
 {
-	const struct rtc_ti_mspm0_config *cfg = dev->config;
+	const struct rtc_ti_msp_config *cfg = dev->config;
 
 	DL_RTC_Common_disableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
 
@@ -180,9 +180,9 @@ static inline void rtc_ti_mspm0_set_alarm2(const struct device *dev,
 	DL_RTC_Common_enableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
 }
 
-static inline void rtc_ti_mspm0_clear_alarm(const struct device *dev, uint16_t id)
+static inline void rtc_ti_msp_clear_alarm(const struct device *dev, uint16_t id)
 {
-	const struct rtc_ti_mspm0_config *cfg = dev->config;
+	const struct rtc_ti_msp_config *cfg = dev->config;
 
 	if (id == RTC_TI_ALARM_1) {
 		cfg->regs->A1MIN = 0x00;
@@ -195,11 +195,11 @@ static inline void rtc_ti_mspm0_clear_alarm(const struct device *dev, uint16_t i
 	}
 }
 
-static int rtc_ti_mspm0_alarm_set_time(const struct device *dev, uint16_t id,
+static int rtc_ti_msp_alarm_set_time(const struct device *dev, uint16_t id,
 				       uint16_t mask,
 				       const struct rtc_time *timeptr)
 {
-	struct rtc_ti_mspm0_data *data = dev->data;
+	struct rtc_ti_msp_data *data = dev->data;
 
 	if (timeptr == NULL) {
 		return -EINVAL;
@@ -214,12 +214,12 @@ static int rtc_ti_mspm0_alarm_set_time(const struct device *dev, uint16_t id,
 	}
 
 	K_SPINLOCK(&data->lock) {
-		rtc_ti_mspm0_clear_alarm(dev, id);
+		rtc_ti_msp_clear_alarm(dev, id);
 
 		if (id == RTC_TI_ALARM_1) {
-			rtc_ti_mspm0_set_alarm1(dev, mask, timeptr);
+			rtc_ti_msp_set_alarm1(dev, mask, timeptr);
 		} else {
-			rtc_ti_mspm0_set_alarm2(dev, mask, timeptr);
+			rtc_ti_msp_set_alarm2(dev, mask, timeptr);
 		}
 
 		data->rtc_alarm[id].mask = mask;
@@ -229,13 +229,13 @@ static int rtc_ti_mspm0_alarm_set_time(const struct device *dev, uint16_t id,
 	return 0;
 }
 
-static int rtc_ti_mspm0_get_alarm1(const struct device *dev,
+static int rtc_ti_msp_get_alarm1(const struct device *dev,
 				   struct rtc_time *timeptr)
 {
 	uint16_t return_mask = 0;
 	uint16_t alarm_mask = 0;
-	const struct rtc_ti_mspm0_config *cfg = dev->config;
-	struct rtc_ti_mspm0_data *data = dev->data;
+	const struct rtc_ti_msp_config *cfg = dev->config;
+	struct rtc_ti_msp_data *data = dev->data;
 
 	alarm_mask = data->rtc_alarm[RTC_TI_ALARM_1].mask;
 	if (alarm_mask & RTC_ALARM_TIME_MASK_MINUTE) {
@@ -261,12 +261,12 @@ static int rtc_ti_mspm0_get_alarm1(const struct device *dev,
 	return return_mask;
 }
 
-static int rtc_ti_mspm0_get_alarm2(const struct device *dev, struct rtc_time *timeptr)
+static int rtc_ti_msp_get_alarm2(const struct device *dev, struct rtc_time *timeptr)
 {
 	uint16_t return_mask = 0;
 	uint16_t alarm_mask = 0;
-	const struct rtc_ti_mspm0_config *cfg = dev->config;
-	struct rtc_ti_mspm0_data *data = dev->data;
+	const struct rtc_ti_msp_config *cfg = dev->config;
+	struct rtc_ti_msp_data *data = dev->data;
 
 	alarm_mask = data->rtc_alarm[RTC_TI_ALARM_2].mask;
 	if (alarm_mask & RTC_ALARM_TIME_MASK_MINUTE) {
@@ -292,10 +292,10 @@ static int rtc_ti_mspm0_get_alarm2(const struct device *dev, struct rtc_time *ti
 	return return_mask;
 }
 
-static int rtc_ti_mspm0_alarm_get_time(const struct device *dev, uint16_t id,
+static int rtc_ti_msp_alarm_get_time(const struct device *dev, uint16_t id,
 				       uint16_t *mask, struct rtc_time *timeptr)
 {
-	struct rtc_ti_mspm0_data *data = dev->data;
+	struct rtc_ti_msp_data *data = dev->data;
 
 	if (timeptr == NULL) {
 		return -EINVAL;
@@ -307,20 +307,20 @@ static int rtc_ti_mspm0_alarm_get_time(const struct device *dev, uint16_t id,
 
 	K_SPINLOCK(&data->lock) {
 		if (id == RTC_TI_ALARM_1) {
-			*mask = rtc_ti_mspm0_get_alarm1(dev, timeptr);
+			*mask = rtc_ti_msp_get_alarm1(dev, timeptr);
 		} else {
-			*mask = rtc_ti_mspm0_get_alarm2(dev, timeptr);
+			*mask = rtc_ti_msp_get_alarm2(dev, timeptr);
 		}
 	}
 
 	return 0;
 }
 
-static int rtc_ti_mspm0_alarm_set_callback(const struct device *dev, uint16_t id,
+static int rtc_ti_msp_alarm_set_callback(const struct device *dev, uint16_t id,
 					   rtc_alarm_callback callback,
 					   void *user_data)
 {
-	struct rtc_ti_mspm0_data *data = dev->data;
+	struct rtc_ti_msp_data *data = dev->data;
 
 	if (callback == NULL) {
 		return -EINVAL;
@@ -338,11 +338,11 @@ static int rtc_ti_mspm0_alarm_set_callback(const struct device *dev, uint16_t id
 	return 0;
 }
 
-static int rtc_ti_mspm0_alarm_is_pending(const struct device *dev, uint16_t id)
+static int rtc_ti_msp_alarm_is_pending(const struct device *dev, uint16_t id)
 {
 	int ret;
-	struct rtc_ti_mspm0_alarm *alarm = NULL;
-	struct rtc_ti_mspm0_data *data = dev->data;
+	struct rtc_ti_msp_alarm *alarm = NULL;
+	struct rtc_ti_msp_data *data = dev->data;
 
 	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
 		return -EINVAL;
@@ -358,12 +358,12 @@ static int rtc_ti_mspm0_alarm_is_pending(const struct device *dev, uint16_t id)
 	return ret;
 }
 
-static void rtc_ti_mspm0_isr(const struct device *dev)
+static void rtc_ti_msp_isr(const struct device *dev)
 {
 	uint8_t id;
-	struct rtc_ti_mspm0_alarm *alarm = NULL;
-	const struct rtc_ti_mspm0_config *cfg = dev->config;
-	struct rtc_ti_mspm0_data *data = dev->data;
+	struct rtc_ti_msp_alarm *alarm = NULL;
+	const struct rtc_ti_msp_config *cfg = dev->config;
+	struct rtc_ti_msp_data *data = dev->data;
 	k_spinlock_key_t key = k_spin_lock(&data->lock);
 
 	switch (DL_RTC_Common_getPendingInterrupt(cfg->regs)) {
@@ -391,9 +391,9 @@ out:
 }
 #endif
 
-static int rtc_ti_mspm0_init(const struct device *dev)
+static int rtc_ti_msp_init(const struct device *dev)
 {
-	const struct rtc_ti_mspm0_config *cfg = dev->config;
+	const struct rtc_ti_msp_config *cfg = dev->config;
 
 	if (!cfg->rtc_x) {
 		/* Enable power to RTC module */
@@ -412,38 +412,38 @@ static int rtc_ti_mspm0_init(const struct device *dev)
 	return 0;
 }
 
-static DEVICE_API(rtc, rtc_ti_mspm0_driver_api) = {
-	.set_time		= rtc_ti_mspm0_set_time,
-	.get_time		= rtc_ti_mspm0_get_time,
+static DEVICE_API(rtc, rtc_ti_msp_driver_api) = {
+	.set_time		= rtc_ti_msp_set_time,
+	.get_time		= rtc_ti_msp_get_time,
 #if defined(CONFIG_RTC_ALARM)
-	.alarm_set_time		= rtc_ti_mspm0_alarm_set_time,
-	.alarm_get_time		= rtc_ti_mspm0_alarm_get_time,
-	.alarm_is_pending	= rtc_ti_mspm0_alarm_is_pending,
-	.alarm_set_callback	= rtc_ti_mspm0_alarm_set_callback,
-	.alarm_get_supported_fields = rtc_ti_mspm0_alarm_get_supported_fields,
+	.alarm_set_time		= rtc_ti_msp_alarm_set_time,
+	.alarm_get_time		= rtc_ti_msp_alarm_get_time,
+	.alarm_is_pending	= rtc_ti_msp_alarm_is_pending,
+	.alarm_set_callback	= rtc_ti_msp_alarm_set_callback,
+	.alarm_get_supported_fields = rtc_ti_msp_alarm_get_supported_fields,
 #endif /* CONFIG_RTC_ALARM */
 };
 
-#define RTC_TI_MSPM0_DEVICE_INIT(n)						\
+#define RTC_TI_MSP_DEVICE_INIT(n)						\
 	IF_ENABLED(CONFIG_RTC_ALARM,						\
-	(static void ti_mspm0_config_irq_##n(void)				\
+	(static void ti_msp_config_irq_##n(void)				\
 	{									\
 		IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority),		\
-			    rtc_ti_mspm0_isr, DEVICE_DT_INST_GET(n), 0);	\
+			    rtc_ti_msp_isr, DEVICE_DT_INST_GET(n), 0);	\
 		irq_enable(DT_INST_IRQN(n));					\
 	}))									\
 										\
-	static struct rtc_ti_mspm0_data rtc_data_##n;				\
+	static struct rtc_ti_msp_data rtc_data_##n;				\
 										\
-	static struct rtc_ti_mspm0_config rtc_config_##n = {			\
+	static struct rtc_ti_msp_config rtc_config_##n = {			\
 		.regs		 = (RTC_Regs *)DT_INST_REG_ADDR(n),		\
 		.rtc_x		 = DT_INST_PROP(n, ti_rtc_x),			\
 		IF_ENABLED(CONFIG_RTC_ALARM,					\
-		(.irq_config_func = ti_mspm0_config_irq_##n,))			\
+		(.irq_config_func = ti_msp_config_irq_##n,))			\
 	};									\
 										\
-DEVICE_DT_INST_DEFINE(n, &rtc_ti_mspm0_init, NULL, &rtc_data_##n,		\
+DEVICE_DT_INST_DEFINE(n, &rtc_ti_msp_init, NULL, &rtc_data_##n,		\
 		      &rtc_config_##n, PRE_KERNEL_1,				\
-		      CONFIG_RTC_INIT_PRIORITY, &rtc_ti_mspm0_driver_api);
+		      CONFIG_RTC_INIT_PRIORITY, &rtc_ti_msp_driver_api);
 
-DT_INST_FOREACH_STATUS_OKAY(RTC_TI_MSPM0_DEVICE_INIT);
+DT_INST_FOREACH_STATUS_OKAY(RTC_TI_MSP_DEVICE_INIT);
