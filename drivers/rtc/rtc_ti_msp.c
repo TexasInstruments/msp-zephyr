@@ -5,7 +5,7 @@
  *
  */
 
-#define DT_DRV_COMPAT ti_mspm0_rtc
+#define DT_DRV_COMPAT ti_msp_rtc
 
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
