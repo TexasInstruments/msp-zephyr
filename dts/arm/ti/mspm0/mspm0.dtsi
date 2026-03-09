@@ -157,7 +157,7 @@
 		};
 
 		rtc: rtc@40094000 {
-			compatible = "ti,mspm0-rtc";
+			compatible = "ti,msp-rtc";
 			reg = <0x40094000 0x2000>;
 			interrupts = <30 0>;
 			alarms-count = <2>;

@@ -4,6 +4,6 @@
 config RTC_TI_MSP
 	bool "Texas Instruments MSP RTC driver"
 	default y
-	depends on DT_HAS_TI_MSPM0_RTC_ENABLED
+	depends on DT_HAS_TI_MSP_RTC_ENABLED
 	help
 	  Texas Instruments Real-Time Clock (RTC) driver for MSP SoC families.

@@ -1,9 +1,9 @@
 # Copyright 2025 Linumiz GmbH
 # SPDX-License-Identifier: Apache-2.0
 
-description: Texas Instruments MSPM0 RTC Driver
+description: Texas Instruments MSP RTC Driver
 
-compatible: "ti,mspm0-rtc"
+compatible: "ti,msp-rtc"
 
 include: rtc-device.yaml
 
