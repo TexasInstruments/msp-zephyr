@@ -29,6 +29,7 @@
 		zephyr,shell-uart = &uart0;
 		zephyr,code-partition = &slot0_partition;
 		zephyr,flash-controller = &flashctl;
+		zephyr,canbus = &canfd0;
 	};
 
 	leds {
@@ -69,6 +70,12 @@
 };
 
 &syspll {
+	status = "okay";
+};
+
+&canclk {
+	clocks = <&syspll 0>;
+	clock-frequency = <DT_FREQ_M(40)>;
 	status = "okay";
 };
 
@@ -136,4 +143,11 @@
 	pinctrl-0 = <&i2c1_scl_pa17 &i2c1_sda_pa16>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+
+&canfd0 {
+	status = "okay";
+	clock-frequency = <DT_FREQ_M(40)>;
+	pinctrl-0 = <&canfd0_cantx_pa12 &canfd0_canrx_pa13>;
+	pinctrl-names = "default";
 };
