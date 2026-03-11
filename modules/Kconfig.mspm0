@@ -29,3 +29,6 @@ config USE_MSP_DL_SPI
 
 config USE_MSP_DL_UNICOMM_SPI
 	bool
+
+config USE_MSP_DL_RTC_COMMON
+	bool
