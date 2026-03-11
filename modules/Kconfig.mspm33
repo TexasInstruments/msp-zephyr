@@ -27,3 +27,6 @@ config USE_MSP_DL_UNICOMM_I2CC
 
 config USE_MSP_DL_UNICOMM_I2CT
 	bool
+
+config USE_MSP_DL_RTC_COMMON
+	bool
