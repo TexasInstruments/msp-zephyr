@@ -19,9 +19,9 @@
 #include <ti/driverlib/dl_rtc_common.h>
 
 #if defined(CONFIG_RTC_ALARM)
-#define RTC_TI_ALARM_1		0
-#define RTC_TI_ALARM_2		1
-#define RTC_TI_MAX_ALARM	DT_INST_PROP(0, alarms_count)
+#define RTC_TI_ALARM_1   0
+#define RTC_TI_ALARM_2   1
+#define RTC_TI_MAX_ALARM DT_INST_PROP(0, alarms_count)
 
 BUILD_ASSERT((RTC_TI_MAX_ALARM != 0),
 	     "CONFIG_RTC_ALARM is enabled, without setting alarms-count property");
@@ -51,8 +51,7 @@ struct rtc_ti_msp_data {
 #endif
 };
 
-static int rtc_ti_msp_set_time(const struct device *dev,
-				 const struct rtc_time *timeptr)
+static int rtc_ti_msp_set_time(const struct device *dev, const struct rtc_time *timeptr)
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
 	struct rtc_ti_msp_data *data = dev->data;
@@ -74,8 +73,7 @@ static int rtc_ti_msp_set_time(const struct device *dev,
 	return 0;
 }
 
-static int rtc_ti_msp_get_time(const struct device *dev,
-				 struct rtc_time *timeptr)
+static int rtc_ti_msp_get_time(const struct device *dev, struct rtc_time *timeptr)
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
 	struct rtc_ti_msp_data *data = dev->data;
@@ -85,11 +83,11 @@ static int rtc_ti_msp_get_time(const struct device *dev,
 	}
 
 	K_SPINLOCK(&data->lock) {
-		timeptr->tm_sec  = DL_RTC_Common_getCalendarSecondsBinary(cfg->regs);
-		timeptr->tm_min  = DL_RTC_Common_getCalendarMinutesBinary(cfg->regs);
+		timeptr->tm_sec = DL_RTC_Common_getCalendarSecondsBinary(cfg->regs);
+		timeptr->tm_min = DL_RTC_Common_getCalendarMinutesBinary(cfg->regs);
 		timeptr->tm_hour = DL_RTC_Common_getCalendarHoursBinary(cfg->regs);
 		timeptr->tm_mday = DL_RTC_Common_getCalendarDayOfMonthBinary(cfg->regs);
-		timeptr->tm_mon  = DL_RTC_Common_getCalendarMonthBinary(cfg->regs);
+		timeptr->tm_mon = DL_RTC_Common_getCalendarMonthBinary(cfg->regs);
 		timeptr->tm_year = DL_RTC_Common_getCalendarYearBinary(cfg->regs);
 		timeptr->tm_wday = DL_RTC_Common_getCalendarDayOfWeekBinary(cfg->regs);
 		timeptr->tm_nsec = 0;
@@ -100,8 +98,8 @@ static int rtc_ti_msp_get_time(const struct device *dev,
 }
 
 #if defined(CONFIG_RTC_ALARM)
-static int rtc_ti_msp_alarm_get_supported_fields(const struct device *dev,
-						   uint16_t id, uint16_t *mask)
+static int rtc_ti_msp_alarm_get_supported_fields(const struct device *dev, uint16_t id,
+						 uint16_t *mask)
 {
 	ARG_UNUSED(dev);
 
@@ -116,9 +114,8 @@ static int rtc_ti_msp_alarm_get_supported_fields(const struct device *dev,
 	return 0;
 }
 
-static inline void rtc_ti_msp_set_alarm1(const struct device *dev,
-					   uint16_t mask,
-					   const struct rtc_time *timeptr)
+static inline void rtc_ti_msp_set_alarm1(const struct device *dev, uint16_t mask,
+					 const struct rtc_time *timeptr)
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
 
@@ -148,9 +145,8 @@ static inline void rtc_ti_msp_set_alarm1(const struct device *dev,
 	DL_RTC_Common_enableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1);
 }
 
-static inline void rtc_ti_msp_set_alarm2(const struct device *dev,
-					   uint16_t mask,
-					   const struct rtc_time *timeptr)
+static inline void rtc_ti_msp_set_alarm2(const struct device *dev, uint16_t mask,
+					 const struct rtc_time *timeptr)
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
 
@@ -195,9 +191,8 @@ static inline void rtc_ti_msp_clear_alarm(const struct device *dev, uint16_t id)
 	}
 }
 
-static int rtc_ti_msp_alarm_set_time(const struct device *dev, uint16_t id,
-				       uint16_t mask,
-				       const struct rtc_time *timeptr)
+static int rtc_ti_msp_alarm_set_time(const struct device *dev, uint16_t id, uint16_t mask,
+				     const struct rtc_time *timeptr)
 {
 	struct rtc_ti_msp_data *data = dev->data;
 
@@ -229,8 +224,7 @@ static int rtc_ti_msp_alarm_set_time(const struct device *dev, uint16_t id,
 	return 0;
 }
 
-static int rtc_ti_msp_get_alarm1(const struct device *dev,
-				   struct rtc_time *timeptr)
+static int rtc_ti_msp_get_alarm1(const struct device *dev, struct rtc_time *timeptr)
 {
 	uint16_t return_mask = 0;
 	uint16_t alarm_mask = 0;
@@ -254,7 +248,7 @@ static int rtc_ti_msp_get_alarm1(const struct device *dev,
 	}
 
 	if (alarm_mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
-		timeptr->tm_mday =  DL_RTC_Common_getAlarm1DayOfMonthBinary(cfg->regs);
+		timeptr->tm_mday = DL_RTC_Common_getAlarm1DayOfMonthBinary(cfg->regs);
 		return_mask |= RTC_ALARM_TIME_MASK_MONTHDAY;
 	}
 
@@ -285,15 +279,15 @@ static int rtc_ti_msp_get_alarm2(const struct device *dev, struct rtc_time *time
 	}
 
 	if (alarm_mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
-		timeptr->tm_mday =  DL_RTC_Common_getAlarm2DayOfMonthBinary(cfg->regs);
+		timeptr->tm_mday = DL_RTC_Common_getAlarm2DayOfMonthBinary(cfg->regs);
 		return_mask |= RTC_ALARM_TIME_MASK_MONTHDAY;
 	}
 
 	return return_mask;
 }
 
-static int rtc_ti_msp_alarm_get_time(const struct device *dev, uint16_t id,
-				       uint16_t *mask, struct rtc_time *timeptr)
+static int rtc_ti_msp_alarm_get_time(const struct device *dev, uint16_t id, uint16_t *mask,
+				     struct rtc_time *timeptr)
 {
 	struct rtc_ti_msp_data *data = dev->data;
 
@@ -317,8 +311,7 @@ static int rtc_ti_msp_alarm_get_time(const struct device *dev, uint16_t id,
 }
 
 static int rtc_ti_msp_alarm_set_callback(const struct device *dev, uint16_t id,
-					   rtc_alarm_callback callback,
-					   void *user_data)
+					 rtc_alarm_callback callback, void *user_data)
 {
 	struct rtc_ti_msp_data *data = dev->data;
 
@@ -413,37 +406,35 @@ static int rtc_ti_msp_init(const struct device *dev)
 }
 
 static DEVICE_API(rtc, rtc_ti_msp_driver_api) = {
-	.set_time		= rtc_ti_msp_set_time,
-	.get_time		= rtc_ti_msp_get_time,
+	.set_time = rtc_ti_msp_set_time,
+	.get_time = rtc_ti_msp_get_time,
 #if defined(CONFIG_RTC_ALARM)
-	.alarm_set_time		= rtc_ti_msp_alarm_set_time,
-	.alarm_get_time		= rtc_ti_msp_alarm_get_time,
-	.alarm_is_pending	= rtc_ti_msp_alarm_is_pending,
-	.alarm_set_callback	= rtc_ti_msp_alarm_set_callback,
+	.alarm_set_time = rtc_ti_msp_alarm_set_time,
+	.alarm_get_time = rtc_ti_msp_alarm_get_time,
+	.alarm_is_pending = rtc_ti_msp_alarm_is_pending,
+	.alarm_set_callback = rtc_ti_msp_alarm_set_callback,
 	.alarm_get_supported_fields = rtc_ti_msp_alarm_get_supported_fields,
 #endif /* CONFIG_RTC_ALARM */
 };
 
-#define RTC_TI_MSP_DEVICE_INIT(n)						\
+#define RTC_TI_MSP_DEVICE_INIT(n)                                                                  \
 	IF_ENABLED(CONFIG_RTC_ALARM,						\
 	(static void ti_msp_config_irq_##n(void)				\
 	{									\
 		IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority),		\
 			    rtc_ti_msp_isr, DEVICE_DT_INST_GET(n), 0);	\
 		irq_enable(DT_INST_IRQN(n));					\
-	}))									\
-										\
-	static struct rtc_ti_msp_data rtc_data_##n;				\
-										\
-	static struct rtc_ti_msp_config rtc_config_##n = {			\
-		.regs		 = (RTC_Regs *)DT_INST_REG_ADDR(n),		\
-		.rtc_x		 = DT_INST_PROP(n, ti_rtc_x),			\
+	}))                                                        \
+                                                                                                   \
+	static struct rtc_ti_msp_data rtc_data_##n;                                                \
+                                                                                                   \
+	static struct rtc_ti_msp_config rtc_config_##n = {                                         \
+		.regs = (RTC_Regs *)DT_INST_REG_ADDR(n),                                           \
+		.rtc_x = DT_INST_PROP(n, ti_rtc_x),                                                \
 		IF_ENABLED(CONFIG_RTC_ALARM,					\
-		(.irq_config_func = ti_msp_config_irq_##n,))			\
-	};									\
-										\
-DEVICE_DT_INST_DEFINE(n, &rtc_ti_msp_init, NULL, &rtc_data_##n,		\
-		      &rtc_config_##n, PRE_KERNEL_1,				\
-		      CONFIG_RTC_INIT_PRIORITY, &rtc_ti_msp_driver_api);
+		(.irq_config_func = ti_msp_config_irq_##n,)) };          \
+                                                                                                   \
+	DEVICE_DT_INST_DEFINE(n, &rtc_ti_msp_init, NULL, &rtc_data_##n, &rtc_config_##n,           \
+			      PRE_KERNEL_1, CONFIG_RTC_INIT_PRIORITY, &rtc_ti_msp_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(RTC_TI_MSP_DEVICE_INIT);
