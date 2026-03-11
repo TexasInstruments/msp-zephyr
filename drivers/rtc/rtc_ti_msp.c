@@ -7,14 +7,13 @@
 
 #define DT_DRV_COMPAT ti_msp_rtc
 
+#include <string.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/rtc.h>
-#include <zephyr/init.h>
 #include <zephyr/irq.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util_macro.h>
-#include <zephyr/sys/__assert.h>
 #include "rtc_utils.h"
 #include <ti/driverlib/dl_rtc_common.h>
 
@@ -107,7 +106,10 @@ static int rtc_ti_msp_alarm_get_supported_fields(const struct device *dev, uint1
 		return -EINVAL;
 	}
 
-	__ASSERT(mask != NULL, "Invalid argument mask");
+	if (mask == NULL) {
+		return -EINVAL;
+	}
+
 	*mask = (RTC_ALARM_TIME_MASK_MINUTE | RTC_ALARM_TIME_MASK_HOUR |
 		 RTC_ALARM_TIME_MASK_WEEKDAY | RTC_ALARM_TIME_MASK_MONTHDAY);
 
@@ -196,11 +198,11 @@ static int rtc_ti_msp_alarm_set_time(const struct device *dev, uint16_t id, uint
 {
 	struct rtc_ti_msp_data *data = dev->data;
 
-	if (timeptr == NULL) {
+	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
 		return -EINVAL;
 	}
 
-	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
+	if (timeptr == NULL) {
 		return -EINVAL;
 	}
 
@@ -224,10 +226,10 @@ static int rtc_ti_msp_alarm_set_time(const struct device *dev, uint16_t id, uint
 	return 0;
 }
 
-static int rtc_ti_msp_get_alarm1(const struct device *dev, struct rtc_time *timeptr)
+static uint16_t rtc_ti_msp_get_alarm1(const struct device *dev, struct rtc_time *timeptr)
 {
 	uint16_t return_mask = 0;
-	uint16_t alarm_mask = 0;
+	uint16_t alarm_mask;
 	const struct rtc_ti_msp_config *cfg = dev->config;
 	struct rtc_ti_msp_data *data = dev->data;
 
@@ -255,10 +257,10 @@ static int rtc_ti_msp_get_alarm1(const struct device *dev, struct rtc_time *time
 	return return_mask;
 }
 
-static int rtc_ti_msp_get_alarm2(const struct device *dev, struct rtc_time *timeptr)
+static uint16_t rtc_ti_msp_get_alarm2(const struct device *dev, struct rtc_time *timeptr)
 {
 	uint16_t return_mask = 0;
-	uint16_t alarm_mask = 0;
+	uint16_t alarm_mask;
 	const struct rtc_ti_msp_config *cfg = dev->config;
 	struct rtc_ti_msp_data *data = dev->data;
 
@@ -291,7 +293,7 @@ static int rtc_ti_msp_alarm_get_time(const struct device *dev, uint16_t id, uint
 {
 	struct rtc_ti_msp_data *data = dev->data;
 
-	if (timeptr == NULL) {
+	if (timeptr == NULL || mask == NULL) {
 		return -EINVAL;
 	}
 
@@ -315,10 +317,6 @@ static int rtc_ti_msp_alarm_set_callback(const struct device *dev, uint16_t id,
 {
 	struct rtc_ti_msp_data *data = dev->data;
 
-	if (callback == NULL) {
-		return -EINVAL;
-	}
-
 	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
 		return -EINVAL;
 	}
@@ -334,27 +332,24 @@ static int rtc_ti_msp_alarm_set_callback(const struct device *dev, uint16_t id,
 static int rtc_ti_msp_alarm_is_pending(const struct device *dev, uint16_t id)
 {
 	int ret;
-	struct rtc_ti_msp_alarm *alarm = NULL;
 	struct rtc_ti_msp_data *data = dev->data;
 
 	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
 		return -EINVAL;
 	}
 
-	k_spinlock_key_t key = k_spin_lock(&data->lock);
+	K_SPINLOCK(&data->lock) {
+		ret = data->rtc_alarm[id].is_pending ? 1 : 0;
+		data->rtc_alarm[id].is_pending = false;
+	}
 
-	alarm = &data->rtc_alarm[id];
-	ret = alarm->is_pending ? 1 : 0;
-	alarm->is_pending = false;
-
-	k_spin_unlock(&data->lock, key);
 	return ret;
 }
 
 static void rtc_ti_msp_isr(const struct device *dev)
 {
 	uint8_t id;
-	struct rtc_ti_msp_alarm *alarm = NULL;
+	struct rtc_ti_msp_alarm *alarm;
 	const struct rtc_ti_msp_config *cfg = dev->config;
 	struct rtc_ti_msp_data *data = dev->data;
 	k_spinlock_key_t key = k_spin_lock(&data->lock);
@@ -362,21 +357,19 @@ static void rtc_ti_msp_isr(const struct device *dev)
 	switch (DL_RTC_Common_getPendingInterrupt(cfg->regs)) {
 	case DL_RTC_COMMON_IIDX_ALARM1:
 		id = RTC_TI_ALARM_1;
-		alarm = &data->rtc_alarm[RTC_TI_ALARM_1];
 		break;
 	case DL_RTC_COMMON_IIDX_ALARM2:
 		id = RTC_TI_ALARM_2;
-		alarm = &data->rtc_alarm[RTC_TI_ALARM_2];
 		break;
 	default:
 		goto out;
 	}
 
-	if (alarm != NULL) {
-		alarm->is_pending = true;
-		if (alarm->callback) {
-			alarm->callback(dev, id, alarm->user_data);
-		}
+	alarm = &data->rtc_alarm[id];
+
+	alarm->is_pending = true;
+	if (alarm->callback) {
+		alarm->callback(dev, id, alarm->user_data);
 	}
 
 out:
@@ -389,7 +382,7 @@ static int rtc_ti_msp_init(const struct device *dev)
 	const struct rtc_ti_msp_config *cfg = dev->config;
 
 	if (!cfg->rtc_x) {
-		/* Enable power to RTC module */
+		/* Enable power to RTC module (not needed for LFSS-resident RTC) */
 		if (!DL_RTC_Common_isPowerEnabled(cfg->regs)) {
 			DL_RTC_Common_enablePower(cfg->regs);
 		}
@@ -428,7 +421,7 @@ static DEVICE_API(rtc, rtc_ti_msp_driver_api) = {
                                                                                                    \
 	static struct rtc_ti_msp_data rtc_data_##n;                                                \
                                                                                                    \
-	static struct rtc_ti_msp_config rtc_config_##n = {                                         \
+	static const struct rtc_ti_msp_config rtc_config_##n = {                                   \
 		.regs = (RTC_Regs *)DT_INST_REG_ADDR(n),                                           \
 		.rtc_x = DT_INST_PROP(n, ti_rtc_x),                                                \
 		IF_ENABLED(CONFIG_RTC_ALARM,					\
