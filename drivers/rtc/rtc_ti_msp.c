@@ -17,13 +17,38 @@
 #include "rtc_utils.h"
 #include <ti/driverlib/dl_rtc_common.h>
 
+/*
+ * initCalendar() writes 6 registers (SEC, MIN, HOUR, DAY, MON, YEAR).
+ * Each write takes up to 3 RTCCLK cycles to propagate through the
+ * clock-domain crossing. RTCCLK = LFCLK = 32.768 kHz (~30.5 us/cycle).
+ * 6 registers x 3 cycles x 30.5 us = ~549 us; round up to 600 us.
+ */
+#define RTC_TI_MSP_WRITE_SETTLE_US 600U
+
+#define RTC_TI_MSP_TIME_MASK                                                                       \
+	(RTC_ALARM_TIME_MASK_SECOND | RTC_ALARM_TIME_MASK_MINUTE | RTC_ALARM_TIME_MASK_HOUR |      \
+	 RTC_ALARM_TIME_MASK_MONTHDAY | RTC_ALARM_TIME_MASK_MONTH | RTC_ALARM_TIME_MASK_YEAR |     \
+	 RTC_ALARM_TIME_MASK_WEEKDAY)
+
+/*
+ * The MSP RTC_Common peripheral provides exactly two calendar alarms (ALARM1
+ * and ALARM2). This is a fixed hardware constraint shared across all MSPM0 and
+ * MSPM33 variants that use the RTC_Common IP. Supporting more than 2 alarms
+ * would require a RTC IP with additional alarm registers.
+ */
 #if defined(CONFIG_RTC_ALARM)
 #define RTC_TI_ALARM_1   0
 #define RTC_TI_ALARM_2   1
 #define RTC_TI_MAX_ALARM DT_INST_PROP(0, alarms_count)
 
+#define RTC_TI_MSP_ALARM_MASK                                                                      \
+	(RTC_ALARM_TIME_MASK_MINUTE | RTC_ALARM_TIME_MASK_HOUR | RTC_ALARM_TIME_MASK_WEEKDAY |     \
+	 RTC_ALARM_TIME_MASK_MONTHDAY)
+
 BUILD_ASSERT((RTC_TI_MAX_ALARM != 0),
 	     "CONFIG_RTC_ALARM is enabled, without setting alarms-count property");
+BUILD_ASSERT((RTC_TI_MAX_ALARM <= 2),
+	     "This driver supports at most 2 alarms; RTC hardware only has ALARM1 and ALARM2 registers");
 #endif
 
 struct rtc_ti_msp_config {
@@ -45,6 +70,7 @@ struct rtc_ti_msp_alarm {
 
 struct rtc_ti_msp_data {
 	struct k_spinlock lock;
+	bool time_set;
 #if defined(CONFIG_RTC_ALARM)
 	struct rtc_ti_msp_alarm rtc_alarm[RTC_TI_MAX_ALARM];
 #endif
@@ -54,20 +80,26 @@ static int rtc_ti_msp_set_time(const struct device *dev, const struct rtc_time *
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
 	struct rtc_ti_msp_data *data = dev->data;
+	DL_RTC_Common_Calendar cal;
 
-	if ((timeptr == NULL) || !rtc_utils_validate_rtc_time(timeptr, 0)) {
+	if ((timeptr == NULL) || !rtc_utils_validate_rtc_time(timeptr, RTC_TI_MSP_TIME_MASK)) {
 		return -EINVAL;
 	}
 
+	cal.seconds = timeptr->tm_sec;
+	cal.minutes = timeptr->tm_min;
+	cal.hours = timeptr->tm_hour;
+	cal.dayOfWeek = timeptr->tm_wday;
+	cal.dayOfMonth = timeptr->tm_mday;
+	cal.month = timeptr->tm_mon + 1;
+	cal.year = timeptr->tm_year + 1900;
+
 	K_SPINLOCK(&data->lock) {
-		DL_RTC_Common_setCalendarSecondsBinary(cfg->regs, timeptr->tm_sec);
-		DL_RTC_Common_setCalendarMinutesBinary(cfg->regs, timeptr->tm_min);
-		DL_RTC_Common_setCalendarHoursBinary(cfg->regs, timeptr->tm_hour);
-		DL_RTC_Common_setCalendarDayOfWeekBinary(cfg->regs, timeptr->tm_wday);
-		DL_RTC_Common_setCalendarDayOfMonthBinary(cfg->regs, timeptr->tm_mday);
-		DL_RTC_Common_setCalendarMonthBinary(cfg->regs, timeptr->tm_mon);
-		DL_RTC_Common_setCalendarYearBinary(cfg->regs, timeptr->tm_year);
+		DL_RTC_Common_initCalendar(cfg->regs, cal, DL_RTC_COMMON_FORMAT_BINARY);
+		data->time_set = true;
 	}
+
+	k_busy_wait(RTC_TI_MSP_WRITE_SETTLE_US);
 
 	return 0;
 }
@@ -76,22 +108,45 @@ static int rtc_ti_msp_get_time(const struct device *dev, struct rtc_time *timept
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
 	struct rtc_ti_msp_data *data = dev->data;
+	DL_RTC_Common_Calendar cal;
+	int ret = 0;
 
 	if (timeptr == NULL) {
 		return -EINVAL;
 	}
 
 	K_SPINLOCK(&data->lock) {
-		timeptr->tm_sec = DL_RTC_Common_getCalendarSecondsBinary(cfg->regs);
-		timeptr->tm_min = DL_RTC_Common_getCalendarMinutesBinary(cfg->regs);
-		timeptr->tm_hour = DL_RTC_Common_getCalendarHoursBinary(cfg->regs);
-		timeptr->tm_mday = DL_RTC_Common_getCalendarDayOfMonthBinary(cfg->regs);
-		timeptr->tm_mon = DL_RTC_Common_getCalendarMonthBinary(cfg->regs);
-		timeptr->tm_year = DL_RTC_Common_getCalendarYearBinary(cfg->regs);
-		timeptr->tm_wday = DL_RTC_Common_getCalendarDayOfWeekBinary(cfg->regs);
-		timeptr->tm_nsec = 0;
-		timeptr->tm_isdst = -1;
+		if (!data->time_set) {
+			ret = -ENODATA;
+			K_SPINLOCK_BREAK;
+		}
+
+		/*
+		 * The RTC has a ~3.9 ms keep-out window before each second
+		 * boundary where calendar registers are in transition. Poll
+		 * the RTCRDY status bit to avoid reading during that window.
+		 */
+		while (!DL_RTC_Common_isSafeToRead(cfg->regs)) {
+			k_busy_wait(100);
+		}
+
+		cal = DL_RTC_Common_getCalendarTime(cfg->regs);
 	}
+
+	if (ret) {
+		return ret;
+	}
+
+	timeptr->tm_sec = cal.seconds;
+	timeptr->tm_min = cal.minutes;
+	timeptr->tm_hour = cal.hours;
+	timeptr->tm_mday = cal.dayOfMonth;
+	timeptr->tm_mon = cal.month - 1;
+	timeptr->tm_year = cal.year - 1900;
+	timeptr->tm_wday = cal.dayOfWeek;
+	timeptr->tm_yday = -1;
+	timeptr->tm_nsec = 0;
+	timeptr->tm_isdst = -1;
 
 	return 0;
 }
@@ -102,7 +157,7 @@ static int rtc_ti_msp_alarm_get_supported_fields(const struct device *dev, uint1
 {
 	ARG_UNUSED(dev);
 
-	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
+	if (id >= RTC_TI_MAX_ALARM) {
 		return -EINVAL;
 	}
 
@@ -110,86 +165,81 @@ static int rtc_ti_msp_alarm_get_supported_fields(const struct device *dev, uint1
 		return -EINVAL;
 	}
 
-	*mask = (RTC_ALARM_TIME_MASK_MINUTE | RTC_ALARM_TIME_MASK_HOUR |
-		 RTC_ALARM_TIME_MASK_WEEKDAY | RTC_ALARM_TIME_MASK_MONTHDAY);
+	*mask = RTC_TI_MSP_ALARM_MASK;
 
 	return 0;
 }
 
-static inline void rtc_ti_msp_set_alarm1(const struct device *dev, uint16_t mask,
-					 const struct rtc_time *timeptr)
+static inline void rtc_ti_msp_set_alarm(const struct device *dev, uint16_t id, uint16_t mask,
+					const struct rtc_time *timeptr)
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
 
-	DL_RTC_Common_disableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1);
-
-	if (mask & RTC_ALARM_TIME_MASK_MINUTE) {
-		cfg->regs->A1MIN = 0;
-		DL_RTC_Common_setAlarm1MinutesBinary(cfg->regs, timeptr->tm_min);
-		DL_RTC_Common_enableAlarm1MinutesBinary(cfg->regs);
+	switch (id) {
+	case RTC_TI_ALARM_1:
+		DL_RTC_Common_disableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1);
+		if (mask & RTC_ALARM_TIME_MASK_MINUTE) {
+			DL_RTC_Common_setAlarm1MinutesBinary(cfg->regs, timeptr->tm_min);
+			DL_RTC_Common_enableAlarm1MinutesBinary(cfg->regs);
+		}
+		if (mask & RTC_ALARM_TIME_MASK_HOUR) {
+			DL_RTC_Common_setAlarm1HoursBinary(cfg->regs, timeptr->tm_hour);
+			DL_RTC_Common_enableAlarm1HoursBinary(cfg->regs);
+		}
+		if (mask & RTC_ALARM_TIME_MASK_WEEKDAY) {
+			DL_RTC_Common_setAlarm1DayOfWeekBinary(cfg->regs, timeptr->tm_wday);
+			DL_RTC_Common_enableAlarm1DayOfWeekBinary(cfg->regs);
+		}
+		if (mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
+			DL_RTC_Common_setAlarm1DayOfMonthBinary(cfg->regs, timeptr->tm_mday);
+			DL_RTC_Common_enableAlarm1DayOfMonthBinary(cfg->regs);
+		}
+		DL_RTC_Common_enableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1);
+		break;
+	case RTC_TI_ALARM_2:
+		DL_RTC_Common_disableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
+		if (mask & RTC_ALARM_TIME_MASK_MINUTE) {
+			DL_RTC_Common_setAlarm2MinutesBinary(cfg->regs, timeptr->tm_min);
+			DL_RTC_Common_enableAlarm2MinutesBinary(cfg->regs);
+		}
+		if (mask & RTC_ALARM_TIME_MASK_HOUR) {
+			DL_RTC_Common_setAlarm2HoursBinary(cfg->regs, timeptr->tm_hour);
+			DL_RTC_Common_enableAlarm2HoursBinary(cfg->regs);
+		}
+		if (mask & RTC_ALARM_TIME_MASK_WEEKDAY) {
+			DL_RTC_Common_setAlarm2DayOfWeekBinary(cfg->regs, timeptr->tm_wday);
+			DL_RTC_Common_enableAlarm2DayOfWeekBinary(cfg->regs);
+		}
+		if (mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
+			DL_RTC_Common_setAlarm2DayOfMonthBinary(cfg->regs, timeptr->tm_mday);
+			DL_RTC_Common_enableAlarm2DayOfMonthBinary(cfg->regs);
+		}
+		DL_RTC_Common_enableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
+		break;
+	default:
+		break;
 	}
-
-	if (mask & RTC_ALARM_TIME_MASK_HOUR) {
-		DL_RTC_Common_setAlarm1HoursBinary(cfg->regs, timeptr->tm_hour);
-		DL_RTC_Common_enableAlarm1HoursBinary(cfg->regs);
-	}
-
-	if (mask & RTC_ALARM_TIME_MASK_WEEKDAY) {
-		DL_RTC_Common_setAlarm1DayOfWeekBinary(cfg->regs, timeptr->tm_wday);
-		DL_RTC_Common_enableAlarm1DayOfWeekBinary(cfg->regs);
-	}
-
-	if (mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
-		DL_RTC_Common_setAlarm1DayOfMonthBinary(cfg->regs, timeptr->tm_mday);
-		DL_RTC_Common_enableAlarm1DayOfMonthBinary(cfg->regs);
-	}
-
-	DL_RTC_Common_enableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1);
-}
-
-static inline void rtc_ti_msp_set_alarm2(const struct device *dev, uint16_t mask,
-					 const struct rtc_time *timeptr)
-{
-	const struct rtc_ti_msp_config *cfg = dev->config;
-
-	DL_RTC_Common_disableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
-
-	if (mask & RTC_ALARM_TIME_MASK_MINUTE) {
-		cfg->regs->A2MIN = 0;
-		DL_RTC_Common_setAlarm2MinutesBinary(cfg->regs, timeptr->tm_min);
-		DL_RTC_Common_enableAlarm2MinutesBinary(cfg->regs);
-	}
-
-	if (mask & RTC_ALARM_TIME_MASK_HOUR) {
-		DL_RTC_Common_setAlarm2HoursBinary(cfg->regs, timeptr->tm_hour);
-		DL_RTC_Common_enableAlarm2HoursBinary(cfg->regs);
-	}
-
-	if (mask & RTC_ALARM_TIME_MASK_WEEKDAY) {
-		DL_RTC_Common_setAlarm2DayOfWeekBinary(cfg->regs, timeptr->tm_wday);
-		DL_RTC_Common_enableAlarm2DayOfWeekBinary(cfg->regs);
-	}
-
-	if (mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
-		DL_RTC_Common_setAlarm2DayOfMonthBinary(cfg->regs, timeptr->tm_mday);
-		DL_RTC_Common_enableAlarm2DayOfMonthBinary(cfg->regs);
-	}
-
-	DL_RTC_Common_enableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
 }
 
 static inline void rtc_ti_msp_clear_alarm(const struct device *dev, uint16_t id)
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
 
-	if (id == RTC_TI_ALARM_1) {
+	switch (id) {
+	case RTC_TI_ALARM_1:
+		DL_RTC_Common_disableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1);
 		cfg->regs->A1MIN = 0x00;
 		cfg->regs->A1HOUR = 0x00;
 		cfg->regs->A1DAY = 0x00;
-	} else {
+		break;
+	case RTC_TI_ALARM_2:
+		DL_RTC_Common_disableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
 		cfg->regs->A2MIN = 0x00;
 		cfg->regs->A2HOUR = 0x00;
 		cfg->regs->A2DAY = 0x00;
+		break;
+	default:
+		break;
 	}
 }
 
@@ -198,8 +248,21 @@ static int rtc_ti_msp_alarm_set_time(const struct device *dev, uint16_t id, uint
 {
 	struct rtc_ti_msp_data *data = dev->data;
 
-	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
+	if (id >= RTC_TI_MAX_ALARM) {
 		return -EINVAL;
+	}
+
+	if (mask & ~RTC_TI_MSP_ALARM_MASK) {
+		return -EINVAL;
+	}
+
+	if (mask == 0) {
+		K_SPINLOCK(&data->lock) {
+			rtc_ti_msp_clear_alarm(dev, id);
+			data->rtc_alarm[id].mask = 0;
+			data->rtc_alarm[id].is_pending = false;
+		}
+		return 0;
 	}
 
 	if (timeptr == NULL) {
@@ -212,12 +275,7 @@ static int rtc_ti_msp_alarm_set_time(const struct device *dev, uint16_t id, uint
 
 	K_SPINLOCK(&data->lock) {
 		rtc_ti_msp_clear_alarm(dev, id);
-
-		if (id == RTC_TI_ALARM_1) {
-			rtc_ti_msp_set_alarm1(dev, mask, timeptr);
-		} else {
-			rtc_ti_msp_set_alarm2(dev, mask, timeptr);
-		}
+		rtc_ti_msp_set_alarm(dev, id, mask, timeptr);
 
 		data->rtc_alarm[id].mask = mask;
 		data->rtc_alarm[id].is_pending = false;
@@ -226,63 +284,55 @@ static int rtc_ti_msp_alarm_set_time(const struct device *dev, uint16_t id, uint
 	return 0;
 }
 
-static uint16_t rtc_ti_msp_get_alarm1(const struct device *dev, struct rtc_time *timeptr)
+static uint16_t rtc_ti_msp_get_alarm(const struct device *dev, uint16_t id,
+				     struct rtc_time *timeptr)
 {
 	uint16_t return_mask = 0;
 	uint16_t alarm_mask;
 	const struct rtc_ti_msp_config *cfg = dev->config;
 	struct rtc_ti_msp_data *data = dev->data;
 
-	alarm_mask = data->rtc_alarm[RTC_TI_ALARM_1].mask;
-	if (alarm_mask & RTC_ALARM_TIME_MASK_MINUTE) {
-		timeptr->tm_min = DL_RTC_Common_getAlarm1MinutesBinary(cfg->regs);
-		return_mask |= RTC_ALARM_TIME_MASK_MINUTE;
-	}
+	alarm_mask = data->rtc_alarm[id].mask;
 
-	if (alarm_mask & RTC_ALARM_TIME_MASK_HOUR) {
-		timeptr->tm_hour = DL_RTC_Common_getAlarm1HoursBinary(cfg->regs);
-		return_mask |= RTC_ALARM_TIME_MASK_HOUR;
-	}
-
-	if (alarm_mask & RTC_ALARM_TIME_MASK_WEEKDAY) {
-		timeptr->tm_wday = DL_RTC_Common_getAlarm1DayOfWeekBinary(cfg->regs);
-		return_mask |= RTC_ALARM_TIME_MASK_WEEKDAY;
-	}
-
-	if (alarm_mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
-		timeptr->tm_mday = DL_RTC_Common_getAlarm1DayOfMonthBinary(cfg->regs);
-		return_mask |= RTC_ALARM_TIME_MASK_MONTHDAY;
-	}
-
-	return return_mask;
-}
-
-static uint16_t rtc_ti_msp_get_alarm2(const struct device *dev, struct rtc_time *timeptr)
-{
-	uint16_t return_mask = 0;
-	uint16_t alarm_mask;
-	const struct rtc_ti_msp_config *cfg = dev->config;
-	struct rtc_ti_msp_data *data = dev->data;
-
-	alarm_mask = data->rtc_alarm[RTC_TI_ALARM_2].mask;
-	if (alarm_mask & RTC_ALARM_TIME_MASK_MINUTE) {
-		timeptr->tm_min = DL_RTC_Common_getAlarm2MinutesBinary(cfg->regs);
-		return_mask |= RTC_ALARM_TIME_MASK_MINUTE;
-	}
-
-	if (alarm_mask & RTC_ALARM_TIME_MASK_HOUR) {
-		timeptr->tm_hour = DL_RTC_Common_getAlarm2HoursBinary(cfg->regs);
-		return_mask |= RTC_ALARM_TIME_MASK_HOUR;
-	}
-
-	if (alarm_mask & RTC_ALARM_TIME_MASK_WEEKDAY) {
-		timeptr->tm_wday = DL_RTC_Common_getAlarm2DayOfWeekBinary(cfg->regs);
-		return_mask |= RTC_ALARM_TIME_MASK_WEEKDAY;
-	}
-
-	if (alarm_mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
-		timeptr->tm_mday = DL_RTC_Common_getAlarm2DayOfMonthBinary(cfg->regs);
-		return_mask |= RTC_ALARM_TIME_MASK_MONTHDAY;
+	switch (id) {
+	case RTC_TI_ALARM_1:
+		if (alarm_mask & RTC_ALARM_TIME_MASK_MINUTE) {
+			timeptr->tm_min = DL_RTC_Common_getAlarm1MinutesBinary(cfg->regs);
+			return_mask |= RTC_ALARM_TIME_MASK_MINUTE;
+		}
+		if (alarm_mask & RTC_ALARM_TIME_MASK_HOUR) {
+			timeptr->tm_hour = DL_RTC_Common_getAlarm1HoursBinary(cfg->regs);
+			return_mask |= RTC_ALARM_TIME_MASK_HOUR;
+		}
+		if (alarm_mask & RTC_ALARM_TIME_MASK_WEEKDAY) {
+			timeptr->tm_wday = DL_RTC_Common_getAlarm1DayOfWeekBinary(cfg->regs);
+			return_mask |= RTC_ALARM_TIME_MASK_WEEKDAY;
+		}
+		if (alarm_mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
+			timeptr->tm_mday = DL_RTC_Common_getAlarm1DayOfMonthBinary(cfg->regs);
+			return_mask |= RTC_ALARM_TIME_MASK_MONTHDAY;
+		}
+		break;
+	case RTC_TI_ALARM_2:
+		if (alarm_mask & RTC_ALARM_TIME_MASK_MINUTE) {
+			timeptr->tm_min = DL_RTC_Common_getAlarm2MinutesBinary(cfg->regs);
+			return_mask |= RTC_ALARM_TIME_MASK_MINUTE;
+		}
+		if (alarm_mask & RTC_ALARM_TIME_MASK_HOUR) {
+			timeptr->tm_hour = DL_RTC_Common_getAlarm2HoursBinary(cfg->regs);
+			return_mask |= RTC_ALARM_TIME_MASK_HOUR;
+		}
+		if (alarm_mask & RTC_ALARM_TIME_MASK_WEEKDAY) {
+			timeptr->tm_wday = DL_RTC_Common_getAlarm2DayOfWeekBinary(cfg->regs);
+			return_mask |= RTC_ALARM_TIME_MASK_WEEKDAY;
+		}
+		if (alarm_mask & RTC_ALARM_TIME_MASK_MONTHDAY) {
+			timeptr->tm_mday = DL_RTC_Common_getAlarm2DayOfMonthBinary(cfg->regs);
+			return_mask |= RTC_ALARM_TIME_MASK_MONTHDAY;
+		}
+		break;
+	default:
+		break;
 	}
 
 	return return_mask;
@@ -297,16 +347,15 @@ static int rtc_ti_msp_alarm_get_time(const struct device *dev, uint16_t id, uint
 		return -EINVAL;
 	}
 
-	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
+	if (id >= RTC_TI_MAX_ALARM) {
 		return -EINVAL;
 	}
 
+	memset(timeptr, 0, sizeof(*timeptr));
+	timeptr->tm_isdst = -1;
+
 	K_SPINLOCK(&data->lock) {
-		if (id == RTC_TI_ALARM_1) {
-			*mask = rtc_ti_msp_get_alarm1(dev, timeptr);
-		} else {
-			*mask = rtc_ti_msp_get_alarm2(dev, timeptr);
-		}
+		*mask = rtc_ti_msp_get_alarm(dev, id, timeptr);
 	}
 
 	return 0;
@@ -317,7 +366,7 @@ static int rtc_ti_msp_alarm_set_callback(const struct device *dev, uint16_t id,
 {
 	struct rtc_ti_msp_data *data = dev->data;
 
-	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
+	if (id >= RTC_TI_MAX_ALARM) {
 		return -EINVAL;
 	}
 
@@ -334,7 +383,7 @@ static int rtc_ti_msp_alarm_is_pending(const struct device *dev, uint16_t id)
 	int ret;
 	struct rtc_ti_msp_data *data = dev->data;
 
-	if (id != RTC_TI_ALARM_1 && id != RTC_TI_ALARM_2) {
+	if (id >= RTC_TI_MAX_ALARM) {
 		return -EINVAL;
 	}
 
@@ -367,9 +416,10 @@ static void rtc_ti_msp_isr(const struct device *dev)
 
 	alarm = &data->rtc_alarm[id];
 
-	alarm->is_pending = true;
 	if (alarm->callback) {
 		alarm->callback(dev, id, alarm->user_data);
+	} else {
+		alarm->is_pending = true;
 	}
 
 out:
@@ -380,11 +430,15 @@ out:
 static int rtc_ti_msp_init(const struct device *dev)
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
+#if defined(CONFIG_RTC_ALARM)
+	struct rtc_ti_msp_data *data = dev->data;
+#endif
 
 	if (!cfg->rtc_x) {
 		/* Enable power to RTC module (not needed for LFSS-resident RTC) */
 		if (!DL_RTC_Common_isPowerEnabled(cfg->regs)) {
 			DL_RTC_Common_enablePower(cfg->regs);
+			k_busy_wait(100);
 		}
 	}
 
@@ -392,6 +446,19 @@ static int rtc_ti_msp_init(const struct device *dev)
 	DL_RTC_Common_setClockFormat(cfg->regs, DL_RTC_COMMON_FORMAT_BINARY);
 
 #if defined(CONFIG_RTC_ALARM)
+	/* Initialize alarm state to known defaults */
+	for (int i = 0; i < RTC_TI_MAX_ALARM; i++) {
+		data->rtc_alarm[i].callback = NULL;
+		data->rtc_alarm[i].user_data = NULL;
+		data->rtc_alarm[i].mask = 0;
+		data->rtc_alarm[i].is_pending = false;
+	}
+
+	/* Clear any pending HW interrupts before enabling IRQs */
+	DL_RTC_Common_clearInterruptStatus(cfg->regs,
+					   DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1 |
+						   DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
+
 	cfg->irq_config_func();
 #endif
 
