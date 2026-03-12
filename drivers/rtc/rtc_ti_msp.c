@@ -53,7 +53,7 @@ BUILD_ASSERT((RTC_TI_MAX_ALARM <= 2),
 
 struct rtc_ti_msp_config {
 	RTC_Regs *regs;
-#if defined(CONFIG_RTC_ALARM)
+#if defined(CONFIG_RTC_ALARM) || defined(CONFIG_RTC_UPDATE)
 	void (*irq_config_func)(void);
 #endif
 	bool rtc_x;
@@ -71,6 +71,10 @@ struct rtc_ti_msp_alarm {
 struct rtc_ti_msp_data {
 	struct k_spinlock lock;
 	bool time_set;
+#if defined(CONFIG_RTC_UPDATE)
+	rtc_update_callback update_cb;
+	void *update_cb_user_data;
+#endif
 #if defined(CONFIG_RTC_ALARM)
 	struct rtc_ti_msp_alarm rtc_alarm[RTC_TI_MAX_ALARM];
 #endif
@@ -394,45 +398,98 @@ static int rtc_ti_msp_alarm_is_pending(const struct device *dev, uint16_t id)
 
 	return ret;
 }
+#endif /* CONFIG_RTC_ALARM */
 
-static void rtc_ti_msp_isr(const struct device *dev)
+#if defined(CONFIG_RTC_UPDATE)
+static int rtc_ti_msp_update_set_callback(const struct device *dev, rtc_update_callback callback,
+					  void *user_data)
 {
-	uint8_t id;
-	struct rtc_ti_msp_alarm *alarm;
 	const struct rtc_ti_msp_config *cfg = dev->config;
 	struct rtc_ti_msp_data *data = dev->data;
+
+	K_SPINLOCK(&data->lock) {
+		data->update_cb = callback;
+		data->update_cb_user_data = user_data;
+
+		if (callback) {
+			DL_RTC_Common_enableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_READY);
+		} else {
+			DL_RTC_Common_disableInterrupt(cfg->regs, DL_RTC_COMMON_INTERRUPT_READY);
+		}
+	}
+
+	return 0;
+}
+#endif /* CONFIG_RTC_UPDATE */
+
+#if defined(CONFIG_RTC_ALARM) || defined(CONFIG_RTC_UPDATE)
+static void rtc_ti_msp_isr(const struct device *dev)
+{
+	const struct rtc_ti_msp_config *cfg = dev->config;
+	struct rtc_ti_msp_data *data = dev->data;
+	DL_RTC_COMMON_IIDX iidx;
+
+#if defined(CONFIG_RTC_ALARM)
+	rtc_alarm_callback alarm_cb = NULL;
+	void *alarm_cb_data = NULL;
+	uint8_t alarm_id = 0;
+#endif /* CONFIG_RTC_ALARM */
+
+#if defined(CONFIG_RTC_UPDATE)
+	rtc_update_callback update_cb = NULL;
+	void *update_cb_data = NULL;
+#endif /* CONFIG_RTC_UPDATE */
 	k_spinlock_key_t key = k_spin_lock(&data->lock);
 
-	switch (DL_RTC_Common_getPendingInterrupt(cfg->regs)) {
+	iidx = DL_RTC_Common_getPendingInterrupt(cfg->regs);
+
+	switch (iidx) {
+#if defined(CONFIG_RTC_ALARM)
 	case DL_RTC_COMMON_IIDX_ALARM1:
-		id = RTC_TI_ALARM_1;
+	case DL_RTC_COMMON_IIDX_ALARM2: {
+		uint8_t id = (iidx == DL_RTC_COMMON_IIDX_ALARM1) ? RTC_TI_ALARM_1 : RTC_TI_ALARM_2;
+		struct rtc_ti_msp_alarm *alarm = &data->rtc_alarm[id];
+
+		if (alarm->callback) {
+			alarm_cb = alarm->callback;
+			alarm_cb_data = alarm->user_data;
+			alarm_id = id;
+		} else {
+			alarm->is_pending = true;
+		}
 		break;
-	case DL_RTC_COMMON_IIDX_ALARM2:
-		id = RTC_TI_ALARM_2;
+	}
+#endif /* CONFIG_RTC_ALARM */
+
+#if defined(CONFIG_RTC_UPDATE)
+	case DL_RTC_COMMON_IIDX_READY:
+		update_cb = data->update_cb;
+		update_cb_data = data->update_cb_user_data;
 		break;
+#endif /* CONFIG_RTC_UPDATE */
 	default:
-		goto out;
+		break;
 	}
 
-	alarm = &data->rtc_alarm[id];
-
-	if (alarm->callback) {
-		alarm->callback(dev, id, alarm->user_data);
-	} else {
-		alarm->is_pending = true;
-	}
-
-out:
 	k_spin_unlock(&data->lock, key);
+
+#if defined(CONFIG_RTC_ALARM)
+	if (alarm_cb != NULL) {
+		alarm_cb(dev, alarm_id, alarm_cb_data);
+	}
+#endif /* CONFIG_RTC_ALARM */
+
+#if defined(CONFIG_RTC_UPDATE)
+	if (update_cb != NULL) {
+		update_cb(dev, update_cb_data);
+	}
+#endif /* CONFIG_RTC_UPDATE */
 }
-#endif
+#endif /* CONFIG_RTC_ALARM || CONFIG_RTC_UPDATE */
 
 static int rtc_ti_msp_init(const struct device *dev)
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
-#if defined(CONFIG_RTC_ALARM)
-	struct rtc_ti_msp_data *data = dev->data;
-#endif
 
 	if (!cfg->rtc_x) {
 		/* Enable power to RTC module (not needed for LFSS-resident RTC) */
@@ -446,19 +503,23 @@ static int rtc_ti_msp_init(const struct device *dev)
 	DL_RTC_Common_setClockFormat(cfg->regs, DL_RTC_COMMON_FORMAT_BINARY);
 
 #if defined(CONFIG_RTC_ALARM)
-	/* Initialize alarm state to known defaults */
-	for (int i = 0; i < RTC_TI_MAX_ALARM; i++) {
-		data->rtc_alarm[i].callback = NULL;
-		data->rtc_alarm[i].user_data = NULL;
-		data->rtc_alarm[i].mask = 0;
-		data->rtc_alarm[i].is_pending = false;
+	{
+		struct rtc_ti_msp_data *data = dev->data;
+
+		for (int i = 0; i < RTC_TI_MAX_ALARM; i++) {
+			data->rtc_alarm[i].callback = NULL;
+			data->rtc_alarm[i].user_data = NULL;
+			data->rtc_alarm[i].mask = 0;
+			data->rtc_alarm[i].is_pending = false;
+		}
+
+		DL_RTC_Common_clearInterruptStatus(cfg->regs,
+						   DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1 |
+							   DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
 	}
+#endif
 
-	/* Clear any pending HW interrupts before enabling IRQs */
-	DL_RTC_Common_clearInterruptStatus(cfg->regs,
-					   DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM1 |
-						   DL_RTC_COMMON_INTERRUPT_CALENDAR_ALARM2);
-
+#if defined(CONFIG_RTC_ALARM) || defined(CONFIG_RTC_UPDATE)
 	cfg->irq_config_func();
 #endif
 
@@ -475,24 +536,34 @@ static DEVICE_API(rtc, rtc_ti_msp_driver_api) = {
 	.alarm_set_callback = rtc_ti_msp_alarm_set_callback,
 	.alarm_get_supported_fields = rtc_ti_msp_alarm_get_supported_fields,
 #endif /* CONFIG_RTC_ALARM */
+#if defined(CONFIG_RTC_UPDATE)
+	.update_set_callback = rtc_ti_msp_update_set_callback,
+#endif /* CONFIG_RTC_UPDATE */
 };
 
+#if defined(CONFIG_RTC_ALARM) || defined(CONFIG_RTC_UPDATE)
+#define RTC_TI_MSP_IRQ_FUNC(n)                                                                     \
+	static void ti_msp_config_irq_##n(void)                                                    \
+	{                                                                                          \
+		IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), rtc_ti_msp_isr,             \
+			    DEVICE_DT_INST_GET(n), 0);                                             \
+		irq_enable(DT_INST_IRQN(n));                                                       \
+	}
+#define RTC_TI_MSP_IRQ_CFG(n) .irq_config_func = ti_msp_config_irq_##n,
+#else
+#define RTC_TI_MSP_IRQ_FUNC(n)
+#define RTC_TI_MSP_IRQ_CFG(n)
+#endif
+
 #define RTC_TI_MSP_DEVICE_INIT(n)                                                                  \
-	IF_ENABLED(CONFIG_RTC_ALARM,						\
-	(static void ti_msp_config_irq_##n(void)				\
-	{									\
-		IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority),		\
-			    rtc_ti_msp_isr, DEVICE_DT_INST_GET(n), 0);	\
-		irq_enable(DT_INST_IRQN(n));					\
-	}))                                                        \
+	RTC_TI_MSP_IRQ_FUNC(n)                                                                     \
                                                                                                    \
 	static struct rtc_ti_msp_data rtc_data_##n;                                                \
                                                                                                    \
 	static const struct rtc_ti_msp_config rtc_config_##n = {                                   \
 		.regs = (RTC_Regs *)DT_INST_REG_ADDR(n),                                           \
 		.rtc_x = DT_INST_PROP(n, ti_rtc_x),                                                \
-		IF_ENABLED(CONFIG_RTC_ALARM,					\
-		(.irq_config_func = ti_msp_config_irq_##n,)) };          \
+		RTC_TI_MSP_IRQ_CFG(n)};                                                            \
                                                                                                    \
 	DEVICE_DT_INST_DEFINE(n, &rtc_ti_msp_init, NULL, &rtc_data_##n, &rtc_config_##n,           \
 			      PRE_KERNEL_1, CONFIG_RTC_INIT_PRIORITY, &rtc_ti_msp_driver_api);
