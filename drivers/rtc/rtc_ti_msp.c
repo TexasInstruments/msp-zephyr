@@ -487,6 +487,75 @@ static void rtc_ti_msp_isr(const struct device *dev)
 }
 #endif /* CONFIG_RTC_ALARM || CONFIG_RTC_UPDATE */
 
+#if defined(CONFIG_RTC_CALIBRATION)
+#define RTC_TI_MSP_MAX_CAL_PPM 240
+#define RTC_TI_MSP_PPB_PER_PPM 1000
+#define RTC_TI_MSP_MAX_CAL_PPB (RTC_TI_MSP_MAX_CAL_PPM * RTC_TI_MSP_PPB_PER_PPM)
+
+static int rtc_ti_msp_set_calibration(const struct device *dev, int32_t calibration)
+{
+	const struct rtc_ti_msp_config *cfg = dev->config;
+	DL_RTC_COMMON_OFFSET_CALIBRATION_SIGN sign;
+	int32_t ppm;
+
+	if (calibration > RTC_TI_MSP_MAX_CAL_PPB || calibration < -RTC_TI_MSP_MAX_CAL_PPB) {
+		return -EINVAL;
+	}
+
+	ppm = calibration / RTC_TI_MSP_PPB_PER_PPM;
+
+	if (ppm >= 0) {
+		sign = DL_RTC_COMMON_OFFSET_CALIBRATION_SIGN_UP;
+	} else {
+		sign = DL_RTC_COMMON_OFFSET_CALIBRATION_SIGN_DOWN;
+		ppm = -ppm;
+	}
+
+	while (!DL_RTC_Common_isReadyToCalibrate(cfg->regs)) {
+		k_busy_wait(100);
+	}
+
+	DL_RTC_Common_setOffsetCalibrationAdjValue(cfg->regs, sign, (uint8_t)ppm);
+
+	/*
+	 * Verify the write was accepted. If missed the window,
+	 * wait for the next one and retry once before returning an error.
+	 */
+	if (!DL_RTC_Common_isCalibrationWriteResultOK(cfg->regs)) {
+		while (!DL_RTC_Common_isReadyToCalibrate(cfg->regs)) {
+			k_busy_wait(100);
+		}
+		DL_RTC_Common_setOffsetCalibrationAdjValue(cfg->regs, sign, (uint8_t)ppm);
+		if (!DL_RTC_Common_isCalibrationWriteResultOK(cfg->regs)) {
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
+
+static int rtc_ti_msp_get_calibration(const struct device *dev, int32_t *calibration)
+{
+	const struct rtc_ti_msp_config *cfg = dev->config;
+	int32_t ppm;
+
+	if (calibration == NULL) {
+		return -EINVAL;
+	}
+
+	ppm = cfg->regs->CAL & RTC_CAL_RTCOCALX_MASK;
+
+	if (DL_RTC_Common_getOffsetCalibrationSign(cfg->regs) ==
+	    DL_RTC_COMMON_OFFSET_CALIBRATION_SIGN_DOWN) {
+		ppm = -ppm;
+	}
+
+	*calibration = ppm * RTC_TI_MSP_PPB_PER_PPM;
+
+	return 0;
+}
+#endif /* CONFIG_RTC_CALIBRATION */
+
 static int rtc_ti_msp_init(const struct device *dev)
 {
 	const struct rtc_ti_msp_config *cfg = dev->config;
@@ -539,6 +608,10 @@ static DEVICE_API(rtc, rtc_ti_msp_driver_api) = {
 #if defined(CONFIG_RTC_UPDATE)
 	.update_set_callback = rtc_ti_msp_update_set_callback,
 #endif /* CONFIG_RTC_UPDATE */
+#if defined(CONFIG_RTC_CALIBRATION)
+	.set_calibration = rtc_ti_msp_set_calibration,
+	.get_calibration = rtc_ti_msp_get_calibration,
+#endif /* CONFIG_RTC_CALIBRATION */
 };
 
 #if defined(CONFIG_RTC_ALARM) || defined(CONFIG_RTC_UPDATE)
