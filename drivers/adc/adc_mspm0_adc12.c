@@ -363,10 +363,10 @@ static int adc_mspm0_configSequence(const struct device *dev, const struct adc_s
 	}
 
 	if (mem_ctl_count - 1 != data->channel_eoc) {
-		return -EINVAL;
+		return -EINVAL; 
 	}
 
-	DL_ADC12_initSeqSample(config->base, DL_ADC12_REPEAT_MODE_ENABLED,
+	DL_ADC12_initSeqSample(config->base, DL_ADC12_REPEAT_MODE_DISABLED,
 			       DL_ADC12_SAMPLING_SOURCE_AUTO, DL_ADC12_TRIG_SRC_SOFTWARE,
 			       DL_ADC12_SEQ_START_ADDR_00,
 			       (data->channel_eoc) << ADC12_CTL2_ENDADD_OFS, resolution,

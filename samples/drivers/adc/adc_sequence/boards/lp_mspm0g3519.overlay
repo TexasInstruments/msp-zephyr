@@ -26,7 +26,6 @@
 		reg = <0>;
 		zephyr,gain = "ADC_GAIN_1";
 		zephyr,reference = "ADC_REF_INTERNAL";
-		zephyr,vref-mv = <2500>;
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 	};
 
@@ -34,13 +33,13 @@
 		reg = <1>;
 		zephyr,gain = "ADC_GAIN_1";
 		zephyr,reference = "ADC_REF_INTERNAL";
-		zephyr,vref-mv = <2500>;
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 	};
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&analog_pa27 &analog_pa26>;
 
+	vref-mv = <2500>;
 	vref = <&vref0>;
 };
 
