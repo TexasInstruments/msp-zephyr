@@ -1,0 +1,20 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	i2c_emul_bus: i2c@100 {
+		compatible = "zephyr,i2c-emul-controller";
+		status = "okay";
+		reg = <0x100 0x10>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-frequency = <100000>;
+
+		bq27z855: bq27z855@55 {
+			compatible = "ti,bq27z855";
+			status = "okay";
+			reg = <0x55>;
+		};
+	};
+};

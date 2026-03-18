@@ -1,0 +1,9 @@
+tests:
+  drivers.fuel_gauge.bq27z8xx.buffer_props:
+    tags:
+      - drivers
+      - fuel_gauge
+    filter: dt_compat_enabled("ti,bq27z855")
+    platform_allow:
+      - native_sim
+      - lp_mspm0g3507
