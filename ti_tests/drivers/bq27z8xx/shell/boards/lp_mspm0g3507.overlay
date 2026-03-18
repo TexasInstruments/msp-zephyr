@@ -1,0 +1,32 @@
+/*
+ * Copyright (c) 2026 Texas Instruments
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&i2c0_scl_pa1 {
+	input-enable;
+};
+
+&i2c0_sda_pa0 {
+	input-enable;
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_scl_pa1 &i2c0_sda_pa0>;
+	pinctrl-names = "default";
+	merge-buf-size = <64>;
+	status = "okay";
+
+	bq27z855: bq27z855@55 {
+		compatible = "ti,bq27z855";
+		reg = <0x55>;
+	};
+};
+
+&uart0 {
+	current-speed = <115200>;
+	clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+	pinctrl-0 = <&uart0_tx_pa10 &uart0_rx_pa11>;
+	status = "okay";
+};
