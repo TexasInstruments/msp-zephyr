@@ -30,3 +30,6 @@ config USE_MSP_DL_UNICOMM_I2CT
 
 config USE_MSP_DL_RTC_COMMON
 	bool
+
+config USE_MSP_DL_MCAN
+	bool
