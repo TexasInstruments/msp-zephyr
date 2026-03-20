@@ -6,7 +6,7 @@ config CAN_MSP_CANFD
 	default y
 	depends on DT_HAS_TI_MSP_CANFD_ENABLED
 	select CAN_MCAN
-	select USE_MSPM0_DL_MCAN
+	select USE_MSP_DL_MCAN
 	select PINCTRL
 	help
 	  Enable support for CANFD on the TI MSP series.

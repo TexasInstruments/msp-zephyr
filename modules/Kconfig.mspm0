@@ -33,5 +33,5 @@ config USE_MSP_DL_UNICOMM_SPI
 config USE_MSP_DL_RTC_COMMON
 	bool
 
-config USE_MSPM0_DL_MCAN
+config USE_MSP_DL_MCAN
 	bool
