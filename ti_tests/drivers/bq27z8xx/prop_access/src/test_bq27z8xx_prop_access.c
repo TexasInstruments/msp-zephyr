@@ -273,9 +273,12 @@ ZTEST_F(bq27z8xx_prop_access, test_prop_write_readback)
 #endif
 
 	/* On hardware the BQ27Z855 silently ignores writes when SEALED.
-	 * Read OperationStatus and skip the test if the device is sealed. */
+	 * Read OperationStatus and unseal the device if sealed.
+	 */
+	struct bq27z855_operation_status op_status = {0};
+	do
 	{
-		struct bq27z855_operation_status op_status = {0};
+
 		int rc = fuel_gauge_get_buffer_prop(fixture->dev,
 				BQ27Z855_BUFFER_PROP_OPERATIONSTATUS,
 				&op_status, sizeof(op_status));
@@ -283,12 +286,24 @@ ZTEST_F(bq27z8xx_prop_access, test_prop_write_readback)
 		zassert_ok(rc, "read OperationStatus failed: %d", rc);
 		if ((op_status.flags & BQ27Z855_OP_STATUS_SEC_MASK) ==
 		    BQ27Z855_OP_STATUS_SEC_SEALED) {
-			ztest_test_skip();
-		}
-	}
 
-/* TODO: re-enable when firmware supports TeminateVoltage, VoltHiSetThreshold, and SOCDeltaSetThreshold */
-#if 0
+			/*  Unseal device prior to continuing test */
+			int ret = bq27z8xx_write16(fixture->dev, BQ27Z8XX_ALTMANUFACTURERACCESS,
+				0x0414u);
+
+			zassert_equal(ret, 0, "Failed to unseal device");
+
+			ret = bq27z8xx_write16(fixture->dev, BQ27Z8XX_ALTMANUFACTURERACCESS,
+				0x3672u);
+
+			zassert_equal(ret, 0, "Failed to unseal device");
+
+		}
+	}while((op_status.flags & BQ27Z855_OP_STATUS_SEC_MASK) ==
+		    BQ27Z855_OP_STATUS_SEC_SEALED);
+
+
+
 	union fuel_gauge_prop_val orig, written, readback;
 	int ret;
 
@@ -300,6 +315,8 @@ ZTEST_F(bq27z8xx_prop_access, test_prop_write_readback)
 	ret = fuel_gauge_set_prop(fixture->dev, BQ27Z8XX_PROP_TERMINATE_VOLTAGE, written);
 	zassert_ok(ret, "set TERMINATE_VOLTAGE failed: %d", ret);
 
+	k_sleep(K_MSEC(25));
+
 	ret = fuel_gauge_get_prop(fixture->dev, BQ27Z8XX_PROP_TERMINATE_VOLTAGE, &readback);
 	zassert_ok(ret, "readback TERMINATE_VOLTAGE failed: %d", ret);
 	zassert_equal(readback.voltage, written.voltage,
@@ -309,7 +326,10 @@ ZTEST_F(bq27z8xx_prop_access, test_prop_write_readback)
 	ret = fuel_gauge_set_prop(fixture->dev, BQ27Z8XX_PROP_TERMINATE_VOLTAGE, orig);
 	zassert_ok(ret, "restore TERMINATE_VOLTAGE failed: %d", ret);
 
+	k_sleep(K_MSEC(25));
 
+/* TODO: re-enable when firmware supports VoltHiSetThreshold, and SOCDeltaSetThreshold */
+#if 0
 	/* --- FUEL_GAUGE_HIGH_VOLTAGE_ALARM (VoltHiSetThreshold) --- */
 	ret = fuel_gauge_get_prop(fixture->dev, FUEL_GAUGE_HIGH_VOLTAGE_ALARM, &orig);
 	zassert_ok(ret, "save HIGH_VOLTAGE_ALARM failed: %d", ret);

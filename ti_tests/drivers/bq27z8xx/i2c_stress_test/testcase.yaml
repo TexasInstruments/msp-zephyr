@@ -7,3 +7,4 @@ tests:
     platform_allow:
       - native_sim
       - lp_mspm0g3507
+      - lp_mspm0l1117

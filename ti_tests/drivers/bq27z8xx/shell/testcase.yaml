@@ -8,3 +8,4 @@ tests:
     platform_allow:
       - native_sim
       - lp_mspm0g3507
+      # Note: lp_mspm0l1117 is disallowed due to RAM requirements for this test
