@@ -73,6 +73,12 @@
 			status = "disabled";
 		};
 
+		canclk: canclk {
+			#clock-cells = <1>;
+			compatible = "ti,msp-clk";
+			status = "disabled";
+		};
+
 		pll: pll {
 			compatible = "ti,msp-pll";
 			clocks = <&sysosc>;
