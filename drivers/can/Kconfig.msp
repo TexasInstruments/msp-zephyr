@@ -4,7 +4,7 @@
 config CAN_MSP_CANFD
 	bool "MSP CANFD driver"
 	default y
-	depends on DT_HAS_TI_MSPM0_CANFD_ENABLED
+	depends on DT_HAS_TI_MSP_CANFD_ENABLED
 	select CAN_MCAN
 	select USE_MSPM0_DL_MCAN
 	select PINCTRL

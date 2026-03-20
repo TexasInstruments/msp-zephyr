@@ -19,7 +19,7 @@
 
 LOG_MODULE_REGISTER(can_msp_canfd, CONFIG_CAN_LOG_LEVEL);
 
-#define DT_DRV_COMPAT ti_mspm0_canfd
+#define DT_DRV_COMPAT ti_msp_canfd
 
 #define MSP_MCAN_REVID_SCHEME_INVALID		0x00
 #define MSP_MCAN_MRBA				0x8000
