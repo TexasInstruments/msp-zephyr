@@ -33,10 +33,17 @@ LOG_MODULE_REGISTER(can_msp_canfd, CONFIG_CAN_LOG_LEVEL);
 #define MSP_MCAN_MEMINIT_TIMEOUT_US		1000U
 #define MSP_MCAN_POWER_STARTUP_DELAY_US		1000U
 
+#if defined(CONFIG_SOC_SERIES_MSPM33C)
+#define MSP_MCAN_CLK_SEL					\
+	(DT_SAME_NODE(DT_CLOCKS_CTLR(DT_NODELABEL(canclk)),	\
+		      DT_NODELABEL(syspll))			\
+	 ? DL_MCAN_FCLK_SYSPLLCLK : DL_MCAN_FCLK_HFCLK)
+#else /* MSPM0 */
 #define MSP_MCAN_CLK_SEL					\
 	(DT_SAME_NODE(DT_CLOCKS_CTLR(DT_NODELABEL(canclk)),	\
 		      DT_NODELABEL(syspll))			\
 	 ? DL_MCAN_FCLK_SYSPLLCLK1 : DL_MCAN_FCLK_HFCLK)
+#endif
 
 struct can_msp_canfd_config {
 	MCAN_Regs *ti_canfd_base;
