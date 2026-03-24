@@ -124,7 +124,7 @@
 
 		canclk: canclk {
 			#clock-cells = <1>;
-			compatible = "ti,mspm0-clk";
+			compatible = "ti,msp-clk";
 			status = "disabled";
 		};
 	};
