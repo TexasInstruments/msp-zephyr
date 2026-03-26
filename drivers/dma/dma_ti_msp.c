@@ -192,7 +192,7 @@ static int dma_ti_msp_configure(const struct device *dev, uint32_t channel,
 
 	dma_cfg.srcWidth = temp;
 	chan_data->direction = config->channel_direction;
-	chan_data->dma_callback = config->dma_callback;
+	chan_data->dma_callback = config->complete_callback_en ? config->dma_callback : NULL;
 	chan_data->user_data = config->user_data;
 	dma_cfg.extendedMode = DL_DMA_NORMAL_MODE;
 	dma_cfg.trigger = config->dma_slot;
