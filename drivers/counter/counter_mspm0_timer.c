@@ -12,10 +12,11 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/logging/log.h>
-
 #include <ti/driverlib/dl_timera.h>
 #include <ti/driverlib/dl_timerg.h>
 #include <ti/driverlib/dl_timer.h>
+
+#include <zephyr/drivers/timer/system_timer.h>
 
 LOG_MODULE_REGISTER(mspm0_counter, CONFIG_COUNTER_LOG_LEVEL);
 
@@ -113,6 +114,10 @@ static int counter_mspm0_set_alarm(const struct device *dev,
 	struct counter_mspm0_data *data = dev->data;
 	uint32_t top = counter_mspm0_get_top_value(dev);
 	uint32_t ticks = alarm_cfg->ticks;
+
+#if defined(CONFIG_SYSTEM_TIMER_LPM_COMPANION_COUNTER)
+	counter_mspm0_start(dev);
+#endif
 
 	ARG_UNUSED(chan_id);
 
@@ -254,6 +259,11 @@ static void counter_mspm0_isr(void *arg)
 	} else if ((status == DL_TIMER_IIDX_LOAD) && data->top_cb) {
 		data->top_cb(dev, data->user_data_top);
 	}
+
+#if defined(CONFIG_SYSTEM_TIMER_LPM_COMPANION_COUNTER)
+	uint32_t ticks_to_add = counter_mspm0_get_top_value(dev);
+	sys_clock_announce(ticks_to_add);
+#endif
 }
 
 #define MSPM0_COUNTER_IRQ_REGISTER(n)							\

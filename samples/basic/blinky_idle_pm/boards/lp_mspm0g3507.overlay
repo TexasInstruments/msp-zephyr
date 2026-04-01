@@ -1,0 +1,48 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/ {
+	aliases {
+		led0 = &led0;
+	};
+
+	chosen {
+		zephyr,system-timer-companion = &counterg0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led0: led_0 {
+			gpios = <&gpiob 22 GPIO_ACTIVE_LOW>;
+			label = "Blue LED";
+		};
+
+		debug_pin: debug_pin_0 {
+			gpios = <&gpioa 24 GPIO_ACTIVE_LOW>;
+			label = "Debug Pin 0";
+		};
+
+		debug_pin_1: debug_pin_1 {
+			gpios = <&gpioa 18 GPIO_ACTIVE_LOW>;
+			label = "Debug Pin 1";
+		};
+	};
+};
+
+&gpioa {
+	status = "okay";
+};
+
+&gpiob {
+	status = "okay";
+	zephyr,pm-device-runtime-auto;
+};
+
+&timg0 {
+	status = "okay";
+
+	counterg0 {
+		status = "okay";
+	};
+};
+

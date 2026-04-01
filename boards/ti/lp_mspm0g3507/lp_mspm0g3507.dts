@@ -29,6 +29,7 @@
 		zephyr,shell-uart = &uart0;
 		zephyr,code-partition = &slot0_partition;
 		zephyr,canbus = &canfd0;
+		zephyr,system-timer-companion = &counterg0;
 	};
 
 	leds {
