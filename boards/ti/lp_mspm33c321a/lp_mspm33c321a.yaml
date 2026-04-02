@@ -17,4 +17,5 @@ supported:
   - counter
   - dma
   - pinctrl
+  - rtc
 vendor: ti
