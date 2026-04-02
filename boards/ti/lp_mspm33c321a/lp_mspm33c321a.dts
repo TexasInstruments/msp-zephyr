@@ -19,6 +19,7 @@
 		led0 = &led0;
 		led1 = &led1;
 		led2 = &led2;
+		rtc = &rtc;
 	};
 
 	chosen {
@@ -157,4 +158,8 @@
 	current-speed = <115200>;
 	pinctrl-0 = <&uc12_tx_pa10 &uc12_rx_pa11>;
 	pinctrl-names = "default";
+};
+
+&rtc {
+	status = "okay";
 };
