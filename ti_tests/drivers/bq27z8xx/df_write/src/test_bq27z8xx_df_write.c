@@ -81,7 +81,6 @@ ZTEST_F(bq27z8xx_df_write, test_df_write_valid_addresses)
 		ret = bq27z8xx_df_write(fixture->dev, tc->addr, tc->data, tc->data_len);
 		zassert_ok(ret, "df_write(0x%04x) failed: %d", tc->addr, ret);
 
-#if defined(CONFIG_EMUL)
 		/* buf[0] = reported payload length; buf[1..DF_MAX_PAYLOAD] = payload */
 		uint8_t buf[1 + DF_MAX_PAYLOAD];
 
@@ -89,7 +88,6 @@ ZTEST_F(bq27z8xx_df_write, test_df_write_valid_addresses)
 		zassert_ok(ret, "df_read(0x%04x) after write failed: %d", tc->addr, ret);
 		zassert_mem_equal(&buf[1], tc->data, tc->data_len,
 				  "df_write/read(0x%04x): payload mismatch", tc->addr);
-#endif
 	}
 }
 
@@ -131,14 +129,12 @@ ZTEST_F(bq27z8xx_df_write, test_df_write_max_length)
 	ret = bq27z8xx_df_write(fixture->dev, 0x4100, pattern, DF_MAX_PAYLOAD);
 	zassert_ok(ret, "df_write(0x4100, len=32) failed: %d", ret);
 
-#if defined(CONFIG_EMUL)
 	uint8_t buf[1 + DF_MAX_PAYLOAD];
 
 	ret = bq27z8xx_df_read(fixture->dev, 0x4100, buf, DF_MAX_PAYLOAD);
 	zassert_ok(ret, "df_read(0x4100) after max-length write failed: %d", ret);
 	zassert_mem_equal(&buf[1], pattern, DF_MAX_PAYLOAD,
 			  "df_write/read(0x4100): max-length payload mismatch");
-#endif
 }
 
 /*
