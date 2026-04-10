@@ -28,7 +28,7 @@
 		zephyr,console = &uart0;
 		zephyr,shell-uart = &uart0;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,canbus = &canfd0;
+		zephyr,system-timer-companion = &counterg0;
 	};
 
 	leds {
@@ -111,6 +111,20 @@
 
 	current-speed = <115200>;
 	pinctrl-0 = <&uart0_tx_pa10 &uart0_rx_pa11>;
+	pinctrl-names = "default";
+};
+
+&uart1 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart1_tx_pa17 &uart1_rx_pa18>;
+	pinctrl-names = "default";
+};
+
+&uart2 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart2_tx_pb15 &uart2_rx_pb16>;
 	pinctrl-names = "default";
 };
 
