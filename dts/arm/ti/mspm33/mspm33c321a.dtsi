@@ -85,7 +85,7 @@
 			status = "disabled";
 		};
 
-		syspll0: syspll0 {
+		syspll: syspll {
 			#clock-cells = <1>;
 			compatible = "ti,msp-clk";
 			status = "disabled";

@@ -72,10 +72,10 @@
 
 &hsclk {
 	status = "okay";
-	clocks = <&syspll0 0>;
+	clocks = <&syspll 0>;
 };
 
-&syspll0 {
+&syspll {
 	status = "okay";
 };
 

@@ -20,7 +20,7 @@
 			status = "okay";
 		};
 
-		syspll2x: syspll2x {
+		syspll: syspll {
 			#clock-cells = <1>;
 			compatible = "ti,msp-clk";
 			status = "disabled";

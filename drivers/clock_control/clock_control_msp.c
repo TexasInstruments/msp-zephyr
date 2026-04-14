@@ -271,7 +271,8 @@ static int clock_msp_init(const struct device *dev)
 
 #if MSP_PLL_ENABLED
 	/* Configure PLL settings based on devicetree */
-#if DT_SAME_NODE(DT_HSCLK_CLOCKS_CTRL, DT_NODELABEL(syspll0))
+#if defined(MSP_M33) && DT_SAME_NODE(DT_HSCLK_CLOCKS_CTRL, DT_NODELABEL(syspll))
+	/* MSPM33 hsclk uses CLK0 output — override default CLK2X */
 	clock_msp_cfg_syspll.sysPLLMCLK = DL_SYSCTL_SYSPLL_MCLK_CLK0;
 #endif
 
@@ -357,17 +358,9 @@ static int clock_msp_init(const struct device *dev)
 	DL_SYSCTL_setMCLKSource(SYSOSC, HSCLK, DL_SYSCTL_HSCLK_SOURCE_HFCLK);
 #elif MSP_PLL_ENABLED
 	/* Handle PLL as MCLK source */
-#if defined(MSP_M0)
-#if (DT_SAME_NODE(DT_HSCLK_CLOCKS_CTRL, DT_NODELABEL(syspll0)) ||                                  \
-     DT_SAME_NODE(DT_HSCLK_CLOCKS_CTRL, DT_NODELABEL(syspll2x)))
+#if DT_SAME_NODE(DT_HSCLK_CLOCKS_CTRL, DT_NODELABEL(syspll))
 	DL_SYSCTL_setMCLKSource(SYSOSC, HSCLK, DL_SYSCTL_HSCLK_SOURCE_SYSPLL);
-#endif /* DT_SAME_NODE check for syspll */
-
-#elif defined(MSP_M33)
-#if (DT_SAME_NODE(DT_HSCLK_CLOCKS_CTRL, DT_NODELABEL(syspll0)))
-	DL_SYSCTL_setMCLKSource(SYSOSC, HSCLK, DL_SYSCTL_HSCLK_SOURCE_SYSPLL);
-#endif /* DT_SAME_NODE(DT_HSCLK_CLOCKS_CTRL, DT_NODELABEL(syspll0)) */
-#endif /* MSP_M0 vs MSP_M33 */
+#endif /* DT_SAME_NODE(DT_HSCLK_CLOCKS_CTRL, DT_NODELABEL(syspll)) */
 #endif /* MSP_PLL_ENABLED */
 
 #elif defined(MSP_M0) && DT_SAME_NODE(DT_MCLK_CLOCKS_CTRL, DT_NODELABEL(lfclk))
