@@ -1,0 +1,39 @@
+/*
+ * I2C Loopback Test - Controller Board Overlay (LP-MSPM0G3507)
+ *
+ * I2C:     SDA = PA0, SCL = PA1  (i2c0)
+ * READY:   PA25 - input, rising-edge interrupt (driven by target board)
+ * TRIGGER: PA8  - active-low output, wired to target nRST
+ *                 Asserting this pin resets the target board.
+ */
+
+/ {
+	aliases {
+		i2c-controller = &i2c0;
+		ready-gpio     = &button_ready;
+		trigger-gpio   = &nrst_trigger;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		button_ready: button_ready {
+			gpios = <&gpioa 25 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
+			label = "READY";
+		};
+	};
+
+	gpio_leds {
+		compatible = "gpio-leds";
+		nrst_trigger: nrst_trigger {
+			gpios = <&gpioa 8 GPIO_ACTIVE_LOW>;
+			label = "TRIGGER";
+		};
+	};
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_scl_pa01 &i2c0_sda_pa0>;
+	pinctrl-names = "default";
+	clock-frequency = <100000>;
+	status = "okay";
+};

@@ -1,0 +1,31 @@
+/*
+ * I2C Loopback Test - Target Board Overlay (LP-MSPM0G3507)
+ *
+ * I2C:     SDA = PA0, SCL = PA1  (i2c0)
+ * READY:   PA13 - output (driven by this board to signal controller)
+ * nRST:    PA8  - hardware reset input, wired to controller PA8.
+ *                 Not handled in firmware; the controller drives this pin
+ *                 to reset this board at the start of the test suite.
+ */
+
+/ {
+	aliases {
+		i2c-target = &i2c0;
+		ready-gpio = &led_ready;
+	};
+
+	gpio_leds {
+		compatible = "gpio-leds";
+		led_ready: led_ready {
+			gpios = <&gpioa 13 GPIO_ACTIVE_HIGH>;
+			label = "READY";
+		};
+	};
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_scl_pa01 &i2c0_sda_pa0>;
+	pinctrl-names = "default";
+	clock-frequency = <100000>;
+	status = "okay";
+};

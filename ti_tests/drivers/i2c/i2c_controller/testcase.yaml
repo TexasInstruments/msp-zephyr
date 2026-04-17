@@ -6,9 +6,11 @@ tests:
       - loopback
     platform_allow:
       - lp_mspm0g3507
+      - lp_mspm0l2228
     harness: ztest
     integration_platforms:
       - lp_mspm0g3507
+      - lp_mspm0l2228
 
   drivers.i2c.mspm0.loopback.controller.400k:
     tags:
@@ -17,9 +19,11 @@ tests:
       - loopback
     platform_allow:
       - lp_mspm0g3507
+      - lp_mspm0l2228
     harness: ztest
     integration_platforms:
       - lp_mspm0g3507
+      - lp_mspm0l2228
     extra_args: EXTRA_DTC_OVERLAY_FILE=boards/freq_400k.overlay
 
   drivers.i2c.mspm0.loopback.controller.1mhz:
@@ -29,7 +33,9 @@ tests:
       - loopback
     platform_allow:
       - lp_mspm0g3507
+      - lp_mspm0l2228
     harness: ztest
     integration_platforms:
       - lp_mspm0g3507
+      - lp_mspm0l2228
     extra_args: EXTRA_DTC_OVERLAY_FILE=boards/freq_1mhz.overlay

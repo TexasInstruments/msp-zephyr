@@ -13,7 +13,7 @@ Two LP-MSPM0G3507 boards are required.  Make the following connections:
 |--------|---------------|------------|-------|
 | SDA    | PA0           | PA0        | I2C data |
 | SCL    | PA1           | PA1        | I2C clock |
-| READY  | PA13 (input)  | PA13 (output) | Target pulses high to signal ready |
+| READY  | PA13 (input) (PA25 on MSPM0L)  | PA13 (output) | Target pulses high to signal ready |
 | nRST   | PA8 (output)  | nRST       | Controller drives low to reset target |
 | GND    | GND           | GND        | Common ground |
 
