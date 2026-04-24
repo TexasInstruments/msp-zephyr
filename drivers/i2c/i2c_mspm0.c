@@ -193,6 +193,11 @@ static int i2c_mspm0_configure(const struct device *dev, uint32_t dev_config)
 	/* Enable module */
 	DL_I2C_enableController(config->base);
 
+	/* disable async fast clock requests (not needed)
+	 * this also allows I2C to enter low power modes. */
+	I2C_INST->GPRCM.CLKCFG = (1 << 8) | (0xA9 << 24);
+
+
 sem_give:
 	k_sem_give(&data->i2c_lock);
 	return ret;
@@ -276,6 +281,11 @@ static int i2c_mspm0_reset_controller(const struct device *dev)
 
 	/* Enable module */
 	DL_I2C_enableController(config->base);
+
+	/* disable async fast clock requests (not needed)
+	 * this also allows I2C to enter low power modes. */
+	I2C_INST->GPRCM.CLKCFG = (1 << 8) | (0xA9 << 24);
+
 
 	return 0;
 }
