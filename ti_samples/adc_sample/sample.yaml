@@ -1,0 +1,14 @@
+sample:
+  name: ADC Sample
+  description: Periodic ADC sampling with automatic low-power mode
+common:
+  tags:
+    - adc
+    - pm
+    - drivers
+tests:
+  sample.adc.basic:
+    platform_allow:
+      - lp_mspm0g3507
+      - native_sim
+    filter: dt_enabled_alias(adc0)
