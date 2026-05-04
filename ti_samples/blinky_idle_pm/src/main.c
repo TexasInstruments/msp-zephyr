@@ -47,6 +47,8 @@ int main(void)
 		return 0;
 	}
 
+	printf("Hello from TI\n");
+
 	while (1) {
 
 		ret = gpio_pin_toggle_dt(&led);
@@ -54,7 +56,6 @@ int main(void)
 			return 0;
 		}
 
-		printf("Please Work\n");
 		/* During this k_msleep(), the PM policy manager automatically
 		 * selects an appropriate SoC sleep state and the system enters
 		 * low-power mode. Timer interrupt wakes the system after 1000ms.
