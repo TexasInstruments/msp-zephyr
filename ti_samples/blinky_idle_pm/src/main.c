@@ -12,7 +12,7 @@
 #include <ti/driverlib/driverlib.h>
 
 /* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS   6
+#define SLEEP_TIME_MS   2000
 
 /* PA22 for CLK_OUT */
 #define GPIO_CLKOUT_PIN                                           DL_GPIO_PIN_22
@@ -54,11 +54,13 @@ int main(void)
 			return 0;
 		}
 
+		printf("Please Work\n");
 		/* During this k_msleep(), the PM policy manager automatically
 		 * selects an appropriate SoC sleep state and the system enters
 		 * low-power mode. Timer interrupt wakes the system after 1000ms.
 		 */
 		k_msleep(SLEEP_TIME_MS);
+
 	}
 	return 0;
 }

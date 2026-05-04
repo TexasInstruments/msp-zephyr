@@ -35,3 +35,39 @@
 		status = "okay";
 	};
 };
+
+
+&cpu0 {
+	clock-frequency = <DT_FREQ_M(32)>;
+};
+
+&ulpclk {
+	clock-frequency = <DT_FREQ_M(32)>;
+	clk-div = <1>;
+};
+
+
+&mclk {
+	clock-frequency = <DT_FREQ_M(32)>;
+	clocks = <&sysosc>;
+};
+
+&syspll {
+	status = "disabled";
+};
+
+&stop1 {
+	status = "disabled";
+};
+
+&stop2 {
+	status = "disabled";
+};
+
+&stdby0 {
+	status = "disabled";
+};
+
+&stdby1 {
+	status = "disabled";
+};
