@@ -38,6 +38,10 @@
 #error "Set SYSOSC clock frequency not supported"
 #endif
 
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(mfclk), okay)
+#define MSPM0_MFCLK_ENABLED 1
+#endif
+
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(mfpclk), okay)
 #define MSPM0_MFPCLK_ENABLED 1
 #endif
@@ -57,6 +61,7 @@
 #define DT_MCLK_CLOCKS_CTRL	DT_CLOCKS_CTLR(DT_NODELABEL(mclk))
 #define DT_LFCLK_CLOCKS_CTRL	DT_CLOCKS_CTLR(DT_NODELABEL(lfclk))
 #define DT_HFCLK_CLOCKS_CTRL	DT_CLOCKS_CTLR(DT_NODELABEL(hfclk))
+#define DT_MFCLK_CLOCKS_CTRL	DT_CLOCKS_CTLR(DT_NODELABEL(mfclk))
 #define DT_MFPCLK_CLOCKS_CTRL	DT_CLOCKS_CTLR(DT_NODELABEL(mfpclk))
 #define DT_SYSPLL_CLOCKS_CTRL	DT_CLOCKS_CTLR(DT_NODELABEL(syspll))
 
@@ -79,6 +84,12 @@ static struct mspm0_clk_cfg mspm0_ulpclk_cfg = {
 	.clk_freq = DT_PROP(DT_NODELABEL(ulpclk), clock_frequency),
 	.clk_div = MSPM0_ULPCLK_DIV,
 };
+
+#if MSPM0_MFCLK_ENABLED
+static struct mspm0_clk_cfg mspm0_mfclk_cfg = {
+	.clk_freq = DT_PROP(DT_NODELABEL(mfclk), clock_frequency),
+};
+#endif
 
 #if MSPM0_MFPCLK_ENABLED
 static struct mspm0_clk_cfg mspm0_mfpclk_cfg = {
@@ -154,6 +165,12 @@ static int clock_mspm0_get_rate(const struct device *dev,
 		*rate = CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC;
 		break;
 
+#if MSPM0_MFCLK_ENABLED
+	case MSPM0_CLOCK_MFCLK:
+		*rate = mspm0_mfclk_cfg.clk_freq;
+		break;
+#endif
+
 #if MSPM0_MFPCLK_ENABLED
 	case MSPM0_CLOCK_MFPCLK:
 		*rate = mspm0_mfpclk_cfg.clk_freq;
@@ -172,7 +189,6 @@ static int clock_mspm0_get_rate(const struct device *dev,
 		break;
 #endif
 
-	case MSPM0_CLOCK_MFCLK:
 	default:
 		return -ENOTSUP;
 	}
@@ -260,6 +276,10 @@ static int clock_mspm0_init(const struct device *dev)
 	DL_SYSCTL_setMCLKSource(SYSOSC, LFCLK, false);
 
 #endif /* DT_SAME_NODE(DT_MCLK_CLOCKS_CTRL, DT_NODELABEL(hfclk)) */
+
+#if MSPM0_MFCLK_ENABLED
+	DL_SYSCTL_enableMFCLK();
+#endif /* MSPM0_MFCLK_ENABLED */
 
 #if MSPM0_MFPCLK_ENABLED
 #if DT_SAME_NODE(DT_MFPCLK_CLOCKS_CTRL, DT_NODELABEL(hfclk))

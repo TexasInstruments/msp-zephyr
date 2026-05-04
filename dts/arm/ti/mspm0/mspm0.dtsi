@@ -109,6 +109,14 @@
 			clocks = <&sysosc>;
 		};
 
+		mfclk: mfclk {
+			#clock-cells = <1>;
+			compatible = "ti,mspm0-clk";
+			clock-frequency = <DT_FREQ_M(4)>;
+			clocks = <&sysosc>;
+			status = "disabled";
+		};
+
 		mfpclk: mfpclk {
 			#clock-cells = <1>;
 			compatible = "ti,mspm0-clk";
