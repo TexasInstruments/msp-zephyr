@@ -36,19 +36,6 @@
 	};
 };
 
-&cpu0 {
-	clock-frequency = <DT_FREQ_M(32)>;
-};
-
-&ulpclk {
-	clock-frequency = <DT_FREQ_M(32)>;
-	clk-div = <1>;
-};
-
-&mclk {
-	clock-frequency = <DT_FREQ_M(32)>;
-	clocks = <&sysosc>;
-};
 
 &mfclk {
 	status = "okay";
@@ -57,10 +44,6 @@
 &uart0 {
 	clocks = <&ckm MSPM0_CLOCK_MFCLK>;
 	current-speed = <460800>;
-};
-
-&syspll {
-	status = "disabled";
 };
 
 &stop1 {
