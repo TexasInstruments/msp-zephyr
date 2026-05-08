@@ -63,7 +63,20 @@ void pm_state_set(enum pm_state state, uint8_t substate_id)
 		return;
 	}
 
+	/*
+	 * Workaround for CPU_ERR_03
+	 *
+	 * If transitioning into a low power mode while a prefetch is pending, the prefetcher can
+	 * erroneously fetch bad data. Corrective action is to disable the prefetcher prior to sleep
+	 * and reenable it afterwards.
+	 */
+
+	/* Disable Prefetch */
+	CPUSS->CTL &= 0x6;
+	SYSCTL->SOCLOCK.SHUTDNSTORE0;
 	__WFI();
+	/* Re-enable Prefetch */
+	CPUSS->CTL |= 0x1;
 }
 
 void pm_state_exit_post_ops(enum pm_state state, uint8_t substate_id)
