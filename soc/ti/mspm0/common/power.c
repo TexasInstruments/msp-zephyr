@@ -121,4 +121,10 @@ void pm_state_exit_post_ops(enum pm_state state, uint8_t substate_id)
 	}
 #endif
 
+	/* reset the power policy to RUN/SLEEP. This way if the cpu_idle
+	 * thread is entered during a semaphore pend, the peripherals
+	 * and other threads will not enter too low of a power state.
+	 */
+	set_mode_run(0);
+
 }
