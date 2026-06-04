@@ -1,0 +1,15 @@
+sample:
+  name: Complex Power Management Sample
+tests:
+  ti_samples.full_pm:
+    tags:
+      - LED
+      - uart
+      - i2c
+      - rtc
+      - gpio
+      - pm
+    depends_on: gpio
+    harness: led
+    integration_platforms:
+      - lp_mspm0g3519
