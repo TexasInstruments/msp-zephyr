@@ -26,6 +26,10 @@
 #include <ti/driverlib/dl_i2c.h>
 #include <ti/driverlib/driverlib.h>
 
+#define DEBUG_I2C_GPIO_PIN (DL_GPIO_PIN_15)
+#define DEBUG_I2C_GPIO_PORT GPIOB
+#define DEBUG_I2C_GPIO_IOMUX (IOMUX_PINCM32)
+
 LOG_MODULE_REGISTER(i2c_mspm0, CONFIG_I2C_LOG_LEVEL);
 
 #define TI_MSPM0_CONTROLLER_INTERRUPTS                                                             \
@@ -217,6 +221,11 @@ static int i2c_mspm0_init(const struct device *dev)
 	/* initialize semaphores */
 	k_sem_init(&data->i2c_lock, 1, 1);
 	k_sem_init(&data->device_sync_sem, 0, 1);
+
+	/* TODO: Remove */
+	DL_GPIO_initDigitalOutput(DEBUG_I2C_GPIO_IOMUX);
+	DL_GPIO_enableOutput(DEBUG_I2C_GPIO_PORT, DEBUG_I2C_GPIO_PIN);
+	DL_GPIO_clearPins(DEBUG_I2C_GPIO_PORT, DEBUG_I2C_GPIO_PIN);
 
 	/* Init power */
 	DL_I2C_reset(config->base);
@@ -412,6 +421,8 @@ static int i2c_mspm0_transfer(const struct device *dev, struct i2c_msg *msgs, ui
 	struct i2c_msg transaction_msg;
 	int ret = 0;
 
+	/* TODO: Remove gpio lines*/
+	DL_GPIO_setPins(DEBUG_I2C_GPIO_PORT, DEBUG_I2C_GPIO_PIN);
 #ifdef CONFIG_PM_DEVICE
 #ifdef CONFIG_PM_DEVICE_RUNTIME
 	/* Prevent device from entering sleep state until transaction is complete */
@@ -799,6 +810,7 @@ static inline void i2c_mspm0_isr_controller(const struct device *dev)
 		DL_I2C_flushControllerTXFIFO(config->base);
 	case DL_I2C_IIDX_CONTROLLER_STOP:
 		k_sem_give(&data->i2c_lock);
+		DL_GPIO_clearPins(DEBUG_I2C_GPIO_PORT, DEBUG_I2C_GPIO_PIN);
 #ifdef CONFIG_PM_DEVICE
 #ifdef CONFIG_PM_DEVICE_RUNTIME
 		pm_device_runtime_put(dev);

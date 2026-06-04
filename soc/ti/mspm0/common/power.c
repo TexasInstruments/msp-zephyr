@@ -11,6 +11,10 @@
 #include <zephyr/logging/log.h>
 #include <ti/driverlib/driverlib.h>
 
+/* Todo: remove */
+#define DEBUG_POWER_GPIO_PIN (DL_GPIO_PIN_20)
+#define DEBUG_POWER_GPIO_PORT (GPIOB)
+
 LOG_MODULE_DECLARE(soc, CONFIG_SOC_LOG_LEVEL);
 
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(syspll), okay)
@@ -105,9 +109,12 @@ void pm_state_set(enum pm_state state, uint8_t substate_id)
 		return;
 	}
 
-
+	/* TODO: remove*/
+	DL_GPIO_clearPins(DEBUG_POWER_GPIO_PORT, DEBUG_POWER_GPIO_PIN);
 
 	__WFI();
+
+	DL_GPIO_setPins(DEBUG_POWER_GPIO_PORT, DEBUG_POWER_GPIO_PIN);
 }
 
 void pm_state_exit_post_ops(enum pm_state state, uint8_t substate_id)

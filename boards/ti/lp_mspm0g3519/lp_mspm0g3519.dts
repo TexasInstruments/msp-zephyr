@@ -20,8 +20,6 @@
 		led0 = &led0;
 		led1 = &led1;
 		led2 = &led2;
-		sw0 = &btn0;
-		sw1 = &btn1;
 	};
 
 	chosen {
@@ -49,22 +47,6 @@
 		led2: led_2 {
 			gpios = <&gpiob 27 GPIO_ACTIVE_HIGH>;
 			label = "Green LED";
-		};
-	};
-
-	keys {
-		compatible = "gpio-keys";
-
-		btn0: btn_0 {
-			gpios = <&gpioa 18 GPIO_ACTIVE_HIGH>;
-			label = "Switch 1";
-			zephyr,code = <INPUT_KEY_0>;
-		};
-
-		btn1: btn_1 {
-			gpios = <&gpiob 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-			label = "Switch 2";
-			zephyr,code = <INPUT_KEY_1>;
 		};
 	};
 };

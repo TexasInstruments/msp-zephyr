@@ -11,6 +11,10 @@
  */
 #include <zephyr/kernel.h>
 #include <cmsis_core.h>
+#include <ti/driverlib/driverlib.h>
+
+#define DEBUG_IDLE_GPIO_PIN (DL_GPIO_PIN_18)
+#define DEBUG_IDLE_GPIO_PORT (GPIOB)
 
 #if defined(CONFIG_ARM_ON_EXIT_CPU_IDLE)
 #include <soc_cpu_idle.h>
@@ -96,7 +100,11 @@ void arch_cpu_idle(void)
 	 */
 #endif
 
+	DL_GPIO_clearPins(DEBUG_IDLE_GPIO_PORT, DEBUG_IDLE_GPIO_PIN);
+
 	SLEEP_IF_ALLOWED(__WFI);
+
+	DL_GPIO_setPins(DEBUG_IDLE_GPIO_PORT, DEBUG_IDLE_GPIO_PIN);
 
 #if defined(CONFIG_TRACING)
 	sys_trace_idle_exit();
@@ -138,7 +146,11 @@ void arch_cpu_atomic_idle(unsigned int key)
 #error Unsupported architecture
 #endif
 
+	DL_GPIO_clearPins(DEBUG_IDLE_GPIO_PORT, DEBUG_IDLE_GPIO_PIN);
+
 	SLEEP_IF_ALLOWED(__WFE);
+
+	DL_GPIO_setPins(DEBUG_IDLE_GPIO_PORT, DEBUG_IDLE_GPIO_PIN);
 
 #if defined(CONFIG_TRACING)
 	sys_trace_idle_exit();

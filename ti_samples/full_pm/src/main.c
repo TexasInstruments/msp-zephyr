@@ -23,6 +23,14 @@
 #define GPIO_CLKOUT_IOMUX                                        (IOMUX_PINCM47)
 #define GPIO_CLKOUT_IOMUX_FUNC                   IOMUX_PINCM47_PF_SYSCTL_CLK_OUT
 
+/* TODO: remove */
+#define DEBUG_POWER_GPIO_PIN (DL_GPIO_PIN_20)
+#define DEBUG_POWER_GPIO_PORT (GPIOB)
+#define DEBUG_POWER_GPIO_IOMUX (IOMUX_PINCM48)
+
+#define DEBUG_IDLE_GPIO_PIN (DL_GPIO_PIN_18)
+#define DEBUG_IDLE_GPIO_PORT (GPIOB)
+#define DEBUG_IDLE_GPIO_IOMUX (IOMUX_PINCM44)
 
 /*
  * A build error on this line means your board is unsupported.
@@ -84,6 +92,16 @@ int main(void)
 	DL_GPIO_initPeripheralOutputFunction(GPIO_CLKOUT_IOMUX, GPIO_CLKOUT_IOMUX_FUNC);
 	DL_GPIO_enableOutput(GPIO_CLKOUT_PORT, GPIO_CLKOUT_PIN);
 	DL_SYSCTL_enableExternalClock(DL_SYSCTL_CLK_OUT_SOURCE_ULPCLK, DL_SYSCTL_CLK_OUT_DIVIDE_16);
+
+	/* Begin DEBUG ONLY */
+	DL_GPIO_initDigitalOutput(DEBUG_POWER_GPIO_IOMUX);
+	DL_GPIO_enableOutput(DEBUG_POWER_GPIO_PORT, DEBUG_POWER_GPIO_PIN);
+	DL_GPIO_setPins(DEBUG_POWER_GPIO_PORT, DEBUG_POWER_GPIO_PIN);
+
+	DL_GPIO_initDigitalOutput(DEBUG_IDLE_GPIO_IOMUX);
+	DL_GPIO_enableOutput(DEBUG_IDLE_GPIO_PORT, DEBUG_IDLE_GPIO_PIN);
+	DL_GPIO_setPins(DEBUG_IDLE_GPIO_PORT, DEBUG_IDLE_GPIO_PIN);
+	/* End DEBUG ONLY */
 
 	if (!gpio_is_ready_dt(&led)) {
 		return 0;
