@@ -70,16 +70,7 @@
 
 &mclk {
 	clock-frequency = <DT_FREQ_M(80)>;
-	clocks = <&hsclk 0>;
-};
-
-&hsclk {
-	clocks = <&syspll2x 0>;
-	status = "okay";
-};
-
-&syspll2x {
-	status = "okay";
+	clocks = <&syspll 0>;
 };
 
 &flash0 {
@@ -130,4 +121,13 @@
 	current-speed = <115200>;
 	pinctrl-0 = <&uc0_tx_pa10 &uc0_rx_pa11>;
 	pinctrl-names = "default";
+};
+
+&usbfs0 {
+	status = "okay";
+	maximum-speed = "full-speed";
+};
+
+zephyr_udc0: &usbfs0 {
+	status = "okay";
 };
