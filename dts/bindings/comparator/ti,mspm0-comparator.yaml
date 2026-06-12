@@ -1,0 +1,161 @@
+# Copyright (c) 2026 OpenAI
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Texas Instruments MSPM0 analog comparator.
+
+  The MSPM0 comparator can compare external analog input channels with another
+  external input or with the internal reference voltage generator. The reference
+  generator can use VREF or VDDA directly, or feed either source through the
+  comparator's integrated 8-bit DAC.
+
+  When a VREF-based reference source is selected, vref points at the VREF
+  regulator device used by the comparator. Configure that VREF node to be on,
+  for example with regulator-always-on or regulator-boot-on.
+
+  This binding describes polled comparator use through the Zephyr comparator
+  subsystem. Comparator interrupts/events are not supported by this driver.
+
+  Comparator pinctrl states are split by signal direction so the driver can
+  leave comparator outputs disconnected from GPIOs until the hardware output is
+  valid. Name comparator input pinctrl states "input" and output pinctrl states
+  "output". The driver applies "input" before configuring and enabling the
+  comparator, waits for the comparator OUTPUT_READY status, then applies
+  "output". Either state may be omitted when the comparator does not use pins
+  in that direction.
+
+  Example:
+
+    comp1: comparator@4000a000 {
+      compatible = "ti,mspm0-comp-io";
+      reg = <0x4000a000 0x2000>;
+      status = "okay";
+      pinctrl-0 = <&analog_pb18>;
+      pinctrl-1 = <&comp1_out_pa3>;
+      pinctrl-names = "input", "output";
+
+      ti,positive-input-channel = <2>;
+      ti,reference-source = "vref-dac";
+      ti,reference-terminal = "negative";
+      ti,dac-code0 = <159>;
+      ti,hysteresis-mv = <30>;
+      invert-output;
+      vref = <&vref0>;
+    };
+
+compatible: "ti,mspm0-comp-io"
+
+include:
+  - base.yaml
+  - pinctrl-device.yaml
+
+properties:
+  reg:
+    required: true
+
+  pinctrl-0:
+    description: |
+      Comparator pins for the first named pinctrl state. Comparator pinctrl
+      states must be named "input" or "output"; see pinctrl-names.
+
+  pinctrl-1:
+    description: |
+      Comparator pins for the second named pinctrl state. Comparator pinctrl
+      states must be named "input" or "output"; see pinctrl-names.
+
+  pinctrl-names:
+    enum:
+      - "input"
+      - "output"
+    description: |
+      Comparator pinctrl state names. Use "input" for external comparator input
+      pins and "output" for comparator output pins. The driver applies "input"
+      before configuring the comparator and applies "output" only after the
+      comparator output is ready.
+
+  vref:
+    type: phandle
+    description: |
+      VREF regulator used when ti,reference-source selects "vref" or
+      "vref-dac". This driver checks that the referenced VREF device is ready,
+      but does not enable it.
+
+  ti,mode:
+    type: string
+    default: "ulp"
+    enum:
+      - "fast"
+      - "ulp"
+    description: Comparator operating mode.
+
+  ti,positive-input-channel:
+    type: int
+    required: true
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    description: |
+      Positive terminal input channel. The channel-to-pin mapping is
+      device-specific and is documented in the MSPM0 datasheet.
+
+  ti,negative-input-channel:
+    type: int
+    default: 0
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    description: |
+      Negative terminal input channel. This is ignored when the negative
+      terminal is driven by the reference generator instead.
+
+  invert-output:
+    type: boolean
+    description: Invert the comparator output polarity.
+
+  ti,hysteresis-mv:
+    type: int
+    default: 0
+    enum: [0, 10, 20, 30]
+    description: Typical comparator hysteresis in millivolts.
+
+  ti,reference-mode:
+    type: string
+    default: "static"
+    enum:
+      - "static"
+      - "sampled"
+    description: Reference generator operating mode.
+
+  ti,reference-source:
+    type: string
+    default: "none"
+    enum:
+      - "none"
+      - "vdda-dac"
+      - "vref-dac"
+      - "vref"
+      - "vdda"
+      - "internal-vref-dac"
+    description: |
+      Reference source for the comparator reference generator. Sources ending
+      in "-dac" feed the selected source into the integrated 8-bit DAC before
+      applying it to the selected terminal.
+
+  ti,reference-terminal:
+    type: string
+    default: "positive"
+    enum:
+      - "positive"
+      - "negative"
+    description: |
+      Terminal driven by the selected reference generator output.
+
+      The driver infers which comparator input channels to enable from
+      ti,reference-source and this property. When ti,reference-source is
+      "none", both selected input channels are enabled. When a reference source
+      is selected for the negative terminal, only the positive input channel is
+      enabled. When a reference source is selected for the positive terminal,
+      only the negative input channel is enabled.
+
+  ti,dac-code0:
+    type: int
+    default: 0
+    description: |
+      Initial DACCODE0 value. Valid range is 0 to 255. For the MSPM0 8-bit
+      comparator DAC, the DAC output is reference * (code + 1) / 256.

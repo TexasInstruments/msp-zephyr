@@ -166,6 +166,18 @@
 			interrupts = <25 0>;
 			status = "disabled";
 		};
+
+		comp1: comp1@4000A000 {
+			compatible = "ti,mspm0-comparator";
+			reg = <0x4000A000 0x2000>;
+			status = "disabled";
+		};
+
+		comp2: comp2@4000C000 {
+			compatible = "ti,mspm0-comparator";
+			reg = <0x4000C000 0x2000>;
+			status = "disabled";
+		};
 	};
 };
 
