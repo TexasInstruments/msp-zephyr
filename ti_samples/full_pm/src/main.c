@@ -23,6 +23,30 @@
 #define GPIO_CLKOUT_IOMUX                                        (IOMUX_PINCM47)
 #define GPIO_CLKOUT_IOMUX_FUNC                   IOMUX_PINCM47_PF_SYSCTL_CLK_OUT
 
+/* TODO: remove */
+#define DEBUG_POWER_GPIO_PIN (DL_GPIO_PIN_20)
+#define DEBUG_POWER_GPIO_PORT (GPIOB)
+#define DEBUG_POWER_GPIO_IOMUX (IOMUX_PINCM48)
+
+#define DEBUG_IDLE_GPIO_PIN (DL_GPIO_PIN_21)
+#define DEBUG_IDLE_GPIO_PORT (GPIOB)
+#define DEBUG_IDLE_GPIO_IOMUX (IOMUX_PINCM49)
+
+#define DEBUG_ASYNC_GPIO_PIN (DL_GPIO_PIN_30)
+#define DEBUG_ASYNC_GPIO_PORT (GPIOB)
+#define DEBUG_ASYNC_GPIO_IOMUX (IOMUX_PINCM67)
+
+#define DEBUG_CLOCK_GPIO_PIN (DL_GPIO_PIN_31)
+#define DEBUG_CLOCK_GPIO_PORT (GPIOB)
+#define DEBUG_CLOCK_GPIO_IOMUX (IOMUX_PINCM68)
+
+#define DEBUG_FCC_GPIO_PIN (DL_GPIO_PIN_25)
+#define DEBUG_FCC_GPIO_PORT (GPIOB)
+#define DEBUG_FCC_GPIO_IOMUX (IOMUX_PINCM56)
+
+#define DEBUG_FAIL_GPIO_PORT (GPIOB)
+#define DEBUG_FAIL_GPIO_PIN (DL_GPIO_PIN_26)
+#define DEBUG_FAIL_GPIO_IOMUX (IOMUX_PINCM57)
 
 /*
  * A build error on this line means your board is unsupported.
@@ -85,6 +109,27 @@ int main(void)
 	DL_GPIO_enableOutput(GPIO_CLKOUT_PORT, GPIO_CLKOUT_PIN);
 	DL_SYSCTL_enableExternalClock(DL_SYSCTL_CLK_OUT_SOURCE_ULPCLK, DL_SYSCTL_CLK_OUT_DIVIDE_16);
 
+	/* Begin DEBUG ONLY */
+	DL_GPIO_initDigitalOutput(DEBUG_POWER_GPIO_IOMUX);
+	DL_GPIO_enableOutput(DEBUG_POWER_GPIO_PORT, DEBUG_POWER_GPIO_PIN);
+	DL_GPIO_setPins(DEBUG_POWER_GPIO_PORT, DEBUG_POWER_GPIO_PIN);
+
+	DL_GPIO_initDigitalOutput(DEBUG_IDLE_GPIO_IOMUX);
+	DL_GPIO_enableOutput(DEBUG_IDLE_GPIO_PORT, DEBUG_IDLE_GPIO_PIN);
+	DL_GPIO_setPins(DEBUG_IDLE_GPIO_PORT, DEBUG_IDLE_GPIO_PIN);
+
+	DL_GPIO_initDigitalOutput(DEBUG_ASYNC_GPIO_IOMUX);
+	DL_GPIO_enableOutput(DEBUG_ASYNC_GPIO_PORT, DEBUG_ASYNC_GPIO_PIN);
+	DL_GPIO_clearPins(DEBUG_ASYNC_GPIO_PORT, DEBUG_ASYNC_GPIO_PIN);
+
+	DL_GPIO_initDigitalOutput(DEBUG_CLOCK_GPIO_IOMUX);
+	DL_GPIO_initDigitalOutput(DEBUG_FCC_GPIO_IOMUX);
+	DL_GPIO_initDigitalOutput(DEBUG_FAIL_GPIO_IOMUX);
+	DL_GPIO_enableOutput(DEBUG_CLOCK_GPIO_PORT, DEBUG_CLOCK_GPIO_PIN | DEBUG_FCC_GPIO_PIN | DEBUG_FAIL_GPIO_PIN);
+	DL_GPIO_clearPins(DEBUG_CLOCK_GPIO_PORT, DEBUG_CLOCK_GPIO_PIN | DEBUG_FCC_GPIO_PIN | DEBUG_FAIL_GPIO_PIN);
+
+	/* END DEBUG ONLY */
+
 	if (!gpio_is_ready_dt(&led)) {
 		return 0;
 	}
@@ -113,13 +158,13 @@ int main(void)
 			return 0;
 		}
 
+		uptime_ms = k_uptime_get();
+		printk("System uptime: %lld ms\n", uptime_ms);
+
 		/* send an i2c transaction */
 		i2c_write(i2c_dev, i2c_data, 10, TARGET_ADDR);
 
 		i2c_data[15]++;
-
-		uptime_ms = k_uptime_get();
-		printk("System uptime: %lld ms\n", uptime_ms);
 
 		ret = get_date_time(rtc);
 

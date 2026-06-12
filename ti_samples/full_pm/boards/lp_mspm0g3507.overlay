@@ -1,0 +1,76 @@
+/*
+ * Copyright (c) 2026 Texas Instruments
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	aliases {
+		led0 = &led0;
+	};
+
+	chosen {
+		zephyr,system-timer-companion = &counterg0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led0: led_0 {
+			gpios = <&gpiob 22 GPIO_ACTIVE_LOW>;
+			label = "Blue LED";
+		};
+	};
+};
+
+&gpiob {
+	status = "okay";
+	zephyr,pm-device-runtime-auto;
+};
+
+&timg0 {
+	status = "okay";
+	ti,clk-prescaler = <1>;
+
+	counterg0 {
+		status = "okay";
+	};
+};
+
+&mfclk {
+	status = "okay";
+};
+
+&uart0 {
+	clocks = <&ckm MSPM0_CLOCK_MFCLK>;
+	current-speed = <460800>;
+};
+
+&lfclk {
+	clocks = <&lfxt>;
+};
+
+&lfxt {
+	status = "okay";
+	clock-frequency = <32768>;
+};
+
+&stop1 {
+	status = "disabled";
+};
+
+&stop2 {
+	status = "disabled";
+};
+
+&stdby0 {
+	status = "disabled";
+};
+
+&stdby1 {
+	status = "okay";
+};
+
+&vref0 {
+	status = "disabled";
+};

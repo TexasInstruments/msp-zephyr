@@ -9,6 +9,7 @@
 		led0 = &led0;
 		i2c-controller = &i2c0;
 		rtc = &rtc;
+		uart1 = &uart7;
 	};
 
 	chosen {
@@ -72,7 +73,12 @@
 
 &uart0 {
 	clocks = <&ckm MSPM0_CLOCK_MFCLK>;
-	current-speed = <460800>;
+	current-speed = <230400>;
+	/delete-property/ zephyr,pm-device-runtime-auto;
+};
+
+&stop0 {
+	status = "okay";
 };
 
 &stop1 {
@@ -99,6 +105,14 @@
 	pinctrl-0 = <&i2c0_scl_pa1 &i2c0_sda_pa0>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+
+&uart7 {
+	pinctrl-0 = <&uart7_tx_pb2 &uart7_rx_pb3>;
+	pinctrl-1 = <&analog_pb2 &analog_pb3>;
+	pinctrl-names = "default", "sleep";
+	status = "disabled";
+	zephyr,pm-device-runtime-auto;
 };
 
 &rtc {
