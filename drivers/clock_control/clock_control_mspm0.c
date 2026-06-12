@@ -5,8 +5,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <zephyr/devicetree.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/mspm0_clock_control.h>
+#include <zephyr/fatal.h>
 
 #include <ti/driverlib/driverlib.h>
 #include <string.h>
@@ -105,16 +107,91 @@ static struct mspm0_clk_cfg mspm0_hfclk_cfg = {
 #endif
 
 #if MSPM0_SYSPLL_ENABLED
+
+#if DT_SAME_NODE(DT_MCLK_CLOCKS_CTRL, DT_NODELABEL(syspll))
 /* basic checks of the devicetree to follow */
-#if (DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk2x_div) && \
-	DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk0_div))
-#error "Only CLK2X or CLK0 can be enabled at a time on the SYSPLL"
+#if ((DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk2x_div) && \
+	DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk0_div)) || \
+	(!DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk2x_div) && \
+	!DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk0_div)))
+#error "Either CLK2X or CLK0 must be enabled on the SYSPLL in order to supply MCLK"
 #endif
+
+#endif /* if SYSPLL is used to source MCLK*/
+
+
+#if DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk2x_div)
+#define MSPM0_SYSPLL_TO_MCLK_SOURCE DL_SYSCTL_SYSPLL_MCLK_CLK2X
+#else
+/* this is kept separate from the above checks because it is possible
+ * to have SYSPLL1 up and not supply MCLK
+ */
+#define MSPM0_SYSPLL_TO_MCLK_SOURCE DL_SYSCTL_SYSPLL_MCLK_CLK0
+#endif
+
+
+/* check for the FCC upper and lower Bound for the configured
+ * SYSPLL output compared to LFCLK.
+ *
+ * Currently, the tolerance supported is 5% plus or minus the nominal
+ * frequency with respect to LFCLK.
+ */
+
+#if DT_SAME_NODE(DT_SYSPLL_CLOCKS_CTRL, DT_NODELABEL(sysosc))
+#define MSPM0_SYSPLL_INPUT_REF DL_SYSCTL_SYSPLL_REF_SYSOSC
+#elif DT_SAME_NODE(DT_SYSPLL_CLOCKS_CTRL, DT_NODELABEL(hfclk))
+#define MSPM0_SYSPLL_INPUT_REF DL_SYSCTL_SYSPLL_REF_HFCLK
+#else
+#error "not a valid input node for syspll"
+#endif
+
+#define MSPM0_SYSPLL_INPUT_FREQ DT_PROP(DT_CLOCKS_CTLR_BY_IDX(DT_NODELABEL(syspll), 0), clock_frequency)
+#define MSPM0_SYSPLL_QDIV DT_PROP(DT_NODELABEL(syspll), q_div)
+#define MSPM0_SYSPLL_PDIV DT_PROP(DT_NODELABEL(syspll), p_div)
+#define MSPM0_SYSPLL_VCO (MSPM0_SYSPLL_INPUT_FREQ * MSPM0_SYSPLL_QDIV / MSPM0_SYSPLL_PDIV)
+
+/* determine FCC input. Any of the following would work for FCC. */
+#if DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk2x_div)
+
+#define MSPM0_SYSPLL_FCC_INPUT DL_SYSCTL_FCC_CLOCK_SOURCE_SYSPLLCLK2X
+#define MSPM0_SYSPLL_DIVIDER_VALUE (DT_PROP(DT_NODELABEL(syspll),clk2x_div))
+#define MSPM0_SYSPLL_MULTIPLIER_VALUE (2)
+
+#elif DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk0_div)
+
+#define MSPM0_SYSPLL_FCC_INPUT DL_SYSCTL_FCC_CLOCK_SOURCE_SYSPLLCLK0
+#define MSPM0_SYSPLL_DIVIDER_VALUE DT_PROP(DT_NODELABEL(syspll),clk0_div)
+#define MSPM0_SYSPLL_MULTIPLIER_VALUE (1)
+
+#elif DT_NODE_HAS_PROP(DT_NODELABEL(syspll), clk1_div)
+
+#define MSPM0_SYSPLL_FCC_INPUT DL_SYSCTL_FCC_CLOCK_SOURCE_SYSPLLCLK1
+#define MSPM0_SYSPLL_DIVIDER_VALUE DT_PROP(DT_NODELABEL(syspll),clk1_div)
+#define MSPM0_SYSPLL_MULTIPLIER_VALUE (1)
+
+#else
+#error "Syspll is not in a valid configuration, no clock div is present"
+#endif
+
+#define SYSPLL_EXPECTED_FREQ                                                                       \
+(((MSPM0_SYSPLL_VCO)/MSPM0_SYSPLL_DIVIDER_VALUE) * MSPM0_SYSPLL_MULTIPLIER_VALUE)
+
+/* perform tolerance at 95% (also 19/20)
+ * but the number of monitoring periods is two, thus we use 19/10
+ */
+#define FCC_LOWER_BOUND (SYSPLL_EXPECTED_FREQ * 19) / \
+	(10 * DT_PROP(DT_NODELABEL(lfclk),clock_frequency))
+/* upper bound tolerance is 105 % (also 21/20)
+ * but the number of monitoring periods is two, thus we use 21/10
+ */
+#define FCC_UPPER_BOUND (SYSPLL_EXPECTED_FREQ * 21) / \
+	(10 * DT_PROP(DT_NODELABEL(lfclk),clock_frequency))
+
 
 static DL_SYSCTL_SYSPLLConfig clock_mspm0_cfg_syspll = {
 	.inputFreq = DL_SYSCTL_SYSPLL_INPUT_FREQ_32_48_MHZ,
-	.sysPLLMCLK = DL_SYSCTL_SYSPLL_MCLK_CLK2X,
-	.sysPLLRef = DL_SYSCTL_SYSPLL_REF_SYSOSC,
+	.sysPLLMCLK = MSPM0_SYSPLL_TO_MCLK_SOURCE,
+	.sysPLLRef = MSPM0_SYSPLL_INPUT_REF,
 	.rDivClk2x = (DT_PROP_OR(DT_NODELABEL(syspll), clk2x_div, 1) - 1),
 	.rDivClk1 = (DT_PROP_OR(DT_NODELABEL(syspll), clk1_div, 1) - 1),
 	.rDivClk0 = (DT_PROP_OR(DT_NODELABEL(syspll), clk0_div, 1) - 1),
@@ -135,6 +212,10 @@ static DL_SYSCTL_SYSPLLConfig clock_mspm0_cfg_syspll = {
 		(DL_SYSCTL_SYSPLL_CLK0_DISABLE)),
 };
 #endif
+
+void mspm0_enable_syspll(void){
+	SYSCTL->SOCLOCK.HSCLKEN |= SYSCTL_HSCLKEN_SYSPLLEN_ENABLE;
+}
 
 static int clock_mspm0_on(const struct device *dev, clock_control_subsys_t sys)
 {
@@ -209,19 +290,6 @@ static int clock_mspm0_init(const struct device *dev)
 	DL_SYSCTL_setULPCLKDivider(mspm0_ulpclk_cfg.clk_div);
 #endif
 
-#if MSPM0_SYSPLL_ENABLED
-#if DT_SAME_NODE(DT_MCLK_CLOCKS_CTRL, DT_NODELABEL(syspll))
-	if (clock_mspm0_cfg_syspll.enableCLK0 == DL_SYSCTL_SYSPLL_CLK0_ENABLE) {
-		clock_mspm0_cfg_syspll.sysPLLMCLK = DL_SYSCTL_SYSPLL_MCLK_CLK0;
-	}
-#endif
-#if DT_SAME_NODE(DT_SYSPLL_CLOCKS_CTRL, DT_NODELABEL(hfclk))
-	clock_mspm0_cfg_syspll.sysPLLRef = DL_SYSCTL_SYSPLL_REF_HFCLK;
-#endif
-	DL_SYSCTL_configSYSPLL(
-			(DL_SYSCTL_SYSPLLConfig *)&clock_mspm0_cfg_syspll);
-#endif
-
 #if MSPM0_HFCLK_ENABLED
 #if DT_SAME_NODE(DT_HFCLK_CLOCKS_CTRL, DT_NODELABEL(hfxt))
 	uint32_t hf_range;
@@ -255,6 +323,14 @@ static int clock_mspm0_init(const struct device *dev)
 #endif
 #endif
 
+#if MSPM0_SYSPLL_ENABLED
+	DL_SYSCTL_configSYSPLL(
+			(DL_SYSCTL_SYSPLLConfig *)&clock_mspm0_cfg_syspll);
+
+	/* verify that locking occurred correctly */
+	mspm0_verify_syspll();
+#endif
+
 #if DT_SAME_NODE(DT_LFCLK_CLOCKS_CTRL, DT_NODELABEL(lfxt))
 	DL_SYSCTL_LFCLKConfig config = {0};
 
@@ -263,7 +339,6 @@ static int clock_mspm0_init(const struct device *dev)
 	DL_SYSCTL_setLFCLKSourceEXLF();
 
 #endif
-
 
 #if MSPM0_MFCLK_ENABLED
 	DL_SYSCTL_enableMFCLK();
@@ -284,8 +359,7 @@ static int clock_mspm0_init(const struct device *dev)
 				DL_SYSCTL_HSCLK_SOURCE_HFCLK);
 
 #elif DT_SAME_NODE(DT_MCLK_CLOCKS_CTRL, DT_NODELABEL(syspll))
-	DL_SYSCTL_setMCLKSource(SYSOSC, HSCLK,
-				DL_SYSCTL_HSCLK_SOURCE_SYSPLL);
+	mspm0_switch_to_syspll();
 
 #elif DT_SAME_NODE(DT_MCLK_CLOCKS_CTRL, DT_NODELABEL(lfclk))
 	DL_SYSCTL_setMCLKSource(SYSOSC, LFCLK, false);
@@ -304,3 +378,100 @@ static DEVICE_API(clock_control, clock_mspm0_driver_api) = {
 DEVICE_DT_DEFINE(DT_NODELABEL(ckm), &clock_mspm0_init, NULL, NULL, NULL,
 		 PRE_KERNEL_1, CONFIG_CLOCK_CONTROL_INIT_PRIORITY,
 		 &clock_mspm0_driver_api);
+
+
+#ifdef MSPM0_SYSPLL_ENABLED
+void mspm0_disable_syspll(void){
+		/* Disabling is not functionally necessary but is recommended by the
+	 * Low power optimiation guide.
+	 */
+
+	DL_SYSCTL_disableSYSPLL();
+	/* wait for SYSPLL to disable before continuing */
+	while ((DL_SYSCTL_getClockStatus() & (DL_SYSCTL_CLK_STATUS_SYSPLL_OFF)) !=
+		(DL_SYSCTL_CLK_STATUS_SYSPLL_OFF));
+}
+
+void mspm0_switch_and_disable_syspll(void)
+{
+	#if DT_SAME_NODE(DT_MCLK_CLOCKS_CTRL, DT_NODELABEL(syspll))
+		/* switch MCLK away from SYSPLL before entering low power mode */
+		DL_SYSCTL_switchMCLKfromHSCLKtoSYSOSC();
+	#endif
+	mspm0_disable_syspll();
+}
+
+
+/* should be entered after SYSPLL is enabled, will check for the hardware to indicate a
+ * lock condition, and will also use Frequency Clock Counter (FCC) destructively to
+ * check that the frequency was correctly locked onto 80 MHz
+ */
+#define MSPM0_SYSPLL_TIMEOUT_CYCLES (150u)
+static bool mspm0_is_syspll_locked(void){
+	uint32_t fccTimeoutCounter = 0u;
+	uint32_t fccCount;
+	bool isValidLock = false;
+
+	/* wait for the SYSPLL signal to be considered good */
+	while (((DL_SYSCTL_getClockStatus() & SYSCTL_CLKSTATUS_SYSPLLGOOD_MASK) !=
+		DL_SYSCTL_CLK_STATUS_SYSPLL_GOOD) && fccTimeoutCounter < MSPM0_SYSPLL_TIMEOUT_CYCLES)
+	{
+		delay_cycles(97);  /* 1x LFCLK cycle = 32MHz/32.768kHz = 977, 3.05us */
+		fccTimeoutCounter++;
+	}
+
+	DL_SYSCTL_setFCCPeriods(DL_SYSCTL_FCC_TRIG_CNT_02);
+
+	DL_SYSCTL_configFCC(DL_SYSCTL_FCC_TRIG_TYPE_RISE_RISE,
+		            DL_SYSCTL_FCC_TRIG_SOURCE_LFCLK,
+			    MSPM0_SYSPLL_FCC_INPUT);
+
+	DL_SYSCTL_startFCC();
+
+	while(!DL_SYSCTL_isFCCDone() && fccTimeoutCounter < MSPM0_SYSPLL_TIMEOUT_CYCLES){
+		delay_cycles(97);  /* 1x LFCLK cycle = 32MHz/32.768kHz = 977, 30.5us */
+		fccTimeoutCounter++;
+	}
+
+	fccCount = DL_SYSCTL_readFCC();
+
+	if(fccTimeoutCounter < MSPM0_SYSPLL_TIMEOUT_CYCLES &&
+		(fccCount > FCC_LOWER_BOUND) && (fccCount < FCC_UPPER_BOUND))
+	{
+		isValidLock = true;
+	}
+
+	return isValidLock;
+}
+
+/* function implementing the workaround to add SYSPLL and verify that the
+ * frequency lock has been correctly achieved.
+ * Also switches MCLK to SYSPLL if configured that way in the devicetree
+ */
+void mspm0_verify_syspll(void){
+	uint32_t locking_attempts = 0u;
+
+
+	while(!mspm0_is_syspll_locked() && locking_attempts < 10){
+		locking_attempts++;
+
+		/* disable SYSPLL */
+		mspm0_disable_syspll();
+
+		/* re-enable SYSPLL */
+		mspm0_enable_syspll();
+	}
+
+	if(locking_attempts >= 10){
+		/* The SYSPLL failed to lock after several attempts */
+		k_sys_fatal_error_handler(K_ERR_ARCH_START, NULL);
+	}
+}
+
+void mspm0_switch_to_syspll(void){
+#if DT_SAME_NODE(DT_MCLK_CLOCKS_CTRL, DT_NODELABEL(syspll))
+	DL_SYSCTL_setMCLKSource(SYSOSC, HSCLK, DL_SYSCTL_HSCLK_SOURCE_SYSPLL);
+#endif
+}
+
+#endif /* MSPM0_SYSPLL_ENABLED */
