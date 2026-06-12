@@ -1,0 +1,10 @@
+# Copyright (c) 2026 Texas Instruments Inc. 
+# SPDX-License-Identifier: Apache 2.0
+
+config COMPARATOR_MSPM0_COMP
+	bool "MSPM0 COMP comparator driver"
+	default y
+	depends on DT_HAS_TI_MSPM0_COMP_ENABLED
+	select PINCTRL
+	help
+	  This option enables the TI MSPM0 Comparator driver.
