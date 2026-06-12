@@ -15,8 +15,8 @@
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/irq.h>
+#include <zephyr/pm/device.h>
 #include <zephyr/pm/policy.h>
-#include <zephyr/pm/device_runtime.h>
 
 /* Driverlib includes */
 #ifdef CONFIG_HAS_MSP_UNICOMM
@@ -24,6 +24,15 @@
 #else
 #include <ti/driverlib/dl_uart_main.h>
 #endif /* CONFIG_HAS_MSP_UNICOMM */
+
+#define UART_MSPM0_PM_IDLE_WAIT_US 10000U
+
+#ifdef CONFIG_PM
+
+#define TX_POLL_STREAM 0x01
+#define TX_INT_STREAM  0x02
+
+#endif
 
 struct uart_mspm0_config {
 #ifdef CONFIG_HAS_MSP_UNICOMM
@@ -33,9 +42,9 @@ struct uart_mspm0_config {
 #endif /* CONFIG_HAS_MSP_UNICOM */
 	const struct mspm0_sys_clock *clock_subsys;
 	const struct pinctrl_dev_config *pinctrl;
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_PM)
 	void (*irq_config_func)(const struct device *dev);
-#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN || CONFIG_PM */
 };
 
 struct uart_mspm0_data {
@@ -45,26 +54,32 @@ struct uart_mspm0_data {
 	uint32_t current_speed;
 	/* UART config structure */
 	DL_UART_Main_Config uart_config;
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_PM)
+	/* Pending interrupt backup */
+	DL_UART_IIDX pending_interrupt;
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN || CONFIG_PM */
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
+	/* Interrupt enable mask restored after device PM resume. */
+	uint32_t enabled_interrupts;
 	/* Callback function pointer */
 	uart_irq_callback_user_data_t cb;
 	/* Callback function arg */
 	void *cb_data;
-	/* Pending interrupt backup */
-	DL_UART_IIDX pending_interrupt;
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 #ifdef CONFIG_PM
 	/* Bitmap tracking active TX methods */
-	uint8_t tx_ongoing;
+	volatile uint8_t tx_ongoing;
 	/* Whether PM policy lock is currently held */
 	bool pm_policy_state_on;
 #endif /* CONFIG_PM */
+
 };
+
+static void uart_mspm0_pm_policy_state_lock_get(const struct device *dev, uint8_t tx_method);
 
 static int uart_mspm0_poll_in(const struct device *dev, unsigned char *c)
 {
 	const struct uart_mspm0_config *config = dev->config;
-
 	if (DL_UART_Main_receiveDataCheck(config->regs, c) == false) {
 		return -1;
 	}
@@ -75,11 +90,30 @@ static int uart_mspm0_poll_in(const struct device *dev, unsigned char *c)
 static void uart_mspm0_poll_out(const struct device *dev, unsigned char c)
 {
 	const struct uart_mspm0_config *config = dev->config;
+#ifdef CONFIG_PM
+	struct uart_mspm0_data *data = dev->data;
+	unsigned int key;
+#endif
 
 	while (DL_UART_Main_isTXFIFOFull(config->regs)) {
 	}
 
+#ifdef CONFIG_PM
+	key = irq_lock();
+#endif
+
 	DL_UART_Main_transmitData(config->regs, c);
+
+#ifdef CONFIG_PM
+	/* Acquire PM lock and arm EOT interrupt on the first byte of a poll stream. */
+	if ((data->tx_ongoing & TX_POLL_STREAM) == 0) {
+		uart_mspm0_pm_policy_state_lock_get(dev, TX_POLL_STREAM);
+		DL_UART_Main_clearInterruptStatus(config->regs, DL_UART_MAIN_INTERRUPT_EOT_DONE);
+		DL_UART_Main_enableInterrupt(config->regs, DL_UART_MAIN_INTERRUPT_EOT_DONE);
+	}
+
+	irq_unlock(key);
+#endif
 }
 
 static int uart_mspm0_install_configuration(const struct device *dev)
@@ -261,25 +295,21 @@ static int uart_mspm0_config_get(const struct device *dev, struct uart_config *c
 }
 #endif /* CONFIG_UART_USE_RUNTIME_CONFIGURE */
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-
-#define TX_INT_STREAM 0x01
-
 #ifdef CONFIG_PM
+
 static void uart_mspm0_pm_policy_state_lock_get(const struct device *dev, uint8_t tx_method)
 {
 	struct uart_mspm0_data *data = dev->data;
 	unsigned int key = irq_lock();
 
+	if((data->tx_ongoing & tx_method) == 0) {
 	data->tx_ongoing |= tx_method;
+			/* Lock STANDBY Operation */
+			pm_policy_state_lock_get(PM_STATE_STANDBY, PM_ALL_SUBSTATES);
 
-	if (!data->pm_policy_state_on) {
-		data->pm_policy_state_on = true;
-#ifdef CONFIG_PM_DEVICE_RUNTIME
-		/* Prevent device from entering sleep state until transaction is complete */
-		pm_device_runtime_get(dev);
-#endif
-		pm_policy_state_all_lock_get();
+			/* Lock STOP1 and STOP2 Operation */
+			pm_policy_state_lock_get(PM_STATE_SUSPEND_TO_IDLE, DL_SYSCTL_POWER_POLICY_STOP1);
+			pm_policy_state_lock_get(PM_STATE_SUSPEND_TO_IDLE, DL_SYSCTL_POWER_POLICY_STOP2);
 	}
 
 	irq_unlock(key);
@@ -290,20 +320,22 @@ static void uart_mspm0_pm_policy_state_lock_put(const struct device *dev, uint8_
 	struct uart_mspm0_data *data = dev->data;
 	unsigned int key = irq_lock();
 
+	if(data->tx_ongoing & tx_method)
+	{
 	data->tx_ongoing &= ~tx_method;
+			/* Allow STANDBY Operation */
+			pm_policy_state_lock_put(PM_STATE_STANDBY, PM_ALL_SUBSTATES);
 
-	if (data->pm_policy_state_on && !data->tx_ongoing) {
-		data->pm_policy_state_on = false;
-#ifdef CONFIG_PM_DEVICE_RUNTIME
-		/* Prevent device from entering sleep state until transaction is complete */
-		pm_device_runtime_put(dev);
-#endif
-		pm_policy_state_all_lock_put();
+			/* Allow STOP1 and STOP2 Operation */
+			pm_policy_state_lock_put(PM_STATE_SUSPEND_TO_IDLE, DL_SYSCTL_POWER_POLICY_STOP1);
+			pm_policy_state_lock_put(PM_STATE_SUSPEND_TO_IDLE, DL_SYSCTL_POWER_POLICY_STOP2);
 	}
 
 	irq_unlock(key);
 }
 #endif /* CONFIG_PM */
+
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
 
 static int uart_mspm0_err_check(const struct device *dev)
 {
@@ -323,6 +355,7 @@ static int uart_mspm0_err_check(const struct device *dev)
 
 #define UART_MSPM0_RX_INTERRUPTS                                                                   \
 	(DL_UART_MAIN_INTERRUPT_RX | DL_UART_MAIN_INTERRUPT_RX_TIMEOUT_ERROR)
+
 
 static int uart_mspm0_fifo_fill(const struct device *dev, const uint8_t *tx_data, int size)
 {
@@ -435,6 +468,10 @@ static void uart_mspm0_irq_callback_set(const struct device *dev, uart_irq_callb
 #define UART_MSPM0_ERROR_INTERRUPTS                                                                \
 	(DL_UART_MAIN_INTERRUPT_BREAK_ERROR | DL_UART_MAIN_INTERRUPT_FRAMING_ERROR)
 
+#define UART_MSPM0_ALL_INTERRUPTS                                                                  \
+	(UART_MSPM0_TX_INTERRUPTS | UART_MSPM0_RX_INTERRUPTS | UART_MSPM0_ERROR_INTERRUPTS)
+
+
 static void uart_mspm0_irq_error_enable(const struct device *dev)
 {
 	const struct uart_mspm0_config *config = dev->config;
@@ -448,29 +485,38 @@ static void uart_mspm0_irq_error_disable(const struct device *dev)
 
 	DL_UART_Main_disableInterrupt(config->regs, UART_MSPM0_ERROR_INTERRUPTS);
 }
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_PM)
 static void uart_mspm0_isr(const struct device *dev)
 {
-	struct uart_mspm0_data *const dev_data = dev->data;
+	struct uart_mspm0_data *const data = dev->data;
 	const struct uart_mspm0_config *config = dev->config;
 
+	data->pending_interrupt = DL_UART_Main_getPendingInterrupt(config->regs);
+
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	/* Perform callback if defined */
-	if (dev_data->cb) {
-		dev_data->cb(dev, dev_data->cb_data);
+	if (data->cb) {
+		data->cb(dev, data->cb_data);
 	}
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
 #ifdef CONFIG_PM
-	/* Release PM lock if transmission is complete */
-	if (dev_data->pending_interrupt == DL_UART_MAIN_IIDX_EOT_DONE ) {
+	/* Release PM lock once the shift register has clocked out the last bit. */
+	if (data->pending_interrupt == DL_UART_MAIN_IIDX_EOT_DONE) {
+		DL_UART_Main_disableInterrupt(config->regs, DL_UART_MAIN_INTERRUPT_EOT_DONE);
+		uart_mspm0_pm_policy_state_lock_put(dev, TX_POLL_STREAM);
 		uart_mspm0_pm_policy_state_lock_put(dev, TX_INT_STREAM);
 	}
-#endif
+#endif /* CONFIG_PM */
 }
-#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN || CONFIG_PM */
 
 static int uart_mspm0_init(const struct device *dev)
 {
 	const struct uart_mspm0_config *config = dev->config;
+	struct uart_mspm0_data *data = dev->data;
 	int ret;
 
 	/* Reset power */
@@ -491,17 +537,75 @@ static int uart_mspm0_init(const struct device *dev)
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	DL_UART_Main_enableFIFOs(config->regs);
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	DL_UART_Main_setRXFIFOThreshold(config->regs, DL_UART_RX_FIFO_LEVEL_1_2_FULL);
 	DL_UART_Main_setTXFIFOThreshold(config->regs, DL_UART_TX_FIFO_LEVEL_EMPTY);
 	DL_UART_Main_setRXInterruptTimeout(config->regs, 15U);
-	config->irq_config_func(dev);
+	
+	/* TODO: move to resume function? */
+	if (data->enabled_interrupts != 0U) {
+		DL_UART_Main_clearInterruptStatus(config->regs, data->enabled_interrupts);
+		DL_UART_Main_enableInterrupt(config->regs, data->enabled_interrupts);
+}
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
+
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_PM)
+	config->irq_config_func(dev);
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN || CONFIG_PM */
 
 	/* Enable UART */
 	DL_UART_Main_enable(config->regs);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_DEVICE
+static int uart_mspm0_suspend(const struct device *dev)
+{
+	const struct uart_mspm0_config *config = dev->config;
+	uint32_t idle_wait_us = UART_MSPM0_PM_IDLE_WAIT_US;
+	int ret;
+
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+	struct uart_mspm0_data *data = dev->data;
+
+	data->enabled_interrupts =
+		DL_UART_Main_getEnabledInterrupts(config->regs, UART_MSPM0_ALL_INTERRUPTS);
+	DL_UART_Main_disableInterrupt(config->regs, UART_MSPM0_TX_INTERRUPTS | UART_MSPM0_RX_INTERRUPTS | UART_MSPM0_ERROR_INTERRUPTS);
+	data->pending_interrupt = DL_UART_MAIN_IIDX_NO_INTERRUPT;
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
+
+	while (DL_UART_Main_isBusy(config->regs) && (idle_wait_us > 0U)) {
+		k_busy_wait(1U);
+		idle_wait_us--;
+	}
+
+	DL_UART_Main_disable(config->regs);
+	DL_UART_Main_reset(config->regs);
+	DL_UART_Main_disablePower(config->regs);
+
+	ret = pinctrl_apply_state(config->pinctrl, PINCTRL_STATE_SLEEP);
+	if ((ret < 0) && (ret != -ENOENT)) {
+		return ret;
+	}
+
+	return 0;
+}
+
+static int uart_mspm0_pm_action(const struct device *dev, enum pm_device_action action)
+{
+	switch (action) {
+	case PM_DEVICE_ACTION_RESUME:
+		return uart_mspm0_init(dev);
+	case PM_DEVICE_ACTION_SUSPEND:
+		return uart_mspm0_suspend(dev);
+	case PM_DEVICE_ACTION_TURN_ON:
+	case PM_DEVICE_ACTION_TURN_OFF:
+	default:
+		return -ENOTSUP;
+	}
+}
+#endif /* CONFIG_PM_DEVICE */
 
 static DEVICE_API(uart, uart_mspm0_driver_api) = {
 	.poll_in = uart_mspm0_poll_in,
@@ -529,7 +633,7 @@ static DEVICE_API(uart, uart_mspm0_driver_api) = {
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 };
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_PM)
 #define MSP_UART_IRQ_DEFINE(inst)                                                                  \
 	static void uart_mspm0_##inst##_irq_register(const struct device *dev)                     \
 	{                                                                                          \
@@ -537,9 +641,11 @@ static DEVICE_API(uart, uart_mspm0_driver_api) = {
 			    DEVICE_DT_INST_GET(inst), 0);                                          \
 		irq_enable(DT_INST_IRQN(inst));                                                    \
 	}
+#define MSP_UART_IRQ_FUNC(inst) .irq_config_func = uart_mspm0_##inst##_irq_register,
 #else
 #define MSP_UART_IRQ_DEFINE(inst)
-#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
+#define MSP_UART_IRQ_FUNC(inst)
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN || CONFIG_PM */
 
 #define MSPM0_MAIN_CLK_DIV(n) CONCAT(DL_UART_MAIN_CLOCK_DIVIDE_RATIO_, DT_INST_PROP(n, clk_div))
 
@@ -564,8 +670,7 @@ static DEVICE_API(uart, uart_mspm0_driver_api) = {
 			(&uart_mspm0_uc_regs_##index), ((UART_Regs *)DT_INST_REG_ADDR(index))),    \
 			 .pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                         \
 			 .clock_subsys = &mspm0_uart_sys_clock##index,                             \
-			 IF_ENABLED(CONFIG_UART_INTERRUPT_DRIVEN,                                  \
-			   (.irq_config_func = uart_mspm0_##index##_irq_register,)) };             \
+			 MSP_UART_IRQ_FUNC(index) };             \
                                                                                                    \
 	static struct uart_mspm0_data uart_mspm0_data_##index = {                                  \
 		.uart_clockconfig =                                                                \
@@ -588,7 +693,10 @@ static DEVICE_API(uart, uart_mspm0_driver_api) = {
 			},                                                                         \
 	};                                                                                         \
                                                                                                    \
-	DEVICE_DT_INST_DEFINE(index, &uart_mspm0_init, NULL, &uart_mspm0_data_##index,             \
+	PM_DEVICE_DT_INST_DEFINE(index, uart_mspm0_pm_action);                                     \
+                                                                                                   \
+	DEVICE_DT_INST_DEFINE(index, &uart_mspm0_init, PM_DEVICE_DT_INST_GET(index),               \
+			      &uart_mspm0_data_##index,                                            \
 			      &uart_mspm0_cfg_##index, PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,  \
 			      &uart_mspm0_driver_api);
 
