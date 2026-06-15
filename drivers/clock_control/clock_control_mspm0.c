@@ -50,6 +50,8 @@
 
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(syspll), okay)
 #define MSPM0_SYSPLL_ENABLED 1
+#else
+#define MSPM0_SYSPLL_ENABLED 0
 #endif
 
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(hfxt), okay)
@@ -188,6 +190,9 @@ static struct mspm0_clk_cfg mspm0_hfclk_cfg = {
 	(10 * DT_PROP(DT_NODELABEL(lfclk),clock_frequency))
 
 
+/* internal helper functions */
+static void mspm0_disable_syspll(void);
+
 static DL_SYSCTL_SYSPLLConfig clock_mspm0_cfg_syspll = {
 	.inputFreq = DL_SYSCTL_SYSPLL_INPUT_FREQ_32_48_MHZ,
 	.sysPLLMCLK = MSPM0_SYSPLL_TO_MCLK_SOURCE,
@@ -277,10 +282,41 @@ static int clock_mspm0_get_rate(const struct device *dev,
 	return 0;
 }
 
+static void mspm0_switch_to_sysosc()
+{
+	switch(DL_SYSCTL_getMCLKSource()){
+	case DL_SYSCTL_MCLK_SOURCE_HSCLK:
+		DL_SYSCTL_switchMCLKfromHSCLKtoSYSOSC();
+		break;
+	case DL_SYSCTL_MCLK_SOURCE_LFCLK:
+		DL_SYSCTL_switchMCLKfromLFCLKtoSYSOSC();
+		break;
+	case DL_SYSCTL_MCLK_SOURCE_SYSOSC:
+	default:
+		/* already configured correctly, no further action */
+		break;
+	}
+}
+
 static int clock_mspm0_init(const struct device *dev)
 {
-	/* setup clocks based on specific rates */
+	/* state may have come from another image or somewhere with a different clock configuration
+	 * so we add a setting to SYSOSC to start cleanly */
+	mspm0_switch_to_sysosc();
+
+	/* setup clocks based on specific rates
+	 * As Per TRM, the Frequency field in the sysosc must only be changed when SYSOSC is the
+	 * MCLK source, as proven above.
+	 */
 	DL_SYSCTL_setSYSOSCFreq(SYSOSC_FREQ);
+
+	/* If a syspll is present but not enabled, we take this step to verify that the
+	 * syspll is enabled. Only expected case for the SYSPLL to be enabled at this state is if
+	 * this is an image paired with MCUBoot or another coding element.
+	 */
+#if DT_NODE_EXISTS(DT_NODELABEL(syspll)) && !MSPM0_SYSPLL_ENABLED
+	mspm0_disable_syspll();
+#endif
 
 #if DT_SAME_NODE(DT_MCLK_CLOCKS_CTRL, DT_NODELABEL(sysosc)) && (DT_SYSOSC_FREQ == 4000000)
 	DL_SYSCTL_setMCLKDivider(MSPM0_MCLK_DIV);
@@ -380,16 +416,26 @@ DEVICE_DT_DEFINE(DT_NODELABEL(ckm), &clock_mspm0_init, NULL, NULL, NULL,
 		 &clock_mspm0_driver_api);
 
 
-#ifdef MSPM0_SYSPLL_ENABLED
-void mspm0_disable_syspll(void){
-		/* Disabling is not functionally necessary but is recommended by the
+#if DT_NODE_EXISTS(DT_NODELABEL(syspll))
+
+static void mspm0_disable_syspll(void){
+	/* Disabling is not functionally necessary but is recommended by the
 	 * Low power optimiation guide.
 	 */
 
-	DL_SYSCTL_disableSYSPLL();
-	/* wait for SYSPLL to disable before continuing */
-	while ((DL_SYSCTL_getClockStatus() & (DL_SYSCTL_CLK_STATUS_SYSPLL_OFF)) !=
-		(DL_SYSCTL_CLK_STATUS_SYSPLL_OFF));
+	/* first confirm that the SYSPLL has reached a steady state of either good or off */
+	while((DL_SYSCTL_getClockStatus() & (DL_SYSCTL_CLK_STATUS_SYSPLL_GOOD |
++			    DL_SYSCTL_CLK_STATUS_SYSPLL_OFF)) == 0U);
+
+	if((DL_SYSCTL_getClockStatus() & (DL_SYSCTL_CLK_STATUS_SYSPLL_OFF)) !=
+		(DL_SYSCTL_CLK_STATUS_SYSPLL_OFF))
+	{
+		DL_SYSCTL_disableSYSPLL();
+		/* wait for SYSPLL to disable before continuing */
+		while ((DL_SYSCTL_getClockStatus() & (DL_SYSCTL_CLK_STATUS_SYSPLL_OFF)) !=
+			(DL_SYSCTL_CLK_STATUS_SYSPLL_OFF));
+	}
+
 }
 
 void mspm0_switch_and_disable_syspll(void)
@@ -400,7 +446,6 @@ void mspm0_switch_and_disable_syspll(void)
 	#endif
 	mspm0_disable_syspll();
 }
-
 
 /* should be entered after SYSPLL is enabled, will check for the hardware to indicate a
  * lock condition, and will also use Frequency Clock Counter (FCC) destructively to
@@ -451,7 +496,6 @@ static bool mspm0_is_syspll_locked(void){
 void mspm0_verify_syspll(void){
 	uint32_t locking_attempts = 0u;
 
-
 	while(!mspm0_is_syspll_locked() && locking_attempts < 10){
 		locking_attempts++;
 
@@ -474,4 +518,22 @@ void mspm0_switch_to_syspll(void){
 #endif
 }
 
-#endif /* MSPM0_SYSPLL_ENABLED */
+#else
+
+void mspm0_switch_and_disable_syspll(void){
+	return;
+}
+
+void mspm0_enable_syspll(void){
+	return;
+}
+
+void mspm0_verify_syspll(void){
+	return;
+}
+
+void mspm0_switch_to_syspll(void){
+	return;
+}
+
+#endif /* MSPM0_SYSPLL_EXISTS */
