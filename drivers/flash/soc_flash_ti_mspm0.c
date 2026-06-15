@@ -128,7 +128,8 @@ static int flash_ti_mspm0_write(const struct device *dev, off_t offset,
 				const void *buf, size_t len)
 {
 	int ret = 0;
-	uint32_t *write_data = (uint32_t *)buf;
+	const uint8_t * write_data = (uint8_t *)buf;
+	uint32_t aligned_data[FLASH_MSPM0_WRITE_BLOCK_SIZE/sizeof(uint32_t)];
 	const struct flash_ti_mspm0_config *cfg = dev->config;
 	struct flash_ti_mspm0_data *data = dev->data;
 
@@ -156,10 +157,16 @@ static int flash_ti_mspm0_write(const struct device *dev, off_t offset,
 	k_sem_reset(&data->wait_sem);
 
 	while (len != 0) {
+		/* copy the buffer into a known aligned data, as the buffer does not have alignment
+		 * protections on it, but should be allowed to be written regardless of alignment.
+		 * memcpy provides the alignment necessary.
+		 */
+		memcpy(aligned_data, write_data, sizeof(aligned_data));
+
 		DL_FlashCTL_unprotectSector(cfg->regs, offset,
 					    DL_FLASHCTL_REGION_SELECT_MAIN);
 
-		DL_FlashCTL_programMemory64WithECCGenerated(cfg->regs, offset, write_data);
+		DL_FlashCTL_programMemory64WithECCGenerated(cfg->regs, offset, aligned_data);
 
 		if (k_sem_take(&data->wait_sem, K_MSEC(FLASH_CMDWAIT_TIMEOUT)) < 0) {
 			ret = -ETIMEDOUT;
@@ -168,7 +175,7 @@ static int flash_ti_mspm0_write(const struct device *dev, off_t offset,
 
 		offset += FLASH_MSPM0_WRITE_BLOCK_SIZE;
 		len -= FLASH_MSPM0_WRITE_BLOCK_SIZE;
-		write_data += 2;
+		write_data += sizeof(aligned_data);
 	}
 
 out:
