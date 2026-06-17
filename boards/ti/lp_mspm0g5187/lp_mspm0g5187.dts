@@ -125,6 +125,13 @@
 	pinctrl-names = "default";
 };
 
+&unicomm1_i2cc {
+	status = "disabled";
+	pinctrl-0 = <&uc1_scl_pa1 &uc1_sda_pa0>;
+	pinctrl-names = "default";
+	clock-frequency = <100000>;
+};
+
 &usbfs0 {
 	status = "okay";
 	maximum-speed = "full-speed";
