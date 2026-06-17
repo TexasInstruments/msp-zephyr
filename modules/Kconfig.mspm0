@@ -27,6 +27,12 @@ config USE_MSPM0_DL_FLASHCTL
 config USE_MSPM0_DL_I2C
 	bool
 
+config USE_MSPM0_DL_UNICOMM_I2CC
+	bool
+
+config USE_MSPM0_DL_UNICOMM_I2CT
+	bool
+
 config USE_MSPM0_DL_ADC
 	bool 
 	
