@@ -5,6 +5,7 @@ tests:
       - i2c
     platform_allow:
       - lp_mspm0g3507
+      - lp_mspm0g5187
       - lp_mspm0l1117
     harness: ztest
     # harness_config:
