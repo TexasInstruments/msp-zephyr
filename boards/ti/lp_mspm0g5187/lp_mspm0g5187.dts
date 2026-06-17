@@ -23,9 +23,11 @@
 	chosen {
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
-		zephyr,flash-controller= &flashctl;
 		zephyr,console = &unicomm0_uart;
 		zephyr,shell-uart = &unicomm0_uart;
+		zephyr,code-partition = &slot0_partition;
+		zephyr,flash-controller= &flashctl;
+		zephyr,system-timer-companion = &counterg0;
 	};
 
 	leds {
@@ -70,8 +72,9 @@
 
 &mclk {
 	clock-frequency = <DT_FREQ_M(80)>;
-	clocks = <&syspll 0>;
+	clocks = <&syspll>;
 };
+
 
 &flash0 {
 	status = "okay";
@@ -116,7 +119,6 @@
 };
 
 &unicomm0_uart {
-	compatible = "ti,mspm0-uart";
 	status = "okay";
 	current-speed = <115200>;
 	pinctrl-0 = <&uc0_tx_pa10 &uc0_rx_pa11>;
