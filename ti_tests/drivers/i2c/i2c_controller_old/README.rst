@@ -48,7 +48,8 @@ Hardware Setup
 
 The test requires:
 
-* An I2C target device connected at address 0x32
+* An I2C target device connected at address 0x32. This can be an AD2 that is expected to send up to 
+  5 bytes per transaction: 0x51, 0x52, 0x53, 0x54, 0x55. During a read, this should be observed
 * I2C0 pins configured as follows:
 
   - SCL: PA1
@@ -59,6 +60,7 @@ Supported Boards
 
 * lp_mspm0g3507
 * lp_mspm0g3519
+* lp_mspm0g5187
 * lp_mspm0l1117
 * lp_mspm0l2228
 

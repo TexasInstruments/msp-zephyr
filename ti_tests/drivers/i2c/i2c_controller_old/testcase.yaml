@@ -8,6 +8,7 @@ tests:
     platform_allow:
       - lp_mspm0g3507
       - lp_mspm0g3519
+      - lp_mspm0g5187
       - lp_mspm0l1117
       - lp_mspm0l2228
     harness: ztest
