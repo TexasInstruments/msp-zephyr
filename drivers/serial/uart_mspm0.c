@@ -15,6 +15,8 @@
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/irq.h>
+#include <zephyr/pm/policy.h>
+#include <zephyr/pm/device.h>
 
 /* Driverlib includes */
 #ifdef CONFIG_HAS_MSP_UNICOMM
@@ -22,6 +24,10 @@
 #else
 #include <ti/driverlib/dl_uart_main.h>
 #endif /* CONFIG_HAS_MSP_UNICOMM */
+
+/* Flags used to indicate active interrupt driven UART usage */
+#define UART_PM_IRQ_TX		BIT(0)
+#define UART_PM_IRQ_RX		BIT(1)
 
 struct uart_mspm0_config {
 #ifdef CONFIG_HAS_MSP_UNICOMM
@@ -51,7 +57,163 @@ struct uart_mspm0_data {
 	/* Pending interrupt backup */
 	DL_UART_IIDX pending_interrupt;
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
+#ifdef CONFIG_PM
+	/* Used to determine if peripheral should prevent MCU from entering LPM */
+	uint8_t pm_activity;
+	struct k_spinlock pm_lock;
+#endif
 };
+
+#if defined(CONFIG_PM)
+
+static int __maybe_unused uart_mspm_pm_activity_start(const struct device *dev, uint8_t activity)
+{
+	struct uart_mspm0_data *data = dev->data;
+	k_spinlock_key_t key;
+
+	/* Check if this is the first time we are setting a MCU PM lock*/
+	bool first_activity = false;
+	/* Current activity that is being tracked. */
+	uint8_t old_activity;
+
+	key = k_spin_lock(&data->pm_lock);
+
+	old_activity = data->pm_activity;
+
+	/* New activity is already active and tracked. Nothing to do */
+	if (((old_activity & activity) != 0U)) {
+		k_spin_unlock(&data->pm_lock, key);
+		return 0;
+	}
+
+	/* No activity was previously active so this will be the first. */
+	if(old_activity == 0U) {
+		first_activity = true;
+	}
+
+	data->pm_activity = old_activity | activity;
+
+	k_spin_unlock(&data->pm_lock, key);
+
+	if(first_activity) {
+		pm_policy_state_all_lock_get();
+	}
+
+	return 0;
+}
+
+static void __maybe_unused uart_mspm_pm_activity_stop(const struct device *dev, uint8_t activity)
+{
+	struct uart_mspm0_data *data = dev->data;
+	k_spinlock_key_t key;
+
+	/* Check if this is the first time we are setting a MCU PM lock*/
+	uint8_t new_activity;
+	/* Current activity that is being tracked. */
+	uint8_t old_activity;
+
+	key = k_spin_lock(&data->pm_lock);
+
+	old_activity = data->pm_activity;
+
+	/* New activity is not active or tracked. Nothing to do */
+	if ((old_activity & activity) == 0U) {
+		k_spin_unlock(&data->pm_lock, key);
+		return;
+	}
+
+	new_activity = old_activity & ~activity;
+	data->pm_activity = new_activity;
+
+	k_spin_unlock(&data->pm_lock, key);
+
+	if(new_activity == 0U) {
+		pm_policy_state_all_lock_put();
+	}
+
+	return;
+}
+#endif
+
+#if defined(CONFIG_PM_DEVICE)
+
+static int uart_mspm_wait_until_idle(UART_Regs *regs, uint32_t baud_rate)
+{
+	/* Wait for a margin of 2 characters (20 bits total) */
+	uint32_t bits_to_wait = 20;
+
+	/* Formula: (Bits * 1,000,000) / Baud Rate = Microseconds */
+	uint32_t timeout_us = (bits_to_wait * USEC_PER_SEC) / baud_rate;
+
+	/* Enforce a minimum floor window of 1 millisecond */
+	if (timeout_us < USEC_PER_MSEC) {
+		timeout_us = USEC_PER_MSEC;
+	}
+
+	/* Dynamically wait for the calculated microsecond window */
+	if (!WAIT_FOR(!DL_UART_isBusy(regs), timeout_us, k_busy_wait(1))) {
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int uart_mspm_pm_action(const struct device *dev, enum pm_device_action action)
+{
+	int err;
+	const struct uart_mspm0_config *config = dev->config;
+	struct uart_mspm0_data *data = dev->data;
+
+	switch (action) {
+	case PM_DEVICE_ACTION_RESUME:
+		/* Set pins to active state */
+		err = pinctrl_apply_state(config->pinctrl, PINCTRL_STATE_DEFAULT);
+		if (err < 0) {
+			return err;
+		}
+
+		/* Restore selection of parent clock that may been previously gated */
+		config->regs->CLKSEL = data->uart_clockconfig.clockSel;
+
+		break;
+	case PM_DEVICE_ACTION_SUSPEND:
+		/* Check if the line clears using our dynamic timeout helper */
+		err = uart_mspm_wait_until_idle(config->regs, data->current_speed);
+		if (err < 0) {
+			return err; /* Automatically bubbles up -EBUSY and aborts suspend */
+		}
+
+		/* Clear the RX FIFO in case something was received while transitioning
+		 * to suspend.
+		 */
+		while(!DL_UART_isRXFIFOEmpty(config->regs)) {
+			DL_UART_receiveData(config->regs);
+		}
+
+		/* Unselect all parent clocks effectively gating the entire peripheral */
+		config->regs->CLKSEL = 0;
+
+		/* Move pins to sleep state */
+		err = pinctrl_apply_state(config->pinctrl, PINCTRL_STATE_SLEEP);
+		if ((err < 0) && (err != -ENOENT)) {
+			/*
+			 * If returning -ENOENT, no pins where defined for sleep mode :
+			 * Do not output on console (might sleep already) when going to sleep,
+			 * "UART pinctrl sleep state not available"
+			 * and don't block PM suspend.
+			 * Else return the error.
+			 */
+			return err;
+		}
+
+		break;
+	default:
+		return -ENOTSUP;
+	}
+
+	return 0;
+}
+#endif
 
 static int uart_mspm0_poll_in(const struct device *dev, unsigned char *c)
 {
@@ -291,6 +453,11 @@ static int uart_mspm0_fifo_read(const struct device *dev, uint8_t *rx_data, cons
 static void uart_mspm0_irq_tx_enable(const struct device *dev)
 {
 	const struct uart_mspm0_config *config = dev->config;
+
+#ifdef CONFIG_PM
+	uart_mspm_pm_activity_start(dev,UART_PM_IRQ_TX);
+#endif
+
 	DL_UART_Main_enableInterrupt(config->regs, UART_MSPM0_TX_INTERRUPTS);
 }
 
@@ -298,6 +465,10 @@ static void uart_mspm0_irq_tx_disable(const struct device *dev)
 {
 	const struct uart_mspm0_config *config = dev->config;
 	DL_UART_Main_disableInterrupt(config->regs, UART_MSPM0_TX_INTERRUPTS);
+
+#ifdef CONFIG_PM
+	uart_mspm_pm_activity_stop(dev,UART_PM_IRQ_TX);
+#endif
 }
 
 static int uart_mspm0_irq_tx_ready(const struct device *dev)
@@ -316,6 +487,10 @@ static void uart_mspm0_irq_rx_enable(const struct device *dev)
 {
 	const struct uart_mspm0_config *config = dev->config;
 
+#ifdef CONFIG_PM
+	uart_mspm_pm_activity_start(dev,UART_PM_IRQ_RX);
+#endif
+
 	DL_UART_Main_enableInterrupt(config->regs, UART_MSPM0_RX_INTERRUPTS);
 }
 
@@ -324,6 +499,10 @@ static void uart_mspm0_irq_rx_disable(const struct device *dev)
 	const struct uart_mspm0_config *config = dev->config;
 
 	DL_UART_Main_disableInterrupt(config->regs, UART_MSPM0_RX_INTERRUPTS);
+
+#ifdef CONFIG_PM
+	uart_mspm_pm_activity_stop(dev,UART_PM_IRQ_RX);
+#endif
 }
 
 static int uart_mspm0_irq_tx_complete(const struct device *dev)
@@ -392,7 +571,6 @@ static void uart_mspm0_irq_error_disable(const struct device *dev)
 static void uart_mspm0_isr(const struct device *dev)
 {
 	struct uart_mspm0_data *const dev_data = dev->data;
-	const struct uart_mspm0_config *config = dev->config;
 
 	/* Perform callback if defined */
 	if (dev_data->cb) {
@@ -520,9 +698,10 @@ static DEVICE_API(uart, uart_mspm0_driver_api) = {
 				.stopBits = DL_UART_MAIN_STOP_BITS_ONE,                            \
 			},                                                                         \
 	};                                                                                         \
+	PM_DEVICE_DT_INST_DEFINE(index, uart_mspm_pm_action);			\
                                                                                                    \
-	DEVICE_DT_INST_DEFINE(index, &uart_mspm0_init, NULL, &uart_mspm0_data_##index,             \
+	DEVICE_DT_INST_DEFINE(index, &uart_mspm0_init, PM_DEVICE_DT_INST_GET(index), &uart_mspm0_data_##index,             \
 			      &uart_mspm0_cfg_##index, PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,  \
-			      &uart_mspm0_driver_api);
+			      &uart_mspm0_driver_api)
 
 DT_INST_FOREACH_STATUS_OKAY(MSPM0_UART_INIT_FN)
