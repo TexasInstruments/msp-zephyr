@@ -74,7 +74,8 @@ static int ti_unicomm_init(const struct device *dev)
 
 /*
  * Derive the IPMODE enum value at compile time from the active child node's
- * compatible string.
+ * compatible string. For ti,unicomm-i2c (unified controller/target node)
+ * default to I2CC; the i2c driver switches to I2CT in target_register().
  */
 #define TI_UNICOMM_CHILD_IPMODE_UART(node_id)                                                      \
 	COND_CODE_1(DT_NODE_HAS_COMPAT(node_id, ti_mspm0_uart), (IPMODE_UART), ())
@@ -82,9 +83,13 @@ static int ti_unicomm_init(const struct device *dev)
 #define TI_UNICOMM_CHILD_IPMODE_SPI(node_id)                                                       \
 	COND_CODE_1(DT_NODE_HAS_COMPAT(node_id, ti_unicomm_spi), (IPMODE_SPI), ())
 
+#define TI_UNICOMM_CHILD_IPMODE_I2C(node_id)                                                       \
+	COND_CODE_1(DT_NODE_HAS_COMPAT(node_id, ti_unicomm_i2c), (IPMODE_I2CC), ())
+
 #define TI_UNICOMM_CHILD_IPMODE(node_id)                                                           \
 	TI_UNICOMM_CHILD_IPMODE_UART(node_id)                                                      \
-	TI_UNICOMM_CHILD_IPMODE_SPI(node_id)
+	TI_UNICOMM_CHILD_IPMODE_SPI(node_id)							   \
+	TI_UNICOMM_CHILD_IPMODE_I2C(node_id)
 
 #define TI_UNICOMM_INIT(idx)                                                                       \
 	BUILD_ASSERT(DT_INST_CHILD_NUM_STATUS_OKAY(idx) == 1,                                      \
