@@ -174,7 +174,7 @@ static void mspm0_thread_handler(void *arg1, void *arg2, void *arg3)
 
 			/* Skip if endpoint is halted or already busy with current transfer */
 			if (ep_cfg->stat.halted || udc_ep_is_busy(ep_cfg)) {
-				LOG_INF("Endpoint is halted or busy for EP0");
+				LOG_DBG("Endpoint is halted or busy for EP0");
 				continue;
 			}
 			
@@ -208,7 +208,7 @@ static void mspm0_thread_handler(void *arg1, void *arg2, void *arg3)
 				}
 			}
 			else {
-				LOG_INF("Buffer is NULL for EP0");
+				LOG_DBG("Buffer is NULL for EP0");
 			}
 
 		}
@@ -223,7 +223,7 @@ static void mspm0_thread_handler(void *arg1, void *arg2, void *arg3)
 
 				/* Skip if endpoint is halted or already busy with current transfer */
 				if (ep_cfg->stat.halted || udc_ep_is_busy(ep_cfg)) {
-					LOG_INF("Endpoint is halted or busy FOR EP%", i);
+					LOG_DBG("Endpoint is halted or busy FOR EP%", i);
 					continue;
 				}
 				
@@ -501,7 +501,7 @@ static int udc_mspm0_ep_enable(const struct device *dev,
 		
 	}
 	
-	LOG_ERR("ENABLE EP addr=0x%02x type=%d, caps.mps=%d, mps=%d",
+	LOG_DBG("ENABLE EP addr=0x%02x type=%d, caps.mps=%d, mps=%d",
 		cfg ? cfg->addr : 0xFF,
 		cfg ? (cfg->attributes & USB_EP_TRANSFER_TYPE_MASK) : -1,
 		cfg ? cfg->caps.mps : -1,
