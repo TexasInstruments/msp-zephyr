@@ -38,9 +38,6 @@ LOG_MODULE_REGISTER(udc_mspm0, CONFIG_UDC_DRIVER_LOG_LEVEL);
 #define UDC_MSPM0_CONTROL_MAX_FIFO_SIZE	64U
 #define UDC_MSPM0_EP_FIFO_SIZE	256U
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-
 /*
  * Structure for holding controller configuration items that can remain in
  * non-volatile memory. This is usually accessed as
@@ -109,7 +106,6 @@ static void mspm0_thread_handler(void *arg1, void *arg2, void *arg3)
 	const struct device *dev = (const struct device *)arg1;
 	struct udc_mspm0_data *priv = udc_get_private(dev);
 	const struct udc_mspm0_config *config = dev->config;
-	mspm0_ep0_state_t prev_state;
 
 	ARG_UNUSED(arg2);
 	ARG_UNUSED(arg3);
@@ -223,7 +219,7 @@ static void mspm0_thread_handler(void *arg1, void *arg2, void *arg3)
 
 				/* Skip if endpoint is halted or already busy with current transfer */
 				if (ep_cfg->stat.halted || udc_ep_is_busy(ep_cfg)) {
-					LOG_DBG("Endpoint is halted or busy FOR EP%", i);
+					LOG_DBG("Endpoint is halted or busy FOR EP %d", i);
 					continue;
 				}
 				
@@ -638,7 +634,6 @@ static int udc_mspm0_ep_clear_halt(const struct device *dev,
 
 static int udc_mspm0_set_address(const struct device *dev, const uint8_t addr)
 {
-	struct udc_mspm0_data *priv = udc_get_private(dev);
 
 	LOG_DBG("Set new address %u for %p", addr, dev);
 	USBFS0->REGISTERS.FADDR = addr;
@@ -718,7 +713,6 @@ void udc_mspm0_isr(void)
 	struct udc_mspm0_data *priv = udc_get_private(dev);
 	struct net_buf *buf;
 	struct udc_ep_config *ep_cfg;
-	mspm0_ep0_state_t prev_state;
 
 	/* Reading IIDX returns the highest-priority pending interrupt and
 	 * clears its pending bit. Only one source is handled per ISR entry;
