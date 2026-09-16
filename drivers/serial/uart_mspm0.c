@@ -452,7 +452,6 @@ static void uart_mspm0_irq_error_disable(const struct device *dev)
 static void uart_mspm0_isr(const struct device *dev)
 {
 	struct uart_mspm0_data *const dev_data = dev->data;
-	const struct uart_mspm0_config *config = dev->config;
 
 	/* Perform callback if defined */
 	if (dev_data->cb) {
