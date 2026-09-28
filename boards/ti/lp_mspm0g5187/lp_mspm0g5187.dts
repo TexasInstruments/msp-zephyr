@@ -118,6 +118,10 @@
 	status = "okay";
 };
 
+&unicomm0 {
+	status = "okay";
+};
+
 &unicomm0_uart {
 	status = "okay";
 	current-speed = <115200>;
