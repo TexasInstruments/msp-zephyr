@@ -16,6 +16,8 @@
  */
 #if defined(CONFIG_SOC_SERIES_AM13E)
 #define MSPM0_UART_REGS_OFFSET 0x1000U
+#elif defined(CONFIG_SOC_MSPM0G5187)
+#define MSPM0_UART_REGS_OFFSET 0x1000U
 #else
 #define MSPM0_UART_REGS_OFFSET 0U
 #endif
@@ -30,12 +32,6 @@
 #include <zephyr/irq.h>
 #include <zephyr/pm/policy.h>
 #include <zephyr/pm/device_runtime.h>
-
-/*
- * This driver uses its own native register definitions (mspm0_uart_regs and
- * friends) so it does not depend on the SDK's UART_Regs at all.
- */
-#ifndef CONFIG_HAS_MSPM0_SDK
 
 /*
  * GPRCM / power and reset
@@ -140,8 +136,6 @@
  */
 #define UART_CPU_INT_ISET_RXINT_SET BIT(10)
 #define UART_CPU_INT_ISET_TXINT_SET BIT(11)
-
-#endif /* !CONFIG_HAS_MSPM0_SDK */
 
 /*
  * UART register-map structs.
@@ -802,7 +796,7 @@ static int uart_mspm0_irq_is_pending(const struct device *dev)
 	return uart_mspm0_irq_rx_ready(dev) || uart_mspm0_irq_tx_ready(dev);
 }
 
-static void uart_mspm0_irq_update(const struct device *dev)
+static int uart_mspm0_irq_update(const struct device *dev)
 {
 	struct uart_mspm0_data *data = dev->data;
 	const struct uart_mspm0_config *config = dev->config;
