@@ -90,6 +90,27 @@
 			};
 		};
 
+		unicomm2: unicomm2@40b80000 {
+			compatible = "ti,unicomm";
+			unicomm-fixed-mode;
+			reg = <0x40b80000 0x00002000>;
+			interrupts = <13 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+
+			unicomm2_spi: unicomm2_spi@40b61000 {
+				compatible = "ti,unicomm-spi";
+				fifo-depth = <4>;
+				reg = <0x40b61000 0x00001000>;
+				interrupts = <13 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&ckm MSPM0_CLOCK_MCLK>;
+				status = "disabled";
+			};
+		};
+
 		unicomm3: unicomm3@40b82000 {
 			compatible = "ti,unicomm";
 			reg = <0x40b82000 0x00002000>;
@@ -103,6 +124,17 @@
 				is-unicomm-uart;
 				interrupts = <14 0>;
 				reg = <0x40b03000 0x00002000>;
+				clocks = <&ckm MSPM0_CLOCK_MCLK>;
+				status = "disabled";
+			};
+
+			unicomm3_spi: unicomm3_spi@40b63000 {
+				compatible = "ti,unicomm-spi";
+				fifo-depth = <4>;
+				reg = <0x40b63000 0x00001000>;
+				interrupts = <14 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&ckm MSPM0_CLOCK_MCLK>;
 				status = "disabled";
 			};
