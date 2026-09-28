@@ -50,6 +50,7 @@ extern "C" {
  * and therefore have full control over the timing of the transaction.
  */
 #define SPI_OP_MODE_MASTER	0U
+#define SPI_OP_MODE_CONTROLLER  SPI_OP_MODE_MASTER
 
 /**
  * @brief Slave (peripheral) mode.
@@ -60,6 +61,7 @@ extern "C" {
  * send and receive data during a transaction.
  */
 #define SPI_OP_MODE_SLAVE	BIT(0)  /**< Slave mode. */
+#define SPI_OP_MODE_PERIPHERAL  SPI_OP_MODE_SLAVE
 
 /** @cond INTERNAL_HIDDEN */
 #define SPI_OP_MODE_MASK	0x1U
