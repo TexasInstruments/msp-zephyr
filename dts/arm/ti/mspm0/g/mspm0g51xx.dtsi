@@ -27,20 +27,27 @@
 		};
 
 		unicomm0: unicomm0@40a80000 {
+			compatible = "ti,unicomm";
 			reg = <0x40a80000 0x00002000>;
 			interrupts = <9 0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 
-			unicomm0_uart: unicomm0_uart@40a80000 {
+			unicomm0_uart: unicomm0_uart@40a01000 {
 				compatible = "ti,mspm0-uart";
+				is-unicomm-uart;
 				interrupts = <9 0>;
-				reg = <0x40a80000 0x00002000>;
+				reg = <0x40a01000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
 				status = "disabled";
 			};
 
+<<<<<<< HEAD
 			unicomm0_i2c: unicomm0_i2c@40a80000 {
+=======
+			unicomm0_i2cc: unicomm0_i2cc@40a80000 {
+>>>>>>> 6e78fdac2ed (dts: arm: ti: mspm0g51xx: update unicomm and unicomm_uart nodes)
 				compatible = "ti,mspm0-i2c";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -62,15 +69,18 @@
 		};
 
 		unicomm1: unicomm1@40a82000 {
+			compatible = "ti,unicomm";
 			reg = <0x40a82000 0x00002000>;
 			interrupts = <10 0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 
-			unicomm1_uart: unicomm1_uart@40a82000 {
+			unicomm1_uart: unicomm1_uart@40a03000 {
 				compatible = "ti,mspm0-uart";
+				is-unicomm-uart;
 				interrupts = <10 0>;
-				reg = <0x40a82000 0x00002000>;
+				reg = <0x40a03000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
 				status = "disabled";
 			};
@@ -97,15 +107,18 @@
 		};
 
 		unicomm3: unicomm3@40b82000 {
+			compatible = "ti,unicomm";
 			reg = <0x40b82000 0x00002000>;
 			interrupts = <14 0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 
-			unicomm3_uart: unicomm3_uart@40b82000 {
+			unicomm3_uart: unicomm3_uart@40b03000 {
 				compatible = "ti,mspm0-uart";
+				is-unicomm-uart;
 				interrupts = <14 0>;
-				reg = <0x40b82000 0x00002000>;
+				reg = <0x40b03000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_MCLK>;
 				status = "disabled";
 			};
