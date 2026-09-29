@@ -31,22 +31,14 @@
 				status = "disabled";
 			};
 
-			unicomm0_i2cc: unicomm0_i2cc@40a80000 {
-				compatible = "ti,mspm0-i2c";
+			unicomm0_i2c: unicomm0_i2c@40a21000 {
+				compatible = "ti,unicomm-i2c";
+				unicomm-advanced-i2c;
+				reg = <0x40a21000 0x00002000>, <0x40a41000 0x00002000>;
+				reg-names = "controller", "target";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <9 0>;
-				reg = <0x40a80000 0x00002000>;
-				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
-				status = "disabled";
-			};
-
-			unicomm0_i2ct: unicomm0_i2ct@40a80000 {
-				compatible = "ti,mspm0-i2c";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				interrupts = <9 0>;
-				reg = <0x40a80000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
 				status = "disabled";
 			};
@@ -69,12 +61,14 @@
 				status = "disabled";
 			};
 
-			unicomm1_i2cc: unicomm1_i2cc@40a82000 {
-				compatible = "ti,mspm0-i2c";
+			unicomm1_i2c: unicomm1_i2c@40a23000 {
+				compatible = "ti,unicomm-i2c";
+				unicomm-advanced-i2c;
+				reg = <0x40a23000 0x00002000>, <0x40a43000 0x00002000>;
+				reg-names = "controller", "target";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <10 0>;
-				reg = <0x40a82000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
 				status = "disabled";
 			};
