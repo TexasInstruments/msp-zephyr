@@ -1,0 +1,67 @@
+/*
+ * Copyright (c) 2026 Texas Instruments Incorporated
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/delete-node/ &unicomm0_uart;
+
+/ {
+	aliases {
+		/delete-property/ uart0;
+	};
+
+	chosen {
+		/delete-property/ zephyr,console;
+		/delete-property/ zephyr,shell-uart;
+		zephyr,console = &unicomm3_uart;
+	};
+};
+
+/* Initialize new UART for console output */
+&unicomm3 {
+	status = "okay";
+};
+
+&unicomm3_uart {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uc3_tx_pb15>;
+	pinctrl-names = "default";
+};
+
+/* I2C instances for the test */
+&unicomm0 {
+	status = "okay";
+};
+
+&unicomm0_i2c {
+	status = "okay";
+	pinctrl-0 = <&uc0_sda_pb18 &uc0_scl_pb21>;
+	pinctrl-names = "default";
+	txfifo-threshold = <5>;
+
+	eeprom1: eeprom@56 {
+		compatible = "zephyr,i2c-target-eeprom";
+		reg = <0x56>;
+		address-width = <8>;
+		size = <256>;
+	};
+};
+
+&unicomm1 {
+	status = "okay";
+};
+
+&unicomm1_i2c {
+	status = "okay";
+	pinctrl-0 = <&uc1_sda_pa0 &uc1_scl_pa1>;
+	pinctrl-names = "default";
+
+	eeprom0: eeprom@54 {
+		compatible = "zephyr,i2c-target-eeprom";
+		reg = <0x54>;
+		address-width = <8>;
+		size = <256>;
+	};
+};
