@@ -1,4 +1,8 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Copyright (c) 2026 Texas Instruments
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 /dts-v1/;
 
@@ -26,20 +30,23 @@
 		zephyr,console = &unicomm0_uart;
 		zephyr,shell-uart = &unicomm0_uart;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,flash-controller= &flashctl;
+		zephyr,flash-controller = &flashctl;
 		zephyr,system-timer-companion = &counterg0;
 	};
 
 	leds {
 		compatible = "gpio-leds";
+
 		led0: led_0 {
 			gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
 			label = "Blue LED";
 		};
+
 		led1: led_1 {
 			gpios = <&gpioa 17 GPIO_ACTIVE_HIGH>;
 			label = "Red LED";
 		};
+
 		led2: led_2 {
 			gpios = <&gpioa 24 GPIO_ACTIVE_HIGH>;
 			label = "Green LED";
@@ -48,11 +55,13 @@
 
 	keys {
 		compatible = "gpio-keys";
+
 		btn0: btn_0 {
 			gpios = <&gpiob 21 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 			label = "Switch 3";
 			zephyr,code = <INPUT_KEY_0>;
 		};
+
 		btn1: btn_1 {
 			gpios = <&gpioa 18 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 			label = "Switch 2";
@@ -74,7 +83,6 @@
 	clock-frequency = <DT_FREQ_M(80)>;
 	clocks = <&syspll>;
 };
-
 
 &flash0 {
 	status = "okay";
@@ -127,13 +135,6 @@
 	current-speed = <115200>;
 	pinctrl-0 = <&uc0_tx_pa10 &uc0_rx_pa11>;
 	pinctrl-names = "default";
-};
-
-&unicomm1_i2cc {
-	status = "disabled";
-	pinctrl-0 = <&uc1_scl_pa1 &uc1_sda_pa0>;
-	pinctrl-names = "default";
-	clock-frequency = <100000>;
 };
 
 &usbfs0 {
