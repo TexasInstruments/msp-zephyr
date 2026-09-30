@@ -697,8 +697,8 @@ static DEVICE_API(i2c, i2c_ti_unicomm_api) = {.configure = i2c_ti_unicomm_config
 	static const struct i2c_ti_unicomm_config i2c_config_##index = {                           \
 		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                                     \
 		.unicomm_base = DT_REG_ADDR(DT_INST_PARENT(index)),                                \
-		.unicomm_i2cc_base = DT_INST_REG_ADDR_BY_NAME(index, controller) + 0x1000U,        \
-		.unicomm_i2ct_base = DT_INST_REG_ADDR_BY_NAME(index, target) + 0x1000U,            \
+		.unicomm_i2cc_base = DT_INST_REG_ADDR_BY_NAME(index, controller),                  \
+		.unicomm_i2ct_base = DT_INST_REG_ADDR_BY_NAME(index, target),                      \
 		.unicomm_is_advanced = DT_INST_PROP(index, unicomm_advanced_i2c),                  \
 		.clkdiv = CLKDIV_DIVIDE_BY_1,                                                      \
 		.clock_subsys = &i2c_ti_unicomm_clock_subsys_##index,                              \
