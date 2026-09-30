@@ -64,5 +64,15 @@
 				status = "disabled";
 			};
 		};
+
+		usbfs0: usbfs0@4047f000 {
+			compatible = "ti,mspm0-usb";
+			reg = <0x4047f000 0x81000>;
+			interrupts = <6 0>;
+			num-bidir-endpoints = <16>;
+			num-in-endpoints = <8>;
+			num-out-endpoints = <8>;
+			status = "disabled";
+		};
 	};
 };

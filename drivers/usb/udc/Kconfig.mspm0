@@ -1,0 +1,16 @@
+# Copyright (c) 2024 Texas Instruments Incorporated
+# SPDX-License-Identifier: Apache-2.0
+
+config UDC_MSPM0
+	bool "MSPM0 USB Device Controller"
+	default y
+	depends on DT_HAS_TI_MSPM0_USB_ENABLED
+	select EVENTS
+	help
+	  MSPM0 USB device controller driver
+
+config UDC_MSPM0_STACK_SIZE
+	int "MSPM0 UDC stack size"
+	default 512
+	help
+	  MSPM0 USB device controller thread stack size
