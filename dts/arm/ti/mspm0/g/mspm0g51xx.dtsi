@@ -7,42 +7,76 @@
 /delete-node/ &uart1;
 /delete-node/ &uart2;
 /delete-node/ &uart3;
+/delete-node/ &i2c0;
+/delete-node/ &i2c1;
 /delete-node/ &tima1;
 /delete-node/ &timg12;
 
 / {
 	soc {
 		unicomm0: unicomm0@40a80000 {
+			compatible = "ti,unicomm";
 			reg = <0x40a80000 0x00002000>;
 			interrupts = <9 0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 
-			unicomm0_uart: unicomm0_uart@40a80000 {
+			unicomm0_uart: unicomm0_uart@40a01000 {
 				compatible = "ti,mspm0-uart";
+				is-unicomm-uart;
 				interrupts = <9 0>;
-				reg = <0x40a80000 0x00002000>;
+				reg = <0x40a01000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
 				status = "disabled";
 			};
-			
-			unicomm0_i2c: unicomm0_i2c@40a80000 {
-				compatible = "ti,mspm0-i2c";
+
+			unicomm0_i2c: unicomm0_i2c@40a21000 {
+				compatible = "ti,unicomm-i2c";
+				unicomm-advanced-i2c;
+				reg = <0x40a21000 0x00002000>, <0x40a41000 0x00002000>;
+				reg-names = "controller", "target";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				interrupts = <9 0>;
-				reg = <0x40a80000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
 				status = "disabled";
 			};
 		};
 
 		unicomm1: unicomm1@40a82000 {
+			compatible = "ti,unicomm";
 			reg = <0x40a82000 0x00002000>;
 			interrupts = <10 0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 
-			unicomm1_uart: unicomm1_uart@40a82000 {
+			unicomm1_uart: unicomm1_uart@40a03000 {
 				compatible = "ti,mspm0-uart";
+				is-unicomm-uart;
+				interrupts = <10 0>;
+				reg = <0x40a03000 0x00002000>;
+				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+				status = "disabled";
+			};
+
+			unicomm1_i2c: unicomm1_i2c@40a23000 {
+				compatible = "ti,unicomm-i2c";
+				unicomm-advanced-i2c;
+				reg = <0x40a23000 0x00002000>, <0x40a43000 0x00002000>;
+				reg-names = "controller", "target";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <10 0>;
+				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
+				status = "disabled";
+			};
+
+			unicomm1_i2ct: unicomm1_i2ct@40a82000 {
+				compatible = "ti,mspm0-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				interrupts = <10 0>;
 				reg = <0x40a82000 0x00002000>;
 				clocks = <&ckm MSPM0_CLOCK_ULPCLK>;
@@ -50,16 +84,51 @@
 			};
 		};
 
+		unicomm2: unicomm2@40b80000 {
+			compatible = "ti,unicomm";
+			unicomm-fixed-mode;
+			reg = <0x40b80000 0x00002000>;
+			interrupts = <13 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+
+			unicomm2_spi: unicomm2_spi@40b61000 {
+				compatible = "ti,unicomm-spi";
+				fifo-depth = <4>;
+				reg = <0x40b61000 0x00001000>;
+				interrupts = <13 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&ckm MSPM0_CLOCK_MCLK>;
+				status = "disabled";
+			};
+		};
+
 		unicomm3: unicomm3@40b82000 {
+			compatible = "ti,unicomm";
 			reg = <0x40b82000 0x00002000>;
 			interrupts = <14 0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 
-			unicomm3_uart: unicomm3_uart@40b82000 {
+			unicomm3_uart: unicomm3_uart@40b03000 {
 				compatible = "ti,mspm0-uart";
+				is-unicomm-uart;
 				interrupts = <14 0>;
-				reg = <0x40b82000 0x00002000>;
+				reg = <0x40b03000 0x00002000>;
+				clocks = <&ckm MSPM0_CLOCK_MCLK>;
+				status = "disabled";
+			};
+
+			unicomm3_spi: unicomm3_spi@40b63000 {
+				compatible = "ti,unicomm-spi";
+				fifo-depth = <4>;
+				reg = <0x40b63000 0x00001000>;
+				interrupts = <14 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&ckm MSPM0_CLOCK_MCLK>;
 				status = "disabled";
 			};
