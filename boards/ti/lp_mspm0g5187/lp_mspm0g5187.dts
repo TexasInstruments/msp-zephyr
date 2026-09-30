@@ -118,18 +118,15 @@
 	status = "okay";
 };
 
+&unicomm0 {
+	status = "okay";
+};
+
 &unicomm0_uart {
 	status = "okay";
 	current-speed = <115200>;
 	pinctrl-0 = <&uc0_tx_pa10 &uc0_rx_pa11>;
 	pinctrl-names = "default";
-};
-
-&unicomm1_i2cc {
-	status = "disabled";
-	pinctrl-0 = <&uc1_scl_pa1 &uc1_sda_pa0>;
-	pinctrl-names = "default";
-	clock-frequency = <100000>;
 };
 
 &usbfs0 {

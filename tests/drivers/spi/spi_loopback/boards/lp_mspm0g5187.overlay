@@ -1,0 +1,29 @@
+/*
+ * Copyright (c) 2026 Texas Instruments Incorporated
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&unicomm2 {
+	status = "okay";
+};
+
+&unicomm2_spi {
+	status = "okay";
+	pinctrl-0 = <&uc2_sclk_pa12 &uc2_poci_pa13 &uc2_pico_pa14 &uc2_cs3_pa15>;
+	pinctrl-names = "default";
+	/* 4-entry FIFO: TX ALMOST_EMPTY, RX NOT_EMPTY */
+	tx-fifo-threshold = <6>;
+	rx-fifo-threshold = <4>;
+
+	slow@0 {
+		compatible = "test-spi-loopback-slow";
+		reg = <0>;
+		spi-max-frequency = <500000>;
+	};
+
+	fast@0 {
+		compatible = "test-spi-loopback-fast";
+		reg = <0>;
+		spi-max-frequency = <8000000>;
+	};
+};

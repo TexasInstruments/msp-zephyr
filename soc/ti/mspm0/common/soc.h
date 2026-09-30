@@ -11,4 +11,6 @@
 #include <ti/devices/msp/msp.h>
 #include <ti/driverlib/m0p/dl_core.h>
 
+void msp_delay_peripheral_startup(void);
+
 #endif /* _MSPM0_SOC_H */
