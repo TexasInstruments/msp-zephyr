@@ -29,93 +29,91 @@
 LOG_MODULE_REGISTER(i2c_mspm0, CONFIG_I2C_LOG_LEVEL);
 #include "i2c-priv.h"
 
-
 /* TI DriverLib includes */
 #ifdef CONFIG_USE_MSPM0_DL_UNICOMM_I2CC
 #include <driverlib/dl_unicommi2cc.h>
-#define I2C_API(func) DL_I2CC_##func
+#define I2C_API(func)   DL_I2CC_##func
 #define I2C_CONST(name) DL_I2CC_##name
 
-#define I2C_CONTROLLER(name) DL_I2CC_##name
+#define I2C_CONTROLLER(name)           DL_I2CC_##name
 #define I2C_CONTROLLER_FXN(verb, noun) DL_I2CC_##verb##noun
 
-#define I2C_CONTROLLER_INT(name) DL_I2CC_INTERRUPT_##name
-#define I2C_TARGET_INT(name) DL_I2CC_INTERRUPT_##name
-#define I2C_INT(name) DL_I2CC_INTERRUPT_##name
+#define I2C_CONTROLLER_INT(name)  DL_I2CC_INTERRUPT_##name
+#define I2C_TARGET_INT(name)      DL_I2CC_INTERRUPT_##name
+#define I2C_INT(name)             DL_I2CC_INTERRUPT_##name
 #define I2C_CONTROLLER_IIDX(name) DL_I2CC_IIDX_##name
-#define I2C_TARGET_IIDX(name) DL_I2CC_IIDX_##name
-#define I2C_IIDX(name) DL_I2CC_IIDX_##name
+#define I2C_TARGET_IIDX(name)     DL_I2CC_IIDX_##name
+#define I2C_IIDX(name)            DL_I2CC_IIDX_##name
 
 #define I2C_TX_FIFO_LEVEL DL_I2CC_TX_FIFO_LEVEL_1_4_EMPTY
 #define I2C_RX_FIFO_LEVEL DL_I2CC_RX_FIFO_LEVEL_1_4_FULL
 
 /* patch while driverlib does not have the followign function */
-void DL_I2CC_blockAsync(UNICOMM_Inst_Regs *unicomm){
+void DL_I2CC_blockAsync(UNICOMM_Inst_Regs *unicomm)
+{
 	unicomm->inst->GPRCM.CLKCFG = (1 << 8) | (0xA9 << 24);
 }
 
 #elif CONFIG_USE_MSPM0_DL_UNICOMM_I2CT
 #include <driverlib/dl_unicommi2ct.h>
-#define I2C_API(func) DL_I2CT_##func
-#define I2C_CONST(name) DL_I2CT_##name
+#define I2C_API(func)            DL_I2CT_##func
+#define I2C_CONST(name)          DL_I2CT_##name
 #define I2C_CONTROLLER_INT(name) DL_I2CT_INTERRUPT_##name
 
-#define I2C_TARGET_INT(name) DL_I2CT_INTERRUPT_##name
-#define I2C_TARGET_FXN(verb,noun) DL_I2CT_##verb##noun
+#define I2C_TARGET_INT(name)       DL_I2CT_INTERRUPT_##name
+#define I2C_TARGET_FXN(verb, noun) DL_I2CT_##verb##noun
 
-#define I2C_INT(name) DL_I2CT_INTERRUPT_##name
+#define I2C_INT(name)             DL_I2CT_INTERRUPT_##name
 #define I2C_CONTROLLER_IIDX(name) DL_I2CT_IIDX_##name
-#define I2C_TARGET_IIDX(name) DL_I2CT_IIDX_##name
-#define I2C_IIDX(name) DL_I2CT_IIDX_##name
+#define I2C_TARGET_IIDX(name)     DL_I2CT_IIDX_##name
+#define I2C_IIDX(name)            DL_I2CT_IIDX_##name
 
 /* FIFOS */
-#define I2C_TX_FIFO_LEVEL DL_I2CC_TX_FIFO_LEVEL_1_4_EMPTY
-#define I2C_RX_FIFO_LEVEL DL_I2CC_RX_FIFO_LEVEL_1_4_FULL
+#define I2C_TX_FIFO_LEVEL         DL_I2CC_TX_FIFO_LEVEL_1_4_EMPTY
+#define I2C_RX_FIFO_LEVEL         DL_I2CC_RX_FIFO_LEVEL_1_4_FULL
 
 /* patch while driverlib does not have the followign function */
-void DL_I2CT_blockAsync(UNICOMM_Inst_Regs *unicomm){
+void DL_I2CT_blockAsync(UNICOMM_Inst_Regs *unicomm)
+{
 	unicomm->inst->GPRCM.CLKCFG = (1 << 8) | (0xA9 << 24);
 }
 
 #else
 #include <ti/driverlib/dl_i2c.h>
-#define I2C_API(func) DL_I2C_##func
-#define I2C_CONST(name) DL_I2C_##name
-#define I2C_CONTROLLER(name) DL_I2C_CONTROLLER_##name
+#define I2C_API(func)                  DL_I2C_##func
+#define I2C_CONST(name)                DL_I2C_##name
+#define I2C_CONTROLLER(name)           DL_I2C_CONTROLLER_##name
 #define I2C_CONTROLLER_FXN(verb, noun) DL_I2C_##verb##Controller##noun
-#define I2C_TARGET_FXN(verb, noun) DL_I2C_##verb##Target##noun
+#define I2C_TARGET_FXN(verb, noun)     DL_I2C_##verb##Target##noun
 
-#define I2C_CONTROLLER_INT(name) DL_I2C_INTERRUPT_CONTROLLER_##name
-#define I2C_TARGET_INT(name) DL_I2C_INTERRUPT_TARGET_##name
-#define I2C_INT(name) DL_I2C_INTERRUPT_##name
+#define I2C_CONTROLLER_INT(name)  DL_I2C_INTERRUPT_CONTROLLER_##name
+#define I2C_TARGET_INT(name)      DL_I2C_INTERRUPT_TARGET_##name
+#define I2C_INT(name)             DL_I2C_INTERRUPT_##name
 #define I2C_CONTROLLER_IIDX(name) DL_I2C_IIDX_CONTROLLER_##name
-#define I2C_TARGET_IIDX(name) DL_I2C_IIDX_TARGET_##name
-#define I2C_IIDX(name) DL_I2C_IIDX_##name
+#define I2C_TARGET_IIDX(name)     DL_I2C_IIDX_TARGET_##name
+#define I2C_IIDX(name)            DL_I2C_IIDX_##name
 
 /* FIFOS */
-#define I2C_TX_FIFO_LEVEL DL_I2CC_TX_FIFO_LEVEL_1_4_EMPTY
-#define I2C_RX_FIFO_LEVEL DL_I2CC_RX_FIFO_LEVEL_1_4_FULL
-
+#define I2C_TX_FIFO_LEVEL         DL_I2CC_TX_FIFO_LEVEL_1_4_EMPTY
+#define I2C_RX_FIFO_LEVEL         DL_I2CC_RX_FIFO_LEVEL_1_4_FULL
 
 /* patch while driverlib does not have the followign function */
-void DL_I2C_blockAsync(I2C_Regs * i2c){
+void DL_I2C_blockAsync(I2C_Regs *i2c)
+{
 	i2c->GPRCM.CLKCFG = (1 << 8) | (0xA9 << 24);
 }
 
 #endif /* CONFIG_HAS_MSP_UNICOMM*/
 
-
 #define TI_MSPM0_CONTROLLER_INTERRUPTS                                                             \
-	(I2C_CONTROLLER_INT(ARBITRATION_LOST) | I2C_CONTROLLER_INT(NACK) | \
-	I2C_CONTROLLER_INT(RXFIFO_TRIGGER) | I2C_CONTROLLER_INT(RX_DONE) | \
-	I2C_CONTROLLER_INT(TX_DONE) | I2C_INT(TIMEOUT_A)) | \
-	I2C_CONTROLLER_INT(STOP)
-
+	(I2C_CONTROLLER_INT(ARBITRATION_LOST) | I2C_CONTROLLER_INT(NACK) |                         \
+	 I2C_CONTROLLER_INT(RXFIFO_TRIGGER) | I2C_CONTROLLER_INT(RX_DONE) |                        \
+	 I2C_CONTROLLER_INT(TX_DONE) | I2C_INT(TIMEOUT_A)) |                                       \
+		I2C_CONTROLLER_INT(STOP)
 
 #define TI_MSPM0_TARGET_INTERRUPTS                                                                 \
-	(I2C_TARGET_INT(RX_DONE) | I2C_TARGET_INT(TXFIFO_EMPTY) |          \
-	I2C_TARGET_INT(START) | I2C_TARGET_INT(STOP) |                     \
-	I2C_INT(TIMEOUT_A))
+	(I2C_TARGET_INT(RX_DONE) | I2C_TARGET_INT(TXFIFO_EMPTY) | I2C_TARGET_INT(START) |          \
+	 I2C_TARGET_INT(STOP) | I2C_INT(TIMEOUT_A))
 
 enum i2c_mspm0_state {
 	I2C_MSPM0_IDLE,
@@ -270,16 +268,15 @@ static int i2c_mspm0_configure(const struct device *dev, uint32_t dev_config)
 
 	/* Config other settings */
 
-
-	I2C_CONTROLLER_FXN(set,TXFIFOThreshold)(config->base, I2C_TX_FIFO_LEVEL);
-	I2C_CONTROLLER_FXN(set,RXFIFOThreshold)(config->base, I2C_RX_FIFO_LEVEL);
-	I2C_CONTROLLER_FXN(enable,ClockStretching)(config->base);
+	I2C_CONTROLLER_FXN(set, TXFIFOThreshold)(config->base, I2C_TX_FIFO_LEVEL);
+	I2C_CONTROLLER_FXN(set, RXFIFOThreshold)(config->base, I2C_RX_FIFO_LEVEL);
+	I2C_CONTROLLER_FXN(enable, ClockStretching)(config->base);
 
 	/* Configure Interrupts */
 	I2C_API(enableInterrupt)(config->base, TI_MSPM0_CONTROLLER_INTERRUPTS);
 
 	/* Enable module */
-	I2C_CONTROLLER_FXN(enable,)(config->base);
+	I2C_CONTROLLER_FXN(enable, )(config->base);
 
 	/* disable async fast clock requests (not needed)
 	 * this also allows I2C to enter low power modes.
@@ -306,11 +303,11 @@ static int i2c_mspm0_init(const struct device *dev)
 	I2C_API(reset)(config->base);
 	I2C_API(enablePower)(config->base);
 	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
-	I2C_CONTROLLER_FXN(reset,Transfer)(config->base);
+	I2C_CONTROLLER_FXN(reset, Transfer)(config->base);
 
 #if CONFIG_I2C_TARGET && !MSPM0_UNICOMM
 	/* Workaround for errata I2C_ERR_04 (non-unicomm only)*/
-	I2C_TARGET_FXN(disable,Wakeup)(config->base);
+	I2C_TARGET_FXN(disable, Wakeup)(config->base);
 #endif
 	/* Init GPIO */
 	ret = pinctrl_apply_state(config->pinctrl, PINCTRL_STATE_DEFAULT);
@@ -348,30 +345,30 @@ static int i2c_mspm0_reset_controller(const struct device *dev)
 	I2C_API(disablePower)(config->base);
 
 	I2C_API(enablePower)(config->base);
-	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);\
+	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
 
 #if CONFIG_I2C_TARGET && !MSPM0_UNICOMM
-	I2C_TARGET_FXN(disable,Wakeup)(config->base);
+	I2C_TARGET_FXN(disable, Wakeup)(config->base);
 #endif
 	/* Config clocks and analog filter */
 	I2C_API(setClockConfig)(config->base, &config->clockConfig);
 	I2C_API(disableAnalogGlitchFilter)(config->base);
 
 	/* Configure Controller Mode */
-	I2C_CONTROLLER_FXN(reset,Transfer)(config->base);
+	I2C_CONTROLLER_FXN(reset, Transfer)(config->base);
 
 	/* Config other settings */
 
-	I2C_CONTROLLER_FXN(set,TXFIFOThreshold)(config->base, I2C_TX_FIFO_LEVEL);
-	I2C_CONTROLLER_FXN(set,RXFIFOThreshold)(config->base, I2C_RX_FIFO_LEVEL);
-	I2C_CONTROLLER_FXN(enable,ClockStretching)(config->base);
+	I2C_CONTROLLER_FXN(set, TXFIFOThreshold)(config->base, I2C_TX_FIFO_LEVEL);
+	I2C_CONTROLLER_FXN(set, RXFIFOThreshold)(config->base, I2C_RX_FIFO_LEVEL);
+	I2C_CONTROLLER_FXN(enable, ClockStretching)(config->base);
 
 	/* Configure Interrupts */
 	I2C_API(clearInterruptStatus)(config->base, TI_MSPM0_CONTROLLER_INTERRUPTS);
 	I2C_API(enableInterrupt)(config->base, TI_MSPM0_CONTROLLER_INTERRUPTS);
 
 	/* Enable module */
-	I2C_CONTROLLER_FXN(enable,)(config->base);
+	I2C_CONTROLLER_FXN(enable, )(config->base);
 
 	/* disable async fast clock requests (not needed)
 	 * this also allows I2C to enter low power modes.
@@ -393,16 +390,15 @@ static int i2c_mspm0_receive(const struct device *dev, struct i2c_msg msg, uint1
 	data->transfer_len = msg.len;
 	data->state = I2C_MSPM0_RX_STARTED;
 
-	if(msg.flags & I2C_MSG_STOP) {
+	if (msg.flags & I2C_MSG_STOP) {
 		stop = I2C_CONTROLLER(STOP_ENABLE);
-	}
-	else {
+	} else {
 		stop = I2C_CONTROLLER(STOP_DISABLE);
 	}
 
-	I2C_CONTROLLER_FXN(start,TransferAdvanced)(config->base, addr, I2C_CONTROLLER(DIRECTION_RX),
-				data->transfer_len, I2C_CONTROLLER(START_ENABLE), stop,
-				I2C_CONTROLLER(ACK_DISABLE));
+	I2C_CONTROLLER_FXN(start, TransferAdvanced)(
+		config->base, addr, I2C_CONTROLLER(DIRECTION_RX), data->transfer_len,
+		I2C_CONTROLLER(START_ENABLE), stop, I2C_CONTROLLER(ACK_DISABLE));
 
 	/* Wait for the read to complete */
 	if (k_sem_take(&data->device_sync_sem, K_MSEC(CONFIG_I2C_TRANSFER_TIMEOUT_MS))) {
@@ -414,7 +410,8 @@ static int i2c_mspm0_receive(const struct device *dev, struct i2c_msg msg, uint1
 	}
 
 	/* If error, return error */
-	if ((((I2C_CONTROLLER_FXN(get,Status)(config->base)) & (I2C_CONTROLLER(STATUS_ERROR))) != 0x00) ||
+	if ((((I2C_CONTROLLER_FXN(get, Status)(config->base)) & (I2C_CONTROLLER(STATUS_ERROR))) !=
+	     0x00) ||
 	    (data->state == I2C_MSPM0_ERROR)) {
 		return -EIO;
 	}
@@ -434,13 +431,14 @@ static int i2c_mspm0_transmit(const struct device *dev, struct i2c_msg msg, uint
 	data->state = I2C_MSPM0_IDLE;
 
 	/* Flush anything that is left in the stale FIFO */
-	I2C_CONTROLLER_FXN(flush,TXFIFO)(config->base);
+	I2C_CONTROLLER_FXN(flush, TXFIFO)(config->base);
 
 	/*  Fill the FIFO
 	 *  The FIFO is 8-bytes deep, and this function will return number
 	 *  of bytes written to FIFO
 	 */
-	data->transfer_count = I2C_CONTROLLER_FXN(fill,TXFIFO)(config->base, data->msg_buf, msg.len);
+	data->transfer_count =
+		I2C_CONTROLLER_FXN(fill, TXFIFO)(config->base, data->msg_buf, msg.len);
 
 	/* Enable TXFIFO trigger interrupt if there are more bytes to send */
 	if (data->transfer_count < data->transfer_len) {
@@ -449,17 +447,16 @@ static int i2c_mspm0_transmit(const struct device *dev, struct i2c_msg msg, uint
 		I2C_API(disableInterrupt)(config->base, I2C_CONTROLLER_INT(TXFIFO_TRIGGER));
 	}
 
-	if(msg.flags & I2C_MSG_STOP) {
+	if (msg.flags & I2C_MSG_STOP) {
 		stop = I2C_CONTROLLER(STOP_ENABLE);
-	}
-	else {
+	} else {
 		stop = I2C_CONTROLLER(STOP_DISABLE);
 	}
 
 	data->state = I2C_MSPM0_TX_STARTED;
-	I2C_CONTROLLER_FXN(start,TransferAdvanced)(config->base, addr, I2C_CONTROLLER(DIRECTION_TX),
-				data->transfer_len, I2C_CONTROLLER(START_ENABLE), stop,
-				I2C_CONTROLLER(ACK_ENABLE));
+	I2C_CONTROLLER_FXN(start, TransferAdvanced)(
+		config->base, addr, I2C_CONTROLLER(DIRECTION_TX), data->transfer_len,
+		I2C_CONTROLLER(START_ENABLE), stop, I2C_CONTROLLER(ACK_ENABLE));
 
 	/* Wait for the transmit to complete */
 	if (k_sem_take(&data->device_sync_sem, K_MSEC(CONFIG_I2C_TRANSFER_TIMEOUT_MS))) {
@@ -470,7 +467,8 @@ static int i2c_mspm0_transmit(const struct device *dev, struct i2c_msg msg, uint
 		return -ETIMEDOUT;
 	}
 
-	if (((I2C_CONTROLLER_FXN(get,Status)(config->base) & I2C_CONTROLLER(STATUS_ERROR)) != 0x00) ||
+	if (((I2C_CONTROLLER_FXN(get, Status)(config->base) & I2C_CONTROLLER(STATUS_ERROR)) !=
+	     0x00) ||
 	    (data->state == I2C_MSPM0_ERROR)) {
 		return -EIO;
 	}
@@ -614,15 +612,15 @@ static int i2c_mspm0_target_register(const struct device *dev, struct i2c_target
 		I2C_API(clearInterruptStatus)(config->base, TI_MSPM0_TARGET_INTERRUPTS);
 	}
 
-	I2C_CONTROLLER_FXN(disable,)(config->base);
+	I2C_CONTROLLER_FXN(disable, )(config->base);
 	I2C_API(disableInterrupt)(config->base, TI_MSPM0_CONTROLLER_INTERRUPTS);
 
-	I2C_TARGET_FXN(set,TXFIFOThreshold)(config->base, I2C_TX_FIFO_LEVEL);
-	I2C_TARGET_FXN(set,RXFIFOThreshold)(config->base, I2C_RX_FIFO_LEVEL);
-	I2C_TARGET_FXN(enable,TXTriggerInTXMode)(config->base);
-	I2C_TARGET_FXN(enable,TXEmptyOnTXRequest)(config->base);
-	I2C_TARGET_FXN(enable,ClockStretching)(config->base);
-	I2C_TARGET_FXN(set,OwnAddress)(config->base, data->target_config->address);
+	I2C_TARGET_FXN(set, TXFIFOThreshold)(config->base, I2C_TX_FIFO_LEVEL);
+	I2C_TARGET_FXN(set, RXFIFOThreshold)(config->base, I2C_RX_FIFO_LEVEL);
+	I2C_TARGET_FXN(enable, TXTriggerInTXMode)(config->base);
+	I2C_TARGET_FXN(enable, TXEmptyOnTXRequest)(config->base);
+	I2C_TARGET_FXN(enable, ClockStretching)(config->base);
+	I2C_TARGET_FXN(set, OwnAddress)(config->base, data->target_config->address);
 
 	I2C_API(clearInterruptStatus)(config->base, I2C_TARGET_INT(TXFIFO_EMPTY));
 	I2C_API(enableInterrupt)(config->base, TI_MSPM0_TARGET_INTERRUPTS);
@@ -687,22 +685,22 @@ static int i2c_mspm0_reset_target(const struct device *dev)
 	I2C_API(enablePower)(config->base);
 	delay_cycles(CONFIG_MSPM0_PERIPH_STARTUP_DELAY);
 
-	I2C_TARGET_FXN(disable,Wakeup)(config->base);
+	I2C_TARGET_FXN(disable, Wakeup)(config->base);
 
 	/* Config clocks and analog filter */
 	I2C_API(setClockConfig)(config->base, (I2C_CONST(ClockConfig) *)&config->clockConfig);
 	I2C_API(disableAnalogGlitchFilter)(config->base);
 
-	I2C_TARGET_FXN(set,OwnAddress)(config->base, data->target_config->address);
+	I2C_TARGET_FXN(set, OwnAddress)(config->base, data->target_config->address);
 #ifdef MSPM0_UNICOMM /* thresholds are not matches */
 	I2C_API(setTXFIFOThreshold)(config->base, I2C_CONST(TX_FIFO_LEVEL_1_4_EMPTY));
 	I2C_API(setRXFIFOThreshold)(config->base, I2C_CONST(RX_FIFO_LEVEL_1_4_FULL));
 #else
-	I2C_TARGET_FXN(set,TXFIFOThreshold)(config->base, I2C_CONST(TX_FIFO_LEVEL_BYTES_1));
-	I2C_TARGET_FXN(set,RXFIFOThreshold)(config->base, I2C_CONST(RX_FIFO_LEVEL_BYTES_1));
+	I2C_TARGET_FXN(set, TXFIFOThreshold)(config->base, I2C_CONST(TX_FIFO_LEVEL_BYTES_1));
+	I2C_TARGET_FXN(set, RXFIFOThreshold)(config->base, I2C_CONST(RX_FIFO_LEVEL_BYTES_1));
 #endif
-	I2C_TARGET_FXN(enable,TXTriggerInTXMode)(config->base);
-	I2C_TARGET_FXN(enable,TXEmptyOnTXRequest)(config->base);
+	I2C_TARGET_FXN(enable, TXTriggerInTXMode)(config->base);
+	I2C_TARGET_FXN(enable, TXEmptyOnTXRequest)(config->base);
 
 	I2C_API(clearInterruptStatus)(config->base, I2C_TARGET_INT(TXFIFO_EMPTY));
 
@@ -728,7 +726,7 @@ static void i2c_mspm0_isr_target(const struct device *dev)
 	case I2C_TARGET_IIDX(START):
 		data->state = I2C_MSPM0_TARGET_STARTED;
 		/* Flush TX FIFO to clear out any stale data */
-		I2C_TARGET_FXN(flush,TXFIFO)(config->base);
+		I2C_TARGET_FXN(flush, TXFIFO)(config->base);
 		break;
 	case I2C_TARGET_IIDX(RX_DONE):
 		if (data->state == I2C_MSPM0_TARGET_STARTED) {
@@ -736,11 +734,11 @@ static void i2c_mspm0_isr_target(const struct device *dev)
 			if (data->target_callbacks->write_requested != NULL) {
 				ret = data->target_callbacks->write_requested(data->target_config);
 				if (ret == 0) {
-					I2C_TARGET_FXN(set,ACKOverrideValue)(
+					I2C_TARGET_FXN(set, ACKOverrideValue)(
 						config->base,
 						I2C_CONST(TARGET_RESPONSE_OVERRIDE_VALUE_ACK));
 				} else {
-					I2C_TARGET_FXN(set,ACKOverrideValue)(
+					I2C_TARGET_FXN(set, ACKOverrideValue)(
 						config->base,
 						I2C_CONST(TARGET_RESPONSE_OVERRIDE_VALUE_NACK));
 				}
@@ -748,23 +746,23 @@ static void i2c_mspm0_isr_target(const struct device *dev)
 		}
 		/* Store received data in buffer */
 		if (data->target_callbacks->write_received != NULL) {
-			while (I2C_TARGET_FXN(is,RXFIFOEmpty)(config->base) != true) {
-				rxByte = I2C_TARGET_FXN(receive,Data)(config->base);
+			while (I2C_TARGET_FXN(is, RXFIFOEmpty)(config->base) != true) {
+				rxByte = I2C_TARGET_FXN(receive, Data)(config->base);
 				ret = data->target_callbacks->write_received(data->target_config,
 									     rxByte);
 				if (ret == 0) {
-					I2C_TARGET_FXN(set,ACKOverrideValue)(
+					I2C_TARGET_FXN(set, ACKOverrideValue)(
 						config->base,
 						I2C_CONST(TARGET_RESPONSE_OVERRIDE_VALUE_ACK));
 				} else {
-					I2C_TARGET_FXN(set,ACKOverrideValue)(
+					I2C_TARGET_FXN(set, ACKOverrideValue)(
 						config->base,
 						I2C_CONST(TARGET_RESPONSE_OVERRIDE_VALUE_NACK));
 				}
 			}
 		} else {
-			I2C_TARGET_FXN(receive,Data)(config->base);
-			I2C_TARGET_FXN(set,ACKOverrideValue)(
+			I2C_TARGET_FXN(receive, Data)(config->base);
+			I2C_TARGET_FXN(set, ACKOverrideValue)(
 				config->base, I2C_CONST(TARGET_RESPONSE_OVERRIDE_VALUE_NACK));
 		}
 		break;
@@ -776,19 +774,19 @@ static void i2c_mspm0_isr_target(const struct device *dev)
 				ret = data->target_callbacks->read_requested(data->target_config,
 									     &txByte);
 				if (ret == 0) {
-					I2C_TARGET_FXN(transmit,Data)(config->base, txByte);
+					I2C_TARGET_FXN(transmit, Data)(config->base, txByte);
 				} else {
 					/* In this case, no new data is desired to be filled, thus
 					 * 0's are transmitted
 					 */
-					I2C_TARGET_FXN(transmit,Data)(config->base, 0x00);
+					I2C_TARGET_FXN(transmit, Data)(config->base, 0x00);
 				}
 			} else {
 				/* read_requested function is not found. The target data will
 				 * continue to transmit to fulfill the error and not hang
 				 * the controller by stretching indefinitely
 				 */
-				I2C_TARGET_FXN(transmit,DataCheck)(config->base, 0xFF);
+				I2C_TARGET_FXN(transmit, DataCheck)(config->base, 0xFF);
 			}
 		} else {
 			/* still using the FIFO, we call read_processed in order to add
@@ -801,19 +799,19 @@ static void i2c_mspm0_isr_target(const struct device *dev)
 									     &txByte);
 
 				if (ret == 0) {
-					I2C_TARGET_FXN(transmit,Data)(config->base, txByte);
+					I2C_TARGET_FXN(transmit, Data)(config->base, txByte);
 				} else {
 					/* In this case, no new data is desired to be filled, thus
 					 * 0's are transmitted
 					 */
-					I2C_TARGET_FXN(transmit,Data)(config->base, 0x00);
+					I2C_TARGET_FXN(transmit, Data)(config->base, 0x00);
 				}
 			} else {
 				/* Read_processed function is not found. The target data will
 				 * continue to transmit to fulfill the error and not hang
 				 * the controller by stretching indefinitely
 				 */
-				I2C_TARGET_FXN(transmit,DataCheck)(config->base, 0xFF);
+				I2C_TARGET_FXN(transmit, DataCheck)(config->base, 0xFF);
 			}
 		}
 		break;
@@ -858,13 +856,13 @@ static inline void i2c_mspm0_isr_controller(const struct device *dev)
 		if (data->state != I2C_MSPM0_RX_COMPLETE) {
 			data->state = I2C_MSPM0_RX_INPROGRESS;
 		}
-		while (I2C_CONTROLLER_FXN(is,RXFIFOEmpty)(config->base) != true) {
+		while (I2C_CONTROLLER_FXN(is, RXFIFOEmpty)(config->base) != true) {
 			if (data->transfer_count < data->transfer_len) {
 				data->msg_buf[data->transfer_count++] =
-					I2C_CONTROLLER_FXN(receive,Data)(config->base);
+					I2C_CONTROLLER_FXN(receive, Data)(config->base);
 			} else {
 				/* Ignore if transaction length exceeded */
-				I2C_CONTROLLER_FXN(receive,Data)(config->base);
+				I2C_CONTROLLER_FXN(receive, Data)(config->base);
 			}
 		}
 		break;
@@ -872,7 +870,7 @@ static inline void i2c_mspm0_isr_controller(const struct device *dev)
 		data->state = I2C_MSPM0_TX_INPROGRESS;
 		/* Fill TX FIFO with next bytes to send */
 		if (data->transfer_count < data->transfer_len) {
-			data->transfer_count += I2C_CONTROLLER_FXN(fill,TXFIFO)(
+			data->transfer_count += I2C_CONTROLLER_FXN(fill, TXFIFO)(
 				config->base, &data->msg_buf[data->transfer_count],
 				data->transfer_len - data->transfer_count);
 		}
@@ -890,7 +888,7 @@ static inline void i2c_mspm0_isr_controller(const struct device *dev)
 		k_sem_give(&data->device_sync_sem);
 		I2C_API(disableInterrupt)(config->base, TI_MSPM0_CONTROLLER_INTERRUPTS);
 		I2C_API(clearInterruptStatus)(config->base, TI_MSPM0_CONTROLLER_INTERRUPTS);
-		I2C_CONTROLLER_FXN(flush,TXFIFO)(config->base);
+		I2C_CONTROLLER_FXN(flush, TXFIFO)(config->base);
 	case I2C_CONTROLLER_IIDX(STOP):
 		k_sem_give(&data->i2c_lock);
 #ifdef CONFIG_PM_DEVICE
@@ -948,48 +946,48 @@ static DEVICE_API(i2c, i2c_mspm0_driver_api) = {
 		irq_enable(DT_INST_IRQN(index));                                                   \
 	}
 
-#define MSP_I2C_INIT_FN(index)                                                                     \
-	PINCTRL_DT_INST_DEFINE(index);                                                             \
-	static const struct mspm0_sys_clock mspm0_i2c_clockSys##index =                            \
-	MSPM0_CLOCK_SUBSYS_FN(index);                                                              \
-	I2C_MSPM0_CONFIG_IRQ_FUNC(index)                                                           \
-                                                                                                   \
+#define MSP_I2C_INIT_FN(index)                                                                                    \
+	PINCTRL_DT_INST_DEFINE(index);                                                                            \
+	static const struct mspm0_sys_clock mspm0_i2c_clockSys##index =                                           \
+		MSPM0_CLOCK_SUBSYS_FN(index);                                                                     \
+	I2C_MSPM0_CONFIG_IRQ_FUNC(index)                                                                          \
+                                                                                                                  \
 	IF_ENABLED(CONFIG_USE_MSPM0_DL_UNICOMM_I2CC,                                               \
 	(static UNICOMM_Inst_Regs i2c_mspm0_uc_regs_##index = {                                    \
 		.inst =  (UNICOMM_Regs *)DT_INST_REG_ADDR(index),                                  \
 		.i2cc = (UNICOMMI2CC_Regs *)UC_I2CC_BASE(DT_INST_REG_ADDR(index)),                 \
 		.fixedMode = DT_CHILD_NUM(DT_PARENT(DT_DRV_INST(index))) == 1,                     \
 	};)                                                                                        \
-	)                                                                                          \
+	)              \
 	IF_ENABLED(CONFIG_USE_MSPM0_DL_UNICOMM_I2CT,                                                            \
 	(static UNICOMM_Inst_Regs i2c_mspm0_uc_regs_##index = {                                    \
 		.inst =  (UNICOMM_Regs *)DT_INST_REG_ADDR(index),                                  \
 		.i2ct = (UNICOMMI2CT_Regs *)UC_I2CT_BASE(DT_INST_REG_ADDR(index)),                 \
 		.fixedMode = DT_CHILD_NUM(DT_PARENT(DT_DRV_INST(index))) == 1,                     \
 	};)                                                                                        \
-	)                                                                                          \
-                                                                                                   \
+	) \
+                                                                                                                  \
 	IF_ENABLED(USES_MERGE_BUF(index),                                                          \
-		(static uint8_t mspm0_i2c_msg_buf_##index[MERGE_BUF_SIZE(index)];));               \
-	static const struct i2c_mspm0_config i2c_mspm0_cfg_##index = {                             \
+		(static uint8_t mspm0_i2c_msg_buf_##index[MERGE_BUF_SIZE(index)];));                                                      \
+	static const struct i2c_mspm0_config i2c_mspm0_cfg_##index = {                                            \
 		.base = COND_CODE_1(CONFIG_HAS_MSP_UNICOMM,                                        \
-			(&i2c_mspm0_uc_regs_##index), ((I2C_Regs *)DT_INST_REG_ADDR(index))),      \
-		.clock_subsys = &mspm0_i2c_clockSys##index,                                        \
-		.bitrate = DT_INST_PROP(index, clock_frequency),                                   \
-		.merge_buf_size = MERGE_BUF_SIZE(index),                                           \
-		IF_ENABLED(USES_MERGE_BUF(index), (                                                \
+			(&i2c_mspm0_uc_regs_##index), ((I2C_Regs *)DT_INST_REG_ADDR(index))),                       \
+			 .clock_subsys = &mspm0_i2c_clockSys##index,                                              \
+			 .bitrate = DT_INST_PROP(index, clock_frequency),                                         \
+			 .merge_buf_size = MERGE_BUF_SIZE(index),                                                 \
+			 IF_ENABLED(USES_MERGE_BUF(index), (                                                \
 		.merge_buf = mspm0_i2c_msg_buf_##index,                                            \
-		))                                                                                 \
-		.pinctrl = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                                  \
-		.irq_config_func = i2c_mspm0_irq_config_func_##index,                              \
-		.clockConfig = {                                                                   \
-			.clockSel = MSPM0_CLOCK_PERIPH_REG_MASK(DT_INST_CLOCKS_CELL(index, clk)),  \
-			.divideRatio = I2C_CONST(CLOCK_DIVIDE_1),                                  \
-		}                                                                                  \
-	};                                                                                         \
-	static struct i2c_mspm0_data i2c_mspm0_data_##index;                                       \
-	I2C_DEVICE_DT_INST_DEFINE(index, i2c_mspm0_init, NULL, &i2c_mspm0_data_##index,            \
-		&i2c_mspm0_cfg_##index, POST_KERNEL, CONFIG_I2C_INIT_PRIORITY,                     \
-		&i2c_mspm0_driver_api);
+		)) .pinctrl =                       \
+						 PINCTRL_DT_INST_DEV_CONFIG_GET(index),                           \
+				 .irq_config_func = i2c_mspm0_irq_config_func_##index,                            \
+				 .clockConfig = {                                                                 \
+					 .clockSel = MSPM0_CLOCK_PERIPH_REG_MASK(                                 \
+						 DT_INST_CLOCKS_CELL(index, clk)),                                \
+					 .divideRatio = I2C_CONST(CLOCK_DIVIDE_1),                                \
+				 }};                                                                              \
+	static struct i2c_mspm0_data i2c_mspm0_data_##index;                                                      \
+	I2C_DEVICE_DT_INST_DEFINE(index, i2c_mspm0_init, NULL, &i2c_mspm0_data_##index,                           \
+				  &i2c_mspm0_cfg_##index, POST_KERNEL, CONFIG_I2C_INIT_PRIORITY,                  \
+				  &i2c_mspm0_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(MSP_I2C_INIT_FN)
